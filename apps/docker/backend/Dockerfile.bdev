@@ -1,0 +1,11 @@
+FROM python:3.15.0b1-slim-bookworm
+
+WORKDIR /apps/backend
+
+COPY ./apps/backend .
+
+RUN python3 -m venv venv && \
+/opt/venv/bin/pip install requirement.txt
+
+RUN /opt/venv/bin/python manage.py collecstatic
+

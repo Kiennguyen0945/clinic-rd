@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Lễ tân" as rcpt
+actor "Bác sĩ" as doc
+
+package "Phân hệ Patient Service" {
+  usecase "Tìm kiếm bệnh nhân" as UC_Search
+  usecase "Tạo mới hồ sơ bệnh nhân" as UC_CreatePatient
+  usecase "Cập nhật thông tin hành chính" as UC_UpdatePatient
+  
+  usecase "Xem lịch sử khám/bệnh án" as UC_ViewHistory
+  usecase "Ghi nhận bệnh án (Chẩn đoán)" as UC_CreateRecord
+}
+
+rcpt --> UC_Search
+rcpt --> UC_CreatePatient
+rcpt --> UC_UpdatePatient
+
+' Bác sĩ cũng cần tìm kiếm bệnh nhân để xem
+doc --> UC_Search
+doc --> UC_ViewHistory
+doc --> UC_CreateRecord
+@enduml

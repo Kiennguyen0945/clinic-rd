@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+
+actor "Lễ tân" as rcpt
+actor "Bác sĩ" as doc
+actor "Quản lý" as admin
+actor "Nhân viên" as staff
+
+rcpt -up-|> staff
+doc -up-|> staff
+admin -up-|> staff
+
+package "Hệ thống Quản lý Phòng khám (Microservices)" {
+  usecase "Đăng nhập & Quản lý thông tin cá nhân" as UC_Login
+  
+  usecase "Quản lý hồ sơ bệnh nhân" as UC1
+  usecase "Quản lý lịch hẹn khám" as UC2
+  
+  usecase "Xem lịch khám được phân công" as UC4
+  usecase "Cập nhật bệnh án & Chẩn đoán" as UC5
+  
+  usecase "Quản lý tài khoản nhân sự" as UC7
+  usecase "Thống kê lượt khám bệnh" as UC9
+}
+
+staff --> UC_Login
+
+rcpt --> UC1
+rcpt --> UC2
+
+doc --> UC4
+doc --> UC5
+
+admin --> UC7
+admin --> UC9
+@enduml

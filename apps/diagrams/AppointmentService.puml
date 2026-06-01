@@ -1,0 +1,30 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Lễ tân" as rcpt
+actor "Bác sĩ" as doc
+actor "Quản lý" as admin
+
+package "Phân hệ Appointment Service" {
+  usecase "Tạo lịch hẹn khám mới" as UC_CreateAppt
+  usecase "Cập nhật / Hủy lịch hẹn" as UC_UpdateAppt
+  
+  usecase "Xem danh sách lịch hẹn trong ngày" as UC_ViewList
+  usecase "Lọc lịch hẹn theo Bác sĩ" as UC_FilterList
+  
+  usecase "Xem thống kê số lượt khám" as UC_Report
+}
+
+' Lễ tân có thể bao lô việc đặt lịch
+rcpt --> UC_CreateAppt
+rcpt --> UC_UpdateAppt
+rcpt --> UC_ViewList
+
+' Bác sĩ chỉ xem lịch của mình
+doc --> UC_ViewList
+doc --> UC_FilterList
+
+' Admin vào xem báo cáo tổng
+admin --> UC_Report
+@enduml
