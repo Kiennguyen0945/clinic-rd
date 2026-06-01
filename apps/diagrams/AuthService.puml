@@ -1,0 +1,24 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Nhân viên (Lễ tân/Bác sĩ)" as user
+actor "Quản lý (Admin)" as admin
+
+' Kế thừa: Admin cũng là User
+admin -up-|> user
+
+package "Phân hệ Auth Service" {
+  usecase "Đăng nhập hệ thống (Lấy Token)" as UC_Login
+  usecase "Đổi mật khẩu cá nhân" as UC_ChangePass
+  
+  usecase "Tạo tài khoản nhân viên" as UC_CreateAccount
+  usecase "Khóa/Mở khóa tài khoản" as UC_ManageAccount
+}
+
+user --> UC_Login
+user --> UC_ChangePass
+
+admin --> UC_CreateAccount
+admin --> UC_ManageAccount
+@enduml

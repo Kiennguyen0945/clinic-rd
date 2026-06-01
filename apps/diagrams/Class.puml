@@ -1,0 +1,94 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title CLINIC MANAGEMENT SYSTEM
+
+' Cấu hình cho STUB CLASS
+skinparam class {
+    BackgroundColor<<Stub>> #F0F0F0
+    BorderColor<<Stub>> #Gray
+    BorderStyle<<Stub>> dashed
+    FontColor<<Stub>> #555555
+}
+
+scale 2
+
+class "Roles" {
+    + id : Long
+    + code : String
+    + name : String
+    + description : String
+}
+
+class "Users" {
+    + id : Long
+    + roleId : Long
+    + username : String
+    + passwordHash : String
+    + fullName : String
+    + phone : String
+    + status : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+class "Patients" {
+    + id : Long
+    + patientCode : String
+    + fullName : String
+    + dob : Date
+    + gender : String
+    + phone : String
+    + address : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+class "Appointments" {
+    + id : Long
+    + patientId : Long
+    + doctorId : Long
+    + creatorId : Long
+    + appointmentTime : DateTime
+    + reason : String
+    + status : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+together {
+    class "MedicalRecords" {
+        + id : Long
+        + appointmentId : Long
+        + symptoms : String
+        + diagnosis : String
+        + notes : String
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
+}
+
+' === STUB CLASS (Đại diện cho dịch vụ ngoài trong Microservices) ===
+class "Auth_Service" <<Stub>> {
+    + token : String
+    + payload : String
+    + verifyToken() : Boolean
+}
+
+
+' === QUAN HỆ ===
+
+' Quan hệ phân quyền
+Roles "1" -up- "0..*" Users
+
+' Quan hệ nghiệp vụ phòng khám (Core)
+Patients "1" -- "0..*" Appointments
+Users "1" -- "0..*" Appointments
+
+' Quan hệ 1-1 giữa Lịch khám và Bệnh án thực tế
+Appointments "1" *-- "0..1" MedicalRecords
+
+' Quan hệ với dịch vụ bên ngoài (Microservices)
+Auth_Service "1" .. "0..*" Users
