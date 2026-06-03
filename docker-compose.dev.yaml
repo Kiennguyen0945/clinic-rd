@@ -1,39 +1,37 @@
-
 services:
-    database:
-      container_name: db
-      image: postgres:18.4-alpine3.23
-      env_file:	
-        - ./.env
-      volumes:
-        - postgres_data:/var/lib/postgress/data
-	  
-    backendend:
-      container_name: backend
-      build:
-        context: .
-        dockerfile: ./apps/docker/backend/Dockerfile.bdev
-      env_file:
-        - ./.env
-      volumes:
-        - ./apps/backend:/apps/backend
-        - static:/apps/backend/productionfiles
-      depends_on:
-        - db
-      ports:
-        - 8000:8000
-    frontend:
+  database:
+    container_name: db
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/var/lib/postgres/data
+    
+  backend:
+    container_name: backend
+    build:
+      context: .
+      dockerfile: ./apps/docker/backend/Dockerfile.bdev
+    ports:
+      - 8000:8000
+    volumes:
+      - static:/apps/backend/productionfiles
+      - ./apps/backend:/apps/backend
+    depends_on:
+      - database
+    env_file:
+      - ./.env
+
+  frontend:
       container_name: frontend
       build:
         context: .
-        dockerfile: /apps/docker/frontend/dockerfile.fdev
+        dockerfile: ./apps/docker/frontend/Dockerfile.fdev
       ports:
         - 3000:3000
-      env_file:
-        ./.env
       volumes:
         - ./apps/frontend:/apps/frontend
-    nginx:
+  nginx:
       container_name: nginx
       build:
         context: .
@@ -42,8 +40,11 @@ services:
         - 80:80
       volumes:
         - static:/apps/backend/productionfiles
-        - ./apps/docker/nginx/nginx.dev.config:/etc/nginx/conf.d/nginx.conf
+          ./apps/docker/nginx/nginx.dev.conf:/etc/nginx/conf.d/nginx.conf
+      depends_on:
+        - frontend
+        - backend
     
 volumes:
-  static:
-  postgres_data:
+ postgres_data:
+ static:

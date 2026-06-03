@@ -4,8 +4,11 @@ WORKDIR /apps/backend
 
 COPY ./apps/backend .
 
-RUN python3 -m venv venv && \
+RUN python3 -m venv /opt/venv && \
+/opt/venv/bin/pip install --upgrade pip && \
 /opt/venv/bin/pip install requirement.txt
 
 RUN /opt/venv/bin/python manage.py collecstatic
+
+CMD [ "/opt/venv/bin/python", "manage.py", "runserver", "0.0.0.0:8000"]
 
