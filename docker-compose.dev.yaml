@@ -1,11 +1,11 @@
 services:
   database:
-    container_name: db
-    image: postgres:18.4-alpine3.23
+    container_name: clinic_db
+    image: postgres:17.10-alpine3.23
     env_file:
       - ./.env
     volumes:
-      - postgres_data:/var/lib/postgres/data
+      - postgres_clinic_db:/var/lib/postgresql/data
     ports:
       - 5432:5432
     healthcheck:
@@ -13,7 +13,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    
+
   backend:
     container_name: backend
     build:
@@ -22,7 +22,7 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - static:/apps/backend/productionfiles
+      - static_prod:/apps/backend/productionfiles
       - ./apps/backend:/apps/backend
     depends_on:
       database:
@@ -47,12 +47,12 @@ services:
       ports:
         - 80:80
       volumes:
-        - static:/apps/backend/productionfiles
+        - static_prod:/apps/backend/productionfiles
           ./apps/docker/nginx/nginx.dev.conf:/etc/nginx/conf.d/nginx.conf
       depends_on:
         - frontend
         - backend
     
 volumes:
- postgres_data:
- static:
+ postgres_clinic_db:
+ static_prod:

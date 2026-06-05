@@ -84,7 +84,7 @@ if DB_ENGINE == "postgres":
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('POSTGRES_DB', "db", cast=str),
+            'NAME': config('POSTGRES_DB', "clinic_db ", cast=str),
             'USER': config('POSTGRES_USER', "postgres", cast=str),
             'PASSWORD': config('POSTGRES_PASSWORD', "123456", cast=str),
             'HOST': config('POSTGRES_HOST', "db", cast=str),
@@ -92,6 +92,7 @@ if DB_ENGINE == "postgres":
         }
     }
 else:
+    print("Using Sqlite")
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
