@@ -14,12 +14,12 @@ package "Phân hệ Patient Service" {
   usecase "Ghi nhận bệnh án (Chẩn đoán)" as UC_CreateRecord
 }
 
-rcpt --> UC_Search
-rcpt --> UC_CreatePatient
-rcpt --> UC_UpdatePatient
+rcpt -- UC_Search
+rcpt -- UC_CreatePatient
+rcpt -- UC_UpdatePatient
 
 ' Bác sĩ cũng cần tìm kiếm bệnh nhân để xem
-doc --> UC_Search
-doc --> UC_ViewHistory
-doc --> UC_CreateRecord
+doc -- UC_Search
+doc -- UC_ViewHistory
+doc -- UC_CreateRecord
 @enduml

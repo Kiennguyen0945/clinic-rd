@@ -4,13 +4,13 @@ left to right direction
 actor "Lễ tân" as rcpt
 actor "Bác sĩ" as doc
 actor "Quản lý" as admin
-actor "Nhân viên" as staff
+actor "User" as staff
 
 rcpt -up-|> staff
 doc -up-|> staff
 admin -up-|> staff
 
-package "Hệ thống Quản lý Phòng khám (Microservices)" {
+package "CLINIC MANAGEMENT SYSTEM" {
   usecase "Đăng nhập & Quản lý thông tin cá nhân" as UC_Login
   
   usecase "Quản lý hồ sơ bệnh nhân" as UC1
@@ -23,14 +23,14 @@ package "Hệ thống Quản lý Phòng khám (Microservices)" {
   usecase "Thống kê lượt khám bệnh" as UC9
 }
 
-staff --> UC_Login
+staff -- UC_Login
 
-rcpt --> UC1
-rcpt --> UC2
+rcpt -- UC1
+rcpt -- UC2
 
-doc --> UC4
-doc --> UC5
+doc -- UC4
+doc -- UC5
 
-admin --> UC7
-admin --> UC9
+admin -- UC7
+admin -- UC9
 @enduml

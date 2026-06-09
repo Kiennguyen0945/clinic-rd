@@ -17,14 +17,14 @@ package "Phân hệ Appointment Service" {
 }
 
 ' Lễ tân có thể bao lô việc đặt lịch
-rcpt --> UC_CreateAppt
-rcpt --> UC_UpdateAppt
-rcpt --> UC_ViewList
+rcpt -- UC_CreateAppt
+rcpt -- UC_UpdateAppt
+rcpt -- UC_ViewList
 
 ' Bác sĩ chỉ xem lịch của mình
-doc --> UC_ViewList
-doc --> UC_FilterList
+doc -- UC_ViewList
+doc -- UC_FilterList
 
 ' Admin vào xem báo cáo tổng
-admin --> UC_Report
+admin -- UC_Report
 @enduml
