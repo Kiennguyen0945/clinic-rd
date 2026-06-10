@@ -9,7 +9,7 @@ class Role(models.Model):
         return self.name
 
 class User(models.Model):
-    role_id = models.ForeignKey(Role, on_delete=models.RESTRICT, related_name = "users")
+    role = models.ForeignKey(Role, on_delete=models.RESTRICT, related_name = "users")
     username = models.CharField(max_length=255)
     password_hash = models.CharField(max_length=255)
     full_name = models.CharField(max_length=150)
@@ -20,7 +20,7 @@ class User(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.username
 
 
 # Create your models here.

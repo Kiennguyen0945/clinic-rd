@@ -37,6 +37,7 @@ STATIC_URL = 'static/'
 INSTALLED_APPS = [
     'AuthService',
     'custom_commands',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
