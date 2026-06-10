@@ -16,9 +16,9 @@ package "Phân hệ Auth Service" {
   usecase "Khóa/Mở khóa tài khoản" as UC_ManageAccount
 }
 
-user --> UC_Login
-user --> UC_ChangePass
+user -- UC_Login
+user -- UC_ChangePass
 
-admin --> UC_CreateAccount
-admin --> UC_ManageAccount
+admin -- UC_CreateAccount
+admin -- UC_ManageAccount
 @enduml

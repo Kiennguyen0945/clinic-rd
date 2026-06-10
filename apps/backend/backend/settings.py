@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,6 +35,9 @@ STATIC_URL = 'static/'
 # Application definition
 
 INSTALLED_APPS = [
+    'AuthService',
+    'custom_commands',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -75,12 +79,29 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+
+DB_ENGINE = config("DB_ENGINE", "postgres", cast=str)
+
+if DB_ENGINE == "postgres":
+    print("Using Postgres")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('POSTGRES_DB', "clinic_db ", cast=str),
+            'USER': config('POSTGRES_USER', "postgres", cast=str),
+            'PASSWORD': config('POSTGRES_PASSWORD', "123456", cast=str),
+            'HOST': config('POSTGRES_HOST', "db", cast=str),
+            'PORT': config('POSTGRES_PORT', "5432", cast=str),
+        }
     }
-}
+else:
+    print("Using Sqlite")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
