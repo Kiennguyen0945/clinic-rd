@@ -7,7 +7,7 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://backend:8000/roles')
+        const response = await fetch('/api/roles')
         const result = await response.json()
         setData(result)
       } catch (error) {
