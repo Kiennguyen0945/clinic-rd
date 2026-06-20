@@ -9,5 +9,5 @@ class RoleSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['role', 'user_name', 'full_name', 'phone', 'status']
+        fields = ['role', 'username', 'full_name', 'phone', 'status']
 

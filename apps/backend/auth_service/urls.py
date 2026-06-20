@@ -4,5 +4,5 @@ from .views import homePageView, role_api, user_api
 urlpatterns = [
     path('home/', homePageView, name='home'),
     path('api/roles/', role_api, name='role_api'),
-    path('users/', user_api, name='user-api')
+    path('api/users/', user_api, name='user-api')
 ]
