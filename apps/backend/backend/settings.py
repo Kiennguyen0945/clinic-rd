@@ -75,6 +75,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # REMOVE or COMMENT OUT 'rest_framework.authentication.SessionAuthentication' if it's here
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny', 
+    ),
+}
+
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
