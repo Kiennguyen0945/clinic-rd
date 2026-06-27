@@ -2,6 +2,6 @@ FROM nginx:1.31.1-alpine
 
 RUN rm /etc/nginx/conf.d/default.conf
 
-COPY ./apps/docker/nginx/nginx.dev.conf /etc/nginx/conf.d/default.conf
+COPY ./apps/docker/nginx/nginx.dev.conf /etc/nginx/conf.d
 
 CMD ["nginx", "-g", "daemon off;"]
