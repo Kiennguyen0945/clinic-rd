@@ -42,9 +42,9 @@ def login_api(request):
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
-        return Response({"errors": "Account is looked"}, status = 401)
+        return Response({"errors": "Account is looked."}, status = 401)
     if getattr(user, 'status', '') == 'Locked':
-        return Response({"errors": "Account is locked "}, status = 403)
+        return Response({"errors": "Account is locked."}, status = 403)
     if not check_password(password, user.password_hash):
         return Response({"errors": "Invalid username or password."}, status = 401)
     refresh = RefreshToken.for_user(user)
@@ -57,8 +57,6 @@ def login_api(request):
         }
     }, status=200)
 
-
-        
 
 
 def homePageView(request):
