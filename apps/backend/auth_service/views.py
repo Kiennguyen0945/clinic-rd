@@ -53,6 +53,8 @@ def login_api(request):
         'user': {
             'id': user.id,
             'username': user.username,
+            'full_name': user.full_name,
+            'role': user.role.code if user.role else 'doctor',
             'status': user.status if hasattr(user, 'status') else 'ACTIVE'
         }
     }, status=200)
