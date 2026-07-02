@@ -1,0 +1,59 @@
+name: ci frontend
+env:
+  NODE_VERSION: 20.x
+  PYTHON_VERSION: 3.12.x
+on:
+  push:
+    branches:
+      ["main"]
+    paths:
+    - 'apps/frontend/**'
+    - 'apps/docker/frontend/Dockerfile.fprod'
+  pull_request:
+    branches:
+      ["main"]
+    paths:
+    - 'apps/frontend/**'
+    - 'apps/docker/frontend/Dockerfile.fprod'
+  workflow_dispatch:
+jobs:
+  ci-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: Download dependencies
+        working-directory: apps/frontend
+        run: npm install
+      - name: Lint Test Frontend
+        working-directory: apps/frontend
+        run: npm run lint
+      - name: Run Test Frontend
+        working-directory: apps/frontend
+        run: |
+          npm install jest
+          npm run test
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+            username: ${{ secrets.DOCKER_USERNAME }}
+            password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build Frontend Image
+        working-directory: .
+        run: |
+          docker build -f apps/docker/frontend/Dockerfile.fprod -t ${{ secrets.DOCKER_USERNAME }}/myapp-frontend:${{ github.sha }} .
+      - name: Push Frontend Image
+        working-directory: .
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/myapp-frontend:${{ github.sha }}
+      - name: Update Frontend Tag Variable
+        env:
+            GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh variable set CURRENT_FRONTEND_TAG --body "${{ github.sha }}"
