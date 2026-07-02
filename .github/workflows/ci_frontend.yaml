@@ -1,7 +1,4 @@
 name: ci frontend
-env:
-  NODE_VERSION: 20.x
-  PYTHON_VERSION: 3.12.x
 on:
   push:
     branches:
@@ -25,33 +22,32 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "20"
           cache: 'npm'
           cache-dependency-path: apps/frontend/package-lock.json
-      - name: Download dependencies
+      - name: Install dependencies
         working-directory: apps/frontend
-        run: npm install
-      - name: Lint Test Frontend
+        run: npm ci
+      - name: Lint Frontend
         working-directory: apps/frontend
         run: npm run lint
-      - name: Run Test Frontend
+      - name: Run Tests
         working-directory: apps/frontend
-        run: |
-          npm install jest
-          npm run test
+        run: npx vitest run
       - name: Login Docker Hub
         uses: docker/login-action@v3
         with:
-            username: ${{ secrets.DOCKER_USERNAME }}
-            password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build Frontend Image
-        working-directory: .
-        run: |
-          docker build -f apps/docker/frontend/Dockerfile.fprod -t ${{ secrets.DOCKER_USERNAME }}/myapp-frontend:${{ github.sha }} .
-      - name: Push Frontend Image
-        working-directory: .
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/myapp-frontend:${{ github.sha }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/docker/frontend/Dockerfile.fprod
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/my-clinic-app-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Update Frontend Tag Variable
         env:
             GH_TOKEN: ${{ secrets.PAT_TOKEN }}

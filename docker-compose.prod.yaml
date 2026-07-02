@@ -1,0 +1,77 @@
+# ============================
+# Production Docker Compose
+# ============================
+# Các image backend và frontend đã được build và push lên Docker Hub
+# từ CI pipeline (ci_backend.yaml, ci_frontend.yaml).
+#
+# Các biến môi trường cần có trong file .env:
+#   POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+#   DJANGO_DB_ENGINE=postgres
+#   DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD, DJANGO_SUPERUSER_EMAIL
+#   POSTGRES_HOST=database
+#   DOCKER_USERNAME=<docker-hub-username>
+#   FRONTEND_TAG=<git-sha>
+#   BACKEND_TAG=<git-sha>
+# ============================
+
+services:
+  database:
+    container_name: clinic_db_prod
+    image: postgres:17.10-alpine3.23
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    container_name: backend_prod
+    image: ${DOCKER_USERNAME}/my-clinic-app-backend:${BACKEND_TAG}
+    env_file:
+      - .env
+    environment:
+      - DB_ENGINE=postgres
+      - POSTGRES_HOST=database
+    volumes:
+      - static_files:/apps/backend/productionfiles
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python manage.py check --deploy"]
+      # Tip: Add a lightweight health endpoint (e.g., /api/health/ returning 200)
+      # and test it with: python manage.py health_check
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    container_name: frontend_prod
+    image: ${DOCKER_USERNAME}/my-clinic-app-frontend:${FRONTEND_TAG}
+    ports:
+      - "80:80"
+    env_file:
+      - .env
+    volumes:
+      - static_files:/usr/share/nginx/static
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_files:
