@@ -53,7 +53,18 @@ services:
       depends_on:
         - frontend
         - backend
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    restart: always
+    ports:
+      - "8888:80"
+    env_file:
+      - ./.env
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
     
 volumes:
  postgres_clinic_db:
  static_prod:
+ pgadmin-data:
