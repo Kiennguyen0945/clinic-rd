@@ -4,7 +4,7 @@ env:
   POSTGRES_PORT: 5432
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
-  POSTGRES_NAME: testdb
+  POSTGRES_NAME: clinic_db
 on:
   push:
     branches:
@@ -28,7 +28,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
+          POSTGRES_DB: clinic_db
           POSTGRES_HOST: localhost
         ports:
           - 5432:5432
@@ -73,6 +73,8 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
