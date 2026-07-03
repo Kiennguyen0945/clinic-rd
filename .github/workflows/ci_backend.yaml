@@ -4,7 +4,7 @@ env:
   POSTGRES_PORT: 5432
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
-  POSTGRES_NAME: clinic_db
+  POSTGRES_NAME: db
 on:
   push:
     branches:
@@ -28,7 +28,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: clinic_db
+          POSTGRES_DB: db
           POSTGRES_HOST: localhost
         ports:
           - 5432:5432
