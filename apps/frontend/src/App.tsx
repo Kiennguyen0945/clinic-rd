@@ -15,7 +15,7 @@ function App() {
 
   useEffect(() => {
     loadFromStorage()
-  }, [])
+  }, [loadFromStorage])
 
   if (isLoading) {
     return (
