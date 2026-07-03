@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   backend:
-    container_name: backend_prod
+    container_name: clinic_backend_prod
     image: ${DOCKER_USERNAME}/my-clinic-app-backend:${BACKEND_TAG}
     env_file:
       - .env
@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    container_name: frontend_prod
+    container_name: clininc_frontend_prod
     image: ${DOCKER_USERNAME}/my-clinic-app-frontend:${FRONTEND_TAG}
     ports:
       - "80:80"
