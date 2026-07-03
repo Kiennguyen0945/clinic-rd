@@ -1,10 +1,10 @@
 name: ci backend
 env:
-  DB_HOST: localhost
-  DB_PORT: 5432
-  DB_USER: postgres
-  DB_PASSWORD: postgres
-  DB_NAME: testdb
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_NAME: testdb
 on:
   push:
     branches:
@@ -29,6 +29,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: testdb
+          POSTGRES_HOST: localhost
         ports:
           - 5432:5432
     steps:
