@@ -10,9 +10,10 @@ RUN apk add --no-cache gcc musl-dev libffi-dev postgresql-dev
 
 # Install Python dependencies
 COPY apps/backend/requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    pip install gunicorn
+RUN python3 -m venv /opt/venv && \
+/opt/venv/bin/pip install --upgrade pip && \
+/opt/venv/bin/pip install -r requirements.txt && \
+/opt/venv/bin/pip install gunicorn
 
 # Copy application code
 COPY apps/backend/ .
