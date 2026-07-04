@@ -20,7 +20,7 @@ COPY apps/backend/ .
 
 # Collect static files
 RUN mkdir -p /apps/backend/productionfiles && \
-    python manage.py collectstatic --no-input --clear || true
+    /opt/venv/bin/python manage.py collectstatic --no-input --clear || true
 
 # Copy production entrypoint
 COPY apps/docker/backend/entrypoint.prod.sh /entrypoint.sh
