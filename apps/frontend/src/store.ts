@@ -44,7 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         id: data.user.id,
         username: data.user.username,
         fullName: data.user.full_name || data.user.username,
-        role: data.user.role || 'doctor',
+        role: (data.user.role || 'doctor').toLowerCase(),
       };
 
       localStorage.setItem('authToken', data.token);
@@ -101,7 +101,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = localStorage.getItem('authToken');
     const storedUser = localStorage.getItem('authUser');
     if (token) {
-      set({ token, user: storedUser ? JSON.parse(storedUser) : null, isLoading: false });
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      if (user?.role) user.role = user.role.toLowerCase();
+      set({ token, user, isLoading: false });
     } else {
       set({ isLoading: false });
     }
