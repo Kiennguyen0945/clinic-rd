@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
         # ── Roles ──────────────────────────────────────────────
         roles_data = [
-            {"code": "ADMIN", "name": "Admin", "description": "Quản trị viên hệ thống"},
+            {"code": "MANAGER", "name": "Manager", "description": "Quản lý phòng khám"},
             {"code": "DOCTOR", "name": "Doctor", "description": "Bác sĩ khám chữa bệnh"},
             {"code": "RECEPTIONIST", "name": "Receptionist", "description": "Lễ tân / tiếp tân"},
         ]
@@ -31,11 +31,11 @@ class Command(BaseCommand):
         # ── Users ──────────────────────────────────────────────
         users_data = [
             {
-                "username": "admin",
-                "password": "Admin@123",
-                "full_name": "Admin Clinic",
+                "username": "manager",
+                "password": "Manager@123",
+                "full_name": "Quản lý Nguyễn Văn A",
                 "phone": "0900000001",
-                "role_code": "ADMIN",
+                "role_code": "MANAGER",
                 "status": "ACTIVE",
             },
             {
