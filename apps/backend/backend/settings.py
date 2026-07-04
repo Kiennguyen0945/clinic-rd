@@ -92,7 +92,7 @@ REST_FRAMEWORK = {
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 
-DB_ENGINE = config("DB_ENGINE", "postgres", cast=str)
+DB_ENGINE = config("DJANGO_DB_ENGINE", "postgres", cast=str)
 
 if DB_ENGINE == "postgres":
     print("Using Postgres")

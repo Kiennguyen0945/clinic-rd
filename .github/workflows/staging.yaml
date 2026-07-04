@@ -1,0 +1,45 @@
+name: cd
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Create Env File
+        run: |
+          cat > .env << EOF
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DJANGO_DB_ENGINE=${{ secrets.DJANGO_DB_ENGINE }}
+          DJANGO_SUPERUSER_USERNAME=${{ secrets.DJANGO_SUPERUSER_USERNAME }}
+          DJANGO_SUPERUSER_PASSWORD=${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+          DJANGO_SUPERUSER_EMAIL=${{ secrets.DJANGO_SUPERUSER_EMAIL }}
+          FRONTEND_TAG=${{ vars.CURRENT_FRONTEND_TAG }}
+          BACKEND_TAG=${{ vars.CURRENT_BACKEND_TAG }}
+          NGINX_TAG=${{ vars.CURRENT_NGINX_TAG }}
+          EOF
+      - name: Deploy to Production
+        working-directory: .
+        run: |
+          docker compose -f docker-compose.prod.yaml down --remove-orphans
+          docker compose -f docker-compose.prod.yaml up -d --pull always --wait --wait-timeout 120
+      - name: Health Check
+        working-directory: .
+        run: |
+          echo "=== Container Status ==="
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          echo ""
+          echo "=== Health Check Endpoints ==="
+          curl -sf http://localhost/admin/ && echo " - Backend OK" || echo " - Backend FAIL"
+          curl -sf http://localhost/ && echo " - Frontend OK" || echo " - Frontend FAIL"
+      - name: Cleanup Old Images
+        run: |
+          docker system prune -af --filter "until=24h" || true
