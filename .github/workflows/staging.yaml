@@ -18,6 +18,7 @@ jobs:
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           DJANGO_DB_ENGINE=${{ secrets.DJANGO_DB_ENGINE }}
           DJANGO_SUPERUSER_USERNAME=${{ secrets.DJANGO_SUPERUSER_USERNAME }}
           DJANGO_SUPERUSER_PASSWORD=${{ secrets.DJANGO_SUPERUSER_PASSWORD }}

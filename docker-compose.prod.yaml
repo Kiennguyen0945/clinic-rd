@@ -43,7 +43,7 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python manage.py check --deploy"]
+      test: ["CMD-SHELL", "/opt/venv/bin/python manage.py check --deploy"]
       # Tip: Add a lightweight health endpoint (e.g., /api/health/ returning 200)
       # and test it with: python manage.py health_check
       interval: 10s

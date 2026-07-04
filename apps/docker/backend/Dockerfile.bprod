@@ -10,16 +10,17 @@ RUN apk add --no-cache gcc musl-dev libffi-dev postgresql-dev
 
 # Install Python dependencies
 COPY apps/backend/requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    pip install gunicorn
+RUN python3 -m venv /opt/venv && \
+/opt/venv/bin/pip install --upgrade pip && \
+/opt/venv/bin/pip install -r requirements.txt && \
+/opt/venv/bin/pip install gunicorn
 
 # Copy application code
 COPY apps/backend/ .
 
 # Collect static files
 RUN mkdir -p /apps/backend/productionfiles && \
-    python manage.py collectstatic --no-input --clear || true
+    /opt/venv/bin/python manage.py collectstatic --no-input --clear || true
 
 # Copy production entrypoint
 COPY apps/docker/backend/entrypoint.prod.sh /entrypoint.sh
