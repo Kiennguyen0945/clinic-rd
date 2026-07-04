@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: clinic-staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
