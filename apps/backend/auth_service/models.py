@@ -15,6 +15,8 @@ class User(models.Model):
         ("LOCKED", "Locked"),
     ]
 
+    is_authenticated = True
+
     role = models.ForeignKey(
         Role,
         on_delete=models.PROTECT,
