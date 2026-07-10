@@ -19,9 +19,9 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="app-shell login-shell">
-        <div className="login-card">
-          <p>Đang tải...</p>
+      <div className="auth-wrapper">
+        <div className="auth-card">
+          <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Đang tải...</p>
         </div>
       </div>
     )

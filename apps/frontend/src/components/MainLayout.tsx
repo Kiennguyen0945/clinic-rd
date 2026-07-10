@@ -4,11 +4,13 @@ import Header from './Header';
 
 export default function MainLayout() {
   return (
-    <div className="workspace-shell">
+    <div className="app-shell">
       <Sidebar />
-      <div className="main-panel">
+      <div className="main-content">
         <Header />
-        <Outlet />
+        <div className="page-content">
+          <Outlet />
+        </div>
       </div>
     </div>
   );

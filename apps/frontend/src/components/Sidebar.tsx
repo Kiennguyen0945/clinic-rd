@@ -1,24 +1,33 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store';
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  FileText,
+  UserCog,
+  BarChart3,
+  Shield,
+} from 'lucide-react';
 
-const navConfig = {
+const navConfig: Record<string, Array<{ path: string; label: string; icon: React.ReactNode }>> = {
   receptionist: [
-    { path: '/dashboard', label: 'Tổng quan', icon: '📊' },
-    { path: '/appointments', label: 'Lịch hẹn', icon: '🗓️' },
-    { path: '/patients', label: 'Bệnh nhân', icon: '👤' },
+    { path: '/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
+    { path: '/appointments', label: 'Lịch hẹn', icon: <CalendarDays size={20} /> },
+    { path: '/patients', label: 'Bệnh nhân', icon: <Users size={20} /> },
   ],
   doctor: [
-    { path: '/dashboard', label: 'Tổng quan', icon: '📊' },
-    { path: '/appointments', label: 'Lịch hẹn', icon: '🗓️' },
-    { path: '/patients', label: 'Bệnh nhân', icon: '👤' },
-    { path: '/medical-records', label: 'Bệnh án', icon: '📝' },
+    { path: '/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
+    { path: '/appointments', label: 'Lịch hẹn', icon: <CalendarDays size={20} /> },
+    { path: '/patients', label: 'Bệnh nhân', icon: <Users size={20} /> },
+    { path: '/medical-records', label: 'Bệnh án', icon: <FileText size={20} /> },
   ],
   manager: [
-    { path: '/dashboard', label: 'Tổng quan', icon: '📊' },
-    { path: '/appointments', label: 'Lịch hẹn', icon: '🗓️' },
-    { path: '/patients', label: 'Bệnh nhân', icon: '👤' },
-    { path: '/staff', label: 'Nhân sự', icon: '👥' },
-    { path: '/statistics', label: 'Thống kê', icon: '📈' },
+    { path: '/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
+    { path: '/appointments', label: 'Lịch hẹn', icon: <CalendarDays size={20} /> },
+    { path: '/patients', label: 'Bệnh nhân', icon: <Users size={20} /> },
+    { path: '/staff', label: 'Nhân sự', icon: <UserCog size={20} /> },
+    { path: '/statistics', label: 'Thống kê', icon: <BarChart3 size={20} /> },
   ],
 };
 
@@ -31,11 +40,18 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div>
-        <p className="brand-label">PHÒNG KHÁM</p>
-        <h2>Clinic Board</h2>
+      {/* Brand */}
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">
+          <Shield size={20} />
+        </div>
+        <div>
+          <div className="sidebar-logo-brand">An Tâm</div>
+          <div className="sidebar-logo-sub">{user?.role === 'receptionist' ? 'Lễ tân' : user?.role === 'doctor' ? 'Bác sĩ' : 'Quản lý'}</div>
+        </div>
       </div>
 
+      {/* Navigation */}
       <nav className="sidebar-nav">
         {items.map((item) => (
           <button
@@ -43,13 +59,16 @@ export default function Sidebar() {
             className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
             onClick={() => navigate(item.path)}
           >
-            <span className="nav-icon">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="nav-item-icon">{item.icon}</span>
+            <span className="nav-item-label">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      <div />
+      {/* Footer */}
+      <div className="sidebar-footer">
+        © 2026 Phòng Khám An Tâm
+      </div>
     </aside>
   );
 }

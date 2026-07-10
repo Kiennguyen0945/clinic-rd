@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store'
 import { format, parseISO } from 'date-fns'
+import { Activity, Clock, CheckCircle, CalendarPlus, Search, Plus } from 'lucide-react'
 
 interface TodayStats {
   total: number
@@ -25,29 +26,16 @@ interface DashboardData {
   upcomingAppointments: UpcomingAppointment[]
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="content-card" style={{ textAlign: 'center' }}>
-      <p className="section-label">{label}</p>
-      <strong style={{ fontSize: 28, color }}>{value}</strong>
-    </div>
-  )
-}
-
 function statusBadge(status: string) {
-  const map: Record<string, { label: string; color: string }> = {
-    PENDING: { label: 'Đang chờ', color: '#e6a817' },
-    CONFIRMED: { label: 'Đã xác nhận', color: '#2e7d32' },
-    IN_PROGRESS: { label: 'Đang khám', color: '#1565c0' },
-    COMPLETED: { label: 'Hoàn thành', color: '#4caf50' },
-    CANCELLED: { label: 'Đã huỷ', color: '#b42318' },
+  const map: Record<string, { label: string; cls: string }> = {
+    PENDING:     { label: 'Đang chờ',     cls: 'badge-pending' },
+    CONFIRMED:   { label: 'Đã xác nhận',   cls: 'badge-info' },
+    IN_PROGRESS: { label: 'Đang khám',     cls: 'badge-brand' },
+    COMPLETED:   { label: 'Hoàn thành',    cls: 'badge-completed' },
+    CANCELLED:   { label: 'Đã huỷ',        cls: 'badge-cancelled' },
   }
-  const item = map[status] || { label: status, color: '#64748b' }
-  return (
-    <span style={{ background: item.color, color: 'white', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
-      {item.label}
-    </span>
-  )
+  const item = map[status] || { label: status, cls: 'badge-neutral' }
+  return <span className={`badge ${item.cls}`}>{item.label}</span>
 }
 
 export default function DashboardPage() {
@@ -72,59 +60,146 @@ export default function DashboardPage() {
   }, [token])
 
   if (loading) {
-    return <div className="content-card">Đang tải dữ liệu...</div>
+    return (
+      <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+        <p style={{ color: 'var(--text-secondary)' }}>Đang tải dữ liệu...</p>
+      </div>
+    )
   }
 
   if (!data) {
-    return <div className="content-card">Không có dữ liệu hôm nay</div>
+    return (
+      <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+        <p style={{ color: 'var(--text-secondary)' }}>Không có dữ liệu hôm nay</p>
+      </div>
+    )
   }
 
   const { todayStats, upcomingAppointments } = data
 
+  // Format today's date
+  const today = new Date()
+  const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  const dateStr = `${dayNames[today.getDay()]}, ngày ${today.getDate()} tháng ${today.getMonth() + 1} năm ${today.getFullYear()}`
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-        <StatCard label="Tổng lịch hẹn" value={todayStats.total} color="#2364aa" />
-        <StatCard label="Đang chờ" value={todayStats.pending} color="#e6a817" />
-        <StatCard label="Đã xác nhận" value={todayStats.confirmed} color="#2e7d32" />
-        <StatCard label="Đang khám" value={todayStats.inProgress} color="#1565c0" />
-        <StatCard label="Hoàn thành" value={todayStats.completed} color="#4caf50" />
-        <StatCard label="Đã huỷ" value={todayStats.cancelled} color="#b42318" />
+    <>
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <div className="page-title">Tổng quan</div>
+          <div className="page-subtitle">{dateStr}</div>
+        </div>
+        <div className="panel-actions">
+          <button className="btn btn-primary btn-sm">
+            <Plus size={16} />
+            Tiếp nhận bệnh nhân
+          </button>
+        </div>
       </div>
 
-      {/* Upcoming Appointments */}
-      <div className="content-card">
-        <h4>Lịch hẹn sắp tới</h4>
-        {upcomingAppointments.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Chưa có lịch hẹn nào trong hôm nay</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
+      {/* Stats Grid (like HTML) */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-primary">
+              <Activity size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.total}</div>
+          <div className="stat-label">Tổng lượt khám hôm nay</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-warning">
+              <Clock size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.pending}</div>
+          <div className="stat-label">Đang chờ khám</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-success">
+              <CheckCircle size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.completed}</div>
+          <div className="stat-label">Đã khám xong</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-info">
+              <CalendarPlus size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.confirmed}</div>
+          <div className="stat-label">Lịch hẹn chờ xác nhận</div>
+        </div>
+      </div>
+
+      {/* Queue Table Panel (like HTML) */}
+      <div className="panel">
+        <div className="panel-header">
+          <h3>Hàng chờ khám hôm nay</h3>
+          <div className="panel-actions">
+            <div className="search-box">
+              <Search size={18} />
+              <input className="form-input" placeholder="Tìm theo tên hoặc SĐT..." style={{ height: 40 }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="table-wrapper">
+          <table>
             <thead>
-              <tr style={{ borderBottom: '1px solid #eef4fb', textAlign: 'left' }}>
-                <th style={{ padding: '8px 0' }}>Giờ</th>
+              <tr>
                 <th>Bệnh nhân</th>
-                <th>Mã BN</th>
-                <th>Bác sĩ</th>
+                <th>Giờ hẹn</th>
+                <th>Bác sĩ phụ trách</th>
+                <th>Số điện thoại</th>
                 <th>Trạng thái</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {upcomingAppointments.map((apt) => (
-                <tr key={apt.id} style={{ borderBottom: '1px solid #eef4fb' }}>
-                  <td style={{ padding: '8px 0', fontWeight: 700 }}>
-                    {format(parseISO(apt.appointmentTime), 'HH:mm')}
+              {upcomingAppointments.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty-state" style={{ padding: 32 }}>
+                      <Search size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <p style={{ color: 'var(--text-secondary)' }}>Chưa có bệnh nhân nào trong hàng chờ hôm nay</p>
+                    </div>
                   </td>
-                  <td>{apt.patientName}</td>
-                  <td>{apt.patientCode}</td>
-                  <td>{apt.doctorName}</td>
-                  <td>{statusBadge(apt.status)}</td>
                 </tr>
-              ))}
+              ) : (
+                upcomingAppointments.map((apt) => (
+                  <tr key={apt.id}>
+                    <td>
+                      <div>{apt.patientName}</div>
+                      <div className="cell-sub">{apt.patientCode}</div>
+                    </td>
+                    <td style={{ fontWeight: 600 }}>
+                      {format(parseISO(apt.appointmentTime), 'HH:mm')}
+                    </td>
+                    <td>{apt.doctorName}</td>
+                    <td className="cell-sub">—</td>
+                    <td>{statusBadge(apt.status)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="btn btn-sm btn-secondary">Xử lý</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

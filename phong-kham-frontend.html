@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phòng Khám Đa Khoa An Tâm — Hệ thống Lễ tân</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#1E40AF;
+    --primary-dark:#1B3591;
+    --primary-tint:#E8EDFB;
+    --secondary:#475569;
+    --background:#F8FAFC;
+    --surface:#FFFFFF;
+    --border:#CBD5E1;
+    --text-primary:#0F172A;
+    --text-secondary:#475569;
+    --success:#15803D;
+    --success-bg:#DCFCE7;
+    --warning:#B45309;
+    --warning-bg:#FEF3C7;
+    --error:#B91C1C;
+    --error-bg:#FEE2E2;
+    --info:#0369A1;
+    --info-bg:#E0F2FE;
+    --radius:8px;
+    --radius-sm:6px;
+    --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s5:40px; --s6:48px;
+    --shadow-card:0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.08);
+    --shadow-lg:0 10px 25px rgba(15,23,42,.12), 0 4px 10px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter','Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--background);
+    color:var(--text-primary);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hidden{display:none !important;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select{font-family:inherit;}
+  a{color:var(--primary);}
+
+  /* ===== Focus visibility ===== */
+  button:focus-visible, input:focus-visible, select:focus-visible, .nav-item:focus-visible{
+    outline:3px solid #93C5FD;
+    outline-offset:2px;
+  }
+
+  /* ===== Brand mark ===== */
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:40px;height:40px;border-radius:10px;background:var(--primary);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .brand-mark svg{width:22px;height:22px;}
+  .brand-name{font-weight:800;font-size:18px;color:var(--text-primary);letter-spacing:-0.01em;}
+  .brand-sub{font-size:13px;color:var(--text-secondary);font-weight:500;}
+
+  /* ===== Buttons ===== */
+  .btn{
+    height:52px;padding:0 24px;border-radius:var(--radius);border:1px solid transparent;
+    font-size:16px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    transition:background .15s ease, border-color .15s ease, transform .05s ease;
+    white-space:nowrap;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-primary:hover{background:var(--primary-dark);}
+  .btn-secondary{background:#fff;color:var(--text-primary);border-color:var(--border);}
+  .btn-secondary:hover{background:#F1F5F9;}
+  .btn-ghost{background:transparent;color:var(--secondary);border-color:transparent;}
+  .btn-ghost:hover{background:#F1F5F9;}
+  .btn-danger{background:#fff;color:var(--error);border-color:var(--border);}
+  .btn-danger:hover{background:var(--error-bg);border-color:var(--error);}
+  .btn-block{width:100%;}
+  .btn-sm{height:40px;padding:0 16px;font-size:14px;border-radius:var(--radius-sm);}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;}
+  .link-btn{background:none;border:none;color:var(--primary);font-weight:700;font-size:16px;padding:4px 2px;}
+  .link-btn:hover{text-decoration:underline;}
+
+  /* ===== Form elements ===== */
+  .field{margin-bottom:20px;}
+  .field label{display:block;font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;}
+  .form-input, .form-select{
+    width:100%;height:48px;border:1px solid var(--border);border-radius:var(--radius);
+    padding:0 16px;font-size:16px;color:var(--text-primary);background:#fff;
+  }
+  .form-select{height:48px;}
+  .form-input:focus, .form-select:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(30,64,175,.15);}
+  .form-input::placeholder{color:#94A3B8;}
+  .input-with-action{position:relative;}
+  .input-with-action .form-input{padding-right:48px;}
+  .input-action-btn{
+    position:absolute;right:4px;top:4px;width:40px;height:40px;border:none;background:transparent;
+    border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--secondary);
+  }
+  .input-action-btn:hover{background:#F1F5F9;}
+  .field-hint{font-size:13px;color:var(--text-secondary);margin-top:6px;}
+  .field-error{font-size:13px;color:var(--error);margin-top:6px;font-weight:600;}
+
+  /* ===== Auth screens ===== */
+  .auth-wrapper{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--background);padding:32px 16px;
+  }
+  .auth-card{
+    width:100%;max-width:440px;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:40px 36px;box-shadow:var(--shadow-card);
+  }
+  .auth-card .brand{margin-bottom:28px;}
+  .auth-card h1{font-size:28px;font-weight:800;margin:0 0 8px 0;letter-spacing:-0.01em;}
+  .auth-card .auth-subtitle{color:var(--text-secondary);font-size:16px;margin:0 0 28px 0;}
+  .auth-divider{
+    text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);
+    color:var(--text-secondary);font-size:16px;
+  }
+  .demo-hint{
+    margin-top:20px;background:var(--info-bg);border:1px solid #BAE6FD;border-radius:var(--radius-sm);
+    padding:12px 16px;font-size:14px;color:#0C4A6E;display:flex;gap:10px;align-items:flex-start;
+  }
+  .demo-hint svg{flex-shrink:0;margin-top:2px;color:var(--info);}
+  .demo-hint b{font-weight:700;}
+
+  /* ===== App shell ===== */
+  .app-shell{display:flex;min-height:100vh;}
+  .sidebar{
+    width:248px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;padding:24px 16px;position:sticky;top:0;height:100vh;
+  }
+  .sidebar .brand{padding:0 8px;margin-bottom:32px;}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;
+    border-radius:var(--radius);border:none;background:transparent;color:var(--text-secondary);
+    font-size:16px;font-weight:600;margin-bottom:4px;
+  }
+  .nav-item svg{flex-shrink:0;}
+  .nav-item:hover{background:var(--background);}
+  .nav-item.active{background:var(--primary-tint);color:var(--primary);}
+  .sidebar-footer{margin-top:auto;padding:12px 8px 0 8px;font-size:13px;color:#94A3B8;border-top:1px solid var(--border);padding-top:16px;}
+
+  .main-area{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .topbar{
+    height:72px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:20;
+  }
+  .topbar-title{font-size:20px;font-weight:700;}
+  .user-menu{position:relative;}
+  .user-menu-btn{
+    display:flex;align-items:center;gap:12px;background:transparent;border:1px solid transparent;
+    border-radius:var(--radius);padding:8px 12px;
+  }
+  .user-menu-btn:hover{background:var(--background);border-color:var(--border);}
+  .avatar{
+    width:40px;height:40px;border-radius:50%;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;
+  }
+  .user-menu-name{text-align:left;}
+  .user-menu-name .uname{font-size:15px;font-weight:700;color:var(--text-primary);line-height:1.3;}
+  .user-menu-name .urole{font-size:13px;color:var(--text-secondary);}
+  .user-dropdown{
+    position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow-lg);width:220px;padding:8px;z-index:30;
+  }
+  .user-dropdown button{
+    width:100%;display:flex;align-items:center;gap:10px;padding:12px;border-radius:var(--radius-sm);
+    border:none;background:transparent;font-size:15px;font-weight:600;color:var(--text-primary);text-align:left;
+  }
+  .user-dropdown button:hover{background:var(--background);}
+  .user-dropdown button.danger{color:var(--error);}
+  .user-dropdown hr{border:none;border-top:1px solid var(--border);margin:6px 4px;}
+
+  .content{flex:1;padding:32px;max-width:1280px;width:100%;margin:0 auto;}
+  .page h2.page-heading{font-size:24px;font-weight:800;margin:0 0 4px 0;}
+  .page .page-desc{color:var(--text-secondary);font-size:16px;margin:0 0 24px 0;}
+
+  /* ===== Stat cards ===== */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+  .stat-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:20px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow-card);
+  }
+  .stat-card .stat-top{display:flex;align-items:center;justify-content:space-between;}
+  .stat-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;}
+  .stat-icon.tint-primary{background:var(--primary-tint);color:var(--primary);}
+  .stat-icon.tint-warning{background:var(--warning-bg);color:var(--warning);}
+  .stat-icon.tint-success{background:var(--success-bg);color:var(--success);}
+  .stat-icon.tint-info{background:var(--info-bg);color:var(--info);}
+  .stat-value{font-size:32px;font-weight:800;letter-spacing:-0.01em;}
+  .stat-label{font-size:14px;color:var(--text-secondary);font-weight:600;}
+
+  /* ===== Card / panel ===== */
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-card);overflow:hidden;}
+  .panel-header{
+    padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+    justify-content:space-between;gap:16px;flex-wrap:wrap;
+  }
+  .panel-header h3{font-size:18px;font-weight:700;margin:0;}
+  .panel-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .search-box{position:relative;}
+  .search-box svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94A3B8;}
+  .search-box input{padding-left:42px;width:260px;}
+
+  /* ===== Table ===== */
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:720px;}
+  thead th{
+    text-align:left;font-size:13px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;
+    letter-spacing:.04em;padding:14px 24px;border-bottom:1px solid var(--border);background:#FBFCFE;
+  }
+  tbody td{padding:16px 24px;font-size:16px;border-bottom:1px solid var(--border);color:var(--text-primary);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFCFE;}
+  .cell-sub{font-size:14px;color:var(--text-secondary);}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  /* ===== Badge ===== */
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+    font-size:14px;font-weight:700;white-space:nowrap;
+  }
+  .badge-warning{background:var(--warning-bg);color:var(--warning);}
+  .badge-success{background:var(--success-bg);color:var(--success);}
+  .badge-error{background:var(--error-bg);color:var(--error);}
+  .badge-info{background:var(--info-bg);color:var(--info);}
+  .badge-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+  .empty-state{padding:48px 24px;text-align:center;color:var(--text-secondary);}
+  .empty-state svg{color:#CBD5E1;margin-bottom:12px;}
+  .empty-state p{font-size:16px;margin:0;}
+
+  /* ===== Modal ===== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;
+    z-index:1000;padding:16px;
+  }
+  .modal-box{
+    background:#fff;border-radius:12px;width:100%;max-width:480px;box-shadow:var(--shadow-lg);
+    max-height:90vh;display:flex;flex-direction:column;
+  }
+  .modal-box.wide{max-width:560px;}
+  .modal-header{padding:24px 24px 0 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+  .modal-header h3{font-size:20px;font-weight:800;margin:0;}
+  .modal-header p{color:var(--text-secondary);font-size:14px;margin:6px 0 0 0;}
+  .modal-close{background:transparent;border:none;color:var(--secondary);width:36px;height:36px;border-radius:var(--radius-sm);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .modal-close:hover{background:var(--background);}
+  .modal-body{padding:20px 24px;overflow-y:auto;}
+  .modal-footer{padding:16px 24px 24px 24px;display:flex;justify-content:flex-end;gap:12px;}
+  .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+  /* ===== Toast ===== */
+  .toast-container{position:fixed;bottom:24px;right:24px;z-index:2000;display:flex;flex-direction:column;gap:12px;}
+  .toast{
+    min-width:300px;max-width:380px;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-lg);
+    padding:16px 18px;display:flex;gap:12px;align-items:flex-start;border-left:4px solid var(--info);
+    animation:toast-in .2s ease;
+  }
+  .toast.success{border-left-color:var(--success);}
+  .toast.error{border-left-color:var(--error);}
+  .toast.info{border-left-color:var(--info);}
+  .toast svg{flex-shrink:0;margin-top:1px;}
+  .toast.success svg{color:var(--success);}
+  .toast.error svg{color:var(--error);}
+  .toast.info svg{color:var(--info);}
+  .toast p{margin:0;font-size:15px;font-weight:600;color:var(--text-primary);}
+  @keyframes toast-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  @media (max-width: 900px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);transition:transform .2s ease;z-index:50;box-shadow:var(--shadow-lg);}
+    .sidebar.open{transform:translateX(0);}
+    .form-row-2{grid-template-columns:1fr;}
+    .content{padding:20px;}
+    .topbar{padding:0 16px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<!-- ============== LOGIN ============== -->
+<div id="screen-login" class="auth-wrapper">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/><path d="M9 12h6M12 9v6"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Phòng Khám An Tâm</div>
+        <div class="brand-sub">Hệ thống quản lý lễ tân</div>
+      </div>
+    </div>
+
+    <h1>Đăng nhập</h1>
+    <p class="auth-subtitle">Nhập tài khoản để bắt đầu ca làm việc hôm nay.</p>
+
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="login-username">Tên đăng nhập</label>
+        <input class="form-input" id="login-username" name="username" type="text" placeholder="VD: letan" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="login-password">Mật khẩu</label>
+        <div class="input-with-action">
+          <input class="form-input" id="login-password" name="password" type="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+          <button type="button" class="input-action-btn" data-toggle-pass="login-password" aria-label="Hiện mật khẩu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <p class="field-error hidden" id="login-error">Sai tên đăng nhập hoặc mật khẩu.</p>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+    </form>
+
+    <div class="demo-hint">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <div>Tài khoản dùng thử: <b>letan</b> / mật khẩu <b>123456</b></div>
+    </div>
+
+    <div class="auth-divider">
+      Chưa có tài khoản? <button type="button" class="link-btn" id="go-register">Đăng ký ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== REGISTER ============== -->
+<div id="screen-register" class="auth-wrapper hidden">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/><path d="M9 12h6M12 9v6"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Phòng Khám An Tâm</div>
+        <div class="brand-sub">Hệ thống quản lý lễ tân</div>
+      </div>
+    </div>
+
+    <h1>Đăng ký tài khoản</h1>
+    <p class="auth-subtitle">Tạo tài khoản mới để truy cập hệ thống.</p>
+
+    <form id="register-form" novalidate>
+      <div class="field">
+        <label for="reg-fullname">Họ và tên</label>
+        <input class="form-input" id="reg-fullname" type="text" placeholder="VD: Nguyễn Thị Hồng" required>
+      </div>
+      <div class="field">
+        <label for="reg-username">Tên đăng nhập</label>
+        <input class="form-input" id="reg-username" type="text" placeholder="Không dấu, không khoảng trắng" required>
+        <p class="field-error hidden" id="reg-username-error">Tên đăng nhập này đã được sử dụng.</p>
+      </div>
+      <div class="field">
+        <label for="reg-role">Vai trò</label>
+        <select class="form-select" id="reg-role">
+          <option value="Lễ tân" selected>Lễ tân</option>
+          <option value="Bác sĩ">Bác sĩ</option>
+          <option value="Quản trị viên">Quản trị viên</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reg-password">Mật khẩu</label>
+        <div class="input-with-action">
+          <input class="form-input" id="reg-password" type="password" placeholder="Tối thiểu 6 ký tự" required>
+          <button type="button" class="input-action-btn" data-toggle-pass="reg-password" aria-label="Hiện mật khẩu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="reg-confirm">Xác nhận mật khẩu</label>
+        <input class="form-input" id="reg-confirm" type="password" placeholder="Nhập lại mật khẩu" required>
+        <p class="field-error hidden" id="reg-confirm-error">Mật khẩu xác nhận chưa khớp.</p>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Đăng ký</button>
+    </form>
+
+    <div class="auth-divider">
+      Đã có tài khoản? <button type="button" class="link-btn" id="go-login">Đăng nhập</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== APP SHELL ============== -->
+<div id="screen-app" class="app-shell hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/><path d="M9 12h6M12 9v6"/></svg>
+      </div>
+      <div>
+        <div class="brand-name" style="font-size:16px;">An Tâm</div>
+        <div class="brand-sub">Lễ tân</div>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-item active" data-page="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Tổng quan
+      </button>
+      <button class="nav-item" data-page="appointments">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Lịch hẹn
+      </button>
+      <button class="nav-item" data-page="patients">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Danh sách bệnh nhân
+      </button>
+    </nav>
+    <div class="sidebar-footer">© 2026 Phòng Khám An Tâm</div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn-ghost btn-sm" id="sidebar-toggle" style="display:none;border-radius:8px;padding:8px;" aria-label="Mở menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <div class="topbar-title" id="page-title">Tổng quan</div>
+      </div>
+      <div class="user-menu">
+        <button class="user-menu-btn" id="user-menu-btn" aria-haspopup="true" aria-expanded="false">
+          <div class="avatar" id="user-avatar">LT</div>
+          <div class="user-menu-name">
+            <div class="uname" id="user-menu-fullname">—</div>
+            <div class="urole" id="user-menu-role">—</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="user-dropdown hidden" id="user-dropdown">
+          <button id="open-change-password">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Đổi mật khẩu
+          </button>
+          <hr>
+          <button class="danger" id="logout-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- ===== PAGE: DASHBOARD ===== -->
+      <section id="page-dashboard" class="page">
+        <h2 class="page-heading" id="dashboard-greeting">Xin chào!</h2>
+        <p class="page-desc" id="dashboard-date">—</p>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-top">
+              <div class="stat-icon tint-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Tổng lượt khám hôm nay</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-top">
+              <div class="stat-icon tint-warning">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-waiting">0</div>
+            <div class="stat-label">Đang chờ khám</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-top">
+              <div class="stat-icon tint-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-done">0</div>
+            <div class="stat-label">Đã khám xong</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-top">
+              <div class="stat-icon tint-info">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 15h4M12 15v4"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="stat-newappt">0</div>
+            <div class="stat-label">Lịch hẹn chờ xác nhận</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Hàng chờ khám hôm nay</h3>
+            <div class="panel-actions">
+              <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input class="form-input" id="queue-search" placeholder="Tìm theo tên hoặc SĐT...">
+              </div>
+              <button class="btn btn-primary btn-sm" id="open-checkin" style="height:48px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Tiếp nhận bệnh nhân
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bệnh nhân</th><th>Giờ hẹn</th><th>Bác sĩ phụ trách</th><th>Số điện thoại</th><th>Trạng thái</th><th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="queue-tbody"></tbody>
+            </table>
+          </div>
+          <div id="queue-empty" class="empty-state hidden">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <p>Không tìm thấy bệnh nhân phù hợp.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: APPOINTMENTS ===== -->
+      <section id="page-appointments" class="page hidden">
+        <h2 class="page-heading">Lịch hẹn</h2>
+        <p class="page-desc">Quản lý các lịch hẹn khám sắp tới.</p>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Danh sách lịch hẹn</h3>
+            <div class="panel-actions">
+              <button class="btn btn-primary btn-sm" id="open-add-appointment" style="height:48px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Đặt lịch hẹn mới
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ngày khám</th><th>Giờ</th><th>Bệnh nhân</th><th>Số điện thoại</th><th>Bác sĩ</th><th>Trạng thái</th><th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="appointments-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: PATIENTS ===== -->
+      <section id="page-patients" class="page hidden">
+        <h2 class="page-heading">Danh sách bệnh nhân</h2>
+        <p class="page-desc">Tra cứu hồ sơ bệnh nhân đã từng khám tại phòng khám.</p>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Hồ sơ bệnh nhân</h3>
+            <div class="panel-actions">
+              <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input class="form-input" id="patients-search" placeholder="Tìm theo tên hoặc SĐT...">
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã BN</th><th>Họ và tên</th><th>Ngày sinh</th><th>Giới tính</th><th>Số điện thoại</th><th>Lần khám gần nhất</th><th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="patients-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ============== MODAL: ĐỔI MẬT KHẨU ============== -->
+<div id="modal-password" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3>Đổi mật khẩu</h3>
+        <p>Cập nhật mật khẩu đăng nhập cho tài khoản của bạn.</p>
+      </div>
+      <button class="modal-close" data-close-modal="modal-password" aria-label="Đóng">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="password-form" novalidate>
+      <div class="modal-body">
+        <div class="field">
+          <label for="pw-current">Mật khẩu hiện tại</label>
+          <input class="form-input" id="pw-current" type="password" placeholder="Nhập mật khẩu hiện tại" required>
+          <p class="field-error hidden" id="pw-current-error">Mật khẩu hiện tại không đúng.</p>
+        </div>
+        <div class="field">
+          <label for="pw-new">Mật khẩu mới</label>
+          <input class="form-input" id="pw-new" type="password" placeholder="Tối thiểu 6 ký tự" required>
+          <p class="field-hint">Nên dùng ít nhất 6 ký tự, dễ nhớ nhưng khó đoán.</p>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="pw-confirm">Xác nhận mật khẩu mới</label>
+          <input class="form-input" id="pw-confirm" type="password" placeholder="Nhập lại mật khẩu mới" required>
+          <p class="field-error hidden" id="pw-confirm-error">Mật khẩu xác nhận chưa khớp.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="modal-password">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============== MODAL: TIẾP NHẬN BỆNH NHÂN (CHECK-IN) ============== -->
+<div id="modal-checkin" class="modal-overlay hidden">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <div>
+        <h3>Tiếp nhận bệnh nhân mới</h3>
+        <p>Thêm bệnh nhân vào hàng chờ khám hôm nay.</p>
+      </div>
+      <button class="modal-close" data-close-modal="modal-checkin" aria-label="Đóng">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="checkin-form" novalidate>
+      <div class="modal-body">
+        <div class="field">
+          <label for="ci-name">Họ và tên bệnh nhân</label>
+          <input class="form-input" id="ci-name" type="text" placeholder="VD: Trần Văn Bình" required>
+        </div>
+        <div class="form-row-2">
+          <div class="field">
+            <label for="ci-phone">Số điện thoại</label>
+            <input class="form-input" id="ci-phone" type="tel" placeholder="09xxxxxxxx" required>
+          </div>
+          <div class="field">
+            <label for="ci-time">Giờ hẹn</label>
+            <input class="form-input" id="ci-time" type="time" required>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="ci-doctor">Bác sĩ phụ trách</label>
+          <select class="form-select" id="ci-doctor">
+            <option>BS. Nguyễn Văn Hùng — Nội tổng quát</option>
+            <option>BS. Phạm Thị Lan — Nhi khoa</option>
+            <option>BS. Trần Đức Thắng — Tim mạch</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="modal-checkin">Hủy</button>
+        <button type="submit" class="btn btn-primary">Thêm vào hàng chờ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============== MODAL: ĐẶT LỊCH HẸN MỚI ============== -->
+<div id="modal-appointment" class="modal-overlay hidden">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <div>
+        <h3>Đặt lịch hẹn mới</h3>
+        <p>Tạo lịch hẹn khám cho bệnh nhân.</p>
+      </div>
+      <button class="modal-close" data-close-modal="modal-appointment" aria-label="Đóng">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="appointment-form" novalidate>
+      <div class="modal-body">
+        <div class="field">
+          <label for="ap-name">Họ và tên bệnh nhân</label>
+          <input class="form-input" id="ap-name" type="text" placeholder="VD: Ngô Thị Mai" required>
+        </div>
+        <div class="field">
+          <label for="ap-phone">Số điện thoại</label>
+          <input class="form-input" id="ap-phone" type="tel" placeholder="09xxxxxxxx" required>
+        </div>
+        <div class="form-row-2">
+          <div class="field">
+            <label for="ap-date">Ngày khám</label>
+            <input class="form-input" id="ap-date" type="date" required>
+          </div>
+          <div class="field">
+            <label for="ap-time">Giờ khám</label>
+            <input class="form-input" id="ap-time" type="time" required>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="ap-doctor">Bác sĩ khám</label>
+          <select class="form-select" id="ap-doctor">
+            <option>BS. Nguyễn Văn Hùng — Nội tổng quát</option>
+            <option>BS. Phạm Thị Lan — Nhi khoa</option>
+            <option>BS. Trần Đức Thắng — Tim mạch</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal="modal-appointment">Hủy</button>
+        <button type="submit" class="btn btn-primary">Đặt lịch hẹn</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ Utilities ============ */
+  function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function $all(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+  function initials(name){
+    var parts = (name||"").trim().split(/\s+/);
+    if(parts.length === 0 || parts[0] === "") return "??";
+    var last = parts[parts.length-1];
+    var first = parts[0];
+    return (first[0]+last[0]).toUpperCase();
+  }
+  function formatDateVN(d){
+    var days = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"];
+    return days[d.getDay()] + ", ngày " + d.getDate() + " tháng " + (d.getMonth()+1) + " năm " + d.getFullYear();
+  }
+
+  var ICON_CHECK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>';
+  var ICON_ERROR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+  var ICON_INFO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
+
+  function showToast(message, type){
+    type = type || "info";
+    var icon = type === "success" ? ICON_CHECK : (type === "error" ? ICON_ERROR : ICON_INFO);
+    var el = document.createElement("div");
+    el.className = "toast " + type;
+    el.innerHTML = icon + "<p>" + message + "</p>";
+    $("#toast-container").appendChild(el);
+    setTimeout(function(){
+      el.style.transition = "opacity .2s ease";
+      el.style.opacity = "0";
+      setTimeout(function(){ el.remove(); }, 200);
+    }, 3200);
+  }
+
+  /* ============ State ============ */
+  var state = {
+    currentUser: null,
+    users: [],
+    queue: [
+      {id:uid(), name:"Trần Văn Bình", time:"08:00", doctor:"BS. Nguyễn Văn Hùng — Nội tổng quát", phone:"0912 345 678", status:"waiting"},
+      {id:uid(), name:"Lê Thị Hoa", time:"08:30", doctor:"BS. Phạm Thị Lan — Nhi khoa", phone:"0987 654 321", status:"in_progress"},
+      {id:uid(), name:"Phạm Minh Tuấn", time:"09:00", doctor:"BS. Nguyễn Văn Hùng — Nội tổng quát", phone:"0909 123 456", status:"done"},
+      {id:uid(), name:"Ngô Thị Mai", time:"09:30", doctor:"BS. Trần Đức Thắng — Tim mạch", phone:"0932 112 233", status:"waiting"},
+      {id:uid(), name:"Vũ Đình Long", time:"10:00", doctor:"BS. Phạm Thị Lan — Nhi khoa", phone:"0977 889 900", status:"cancelled"},
+      {id:uid(), name:"Đặng Thu Hà", time:"10:30", doctor:"BS. Nguyễn Văn Hùng — Nội tổng quát", phone:"0966 123 123", status:"waiting"}
+    ],
+    appointments: [
+      {id:uid(), date:"12/07/2026", time:"09:00", name:"Bùi Thị Thanh", phone:"0918 222 333", doctor:"BS. Trần Đức Thắng — Tim mạch", status:"pending"},
+      {id:uid(), date:"12/07/2026", time:"14:30", name:"Hoàng Văn Nam", phone:"0902 444 555", doctor:"BS. Nguyễn Văn Hùng — Nội tổng quát", status:"confirmed"},
+      {id:uid(), date:"13/07/2026", time:"10:00", name:"Đỗ Thị Kim", phone:"0977 666 111", doctor:"BS. Phạm Thị Lan — Nhi khoa", status:"pending"}
+    ],
+    patients: [
+      {code:"BN0001", name:"Trần Văn Bình", dob:"14/05/1958", gender:"Nam", phone:"0912 345 678", lastVisit:"10/07/2026"},
+      {code:"BN0002", name:"Lê Thị Hoa", dob:"22/09/1965", gender:"Nữ", phone:"0987 654 321", lastVisit:"10/07/2026"},
+      {code:"BN0003", name:"Phạm Minh Tuấn", dob:"03/01/1972", gender:"Nam", phone:"0909 123 456", lastVisit:"10/07/2026"},
+      {code:"BN0004", name:"Ngô Thị Mai", dob:"19/11/1980", gender:"Nữ", phone:"0932 112 233", lastVisit:"08/07/2026"},
+      {code:"BN0005", name:"Vũ Đình Long", dob:"27/03/1950", gender:"Nam", phone:"0977 889 900", lastVisit:"01/07/2026"},
+      {code:"BN0006", name:"Đặng Thu Hà", dob:"05/08/1990", gender:"Nữ", phone:"0966 123 123", lastVisit:"28/06/2026"}
+    ],
+    activePage: "dashboard"
+  };
+
+  var STATUS_QUEUE = {
+    waiting: {label:"Chờ khám", cls:"badge-warning"},
+    in_progress: {label:"Đang khám", cls:"badge-info"},
+    done: {label:"Đã khám xong", cls:"badge-success"},
+    cancelled: {label:"Đã hủy", cls:"badge-error"}
+  };
+  var STATUS_APPT = {
+    pending: {label:"Chờ xác nhận", cls:"badge-info"},
+    confirmed: {label:"Đã xác nhận", cls:"badge-success"},
+    cancelled: {label:"Đã hủy", cls:"badge-error"}
+  };
+
+  /* ============ Storage (persistent accounts) ============ */
+  var USERS_KEY = "clinic_users_v1";
+
+  function loadUsers(){
+    return window.storage.get(USERS_KEY, false)
+      .then(function(res){ state.users = res ? JSON.parse(res.value) : []; })
+      .catch(function(){ state.users = []; });
+  }
+  function saveUsers(){
+    return window.storage.set(USERS_KEY, JSON.stringify(state.users), false)
+      .catch(function(){ showToast("Không thể lưu dữ liệu tài khoản.", "error"); });
+  }
+  function seedDefaultUser(){
+    var exists = state.users.some(function(u){ return u.username === "letan"; });
+    if(!exists){
+      state.users.push({
+        id: uid(), fullName: "Nguyễn Thị Hồng", username: "letan",
+        password: "123456", role: "Lễ tân", createdAt: Date.now()
+      });
+      return saveUsers();
+    }
+    return Promise.resolve();
+  }
+
+  /* ============ Screen switching ============ */
+  function showScreen(name){
+    ["screen-login","screen-register","screen-app"].forEach(function(id){
+      $("#" + id).classList.toggle("hidden", id !== "screen-" + name);
+    });
+  }
+
+  $("#go-register").addEventListener("click", function(){
+    clearAuthErrors();
+    showScreen("register");
+  });
+  $("#go-login").addEventListener("click", function(){
+    clearAuthErrors();
+    showScreen("login");
+  });
+
+  function clearAuthErrors(){
+    $("#login-error").classList.add("hidden");
+    $("#reg-username-error").classList.add("hidden");
+    $("#reg-confirm-error").classList.add("hidden");
+  }
+
+  /* ============ Show/hide password toggles ============ */
+  $all("[data-toggle-pass]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var input = document.getElementById(btn.getAttribute("data-toggle-pass"));
+      var isPass = input.type === "password";
+      input.type = isPass ? "text" : "password";
+      btn.setAttribute("aria-label", isPass ? "Ẩn mật khẩu" : "Hiện mật khẩu");
+    });
+  });
+
+  /* ============ Login ============ */
+  $("#login-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var username = $("#login-username").value.trim();
+    var password = $("#login-password").value;
+    var user = state.users.find(function(u){ return u.username === username && u.password === password; });
+    if(!user){
+      $("#login-error").classList.remove("hidden");
+      return;
+    }
+    $("#login-error").classList.add("hidden");
+    state.currentUser = user;
+    $("#login-form").reset();
+    enterApp();
+    showToast("Đăng nhập thành công. Chào mừng " + user.fullName + "!", "success");
+  });
+
+  /* ============ Register ============ */
+  $("#register-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    $("#reg-username-error").classList.add("hidden");
+    $("#reg-confirm-error").classList.add("hidden");
+
+    var fullName = $("#reg-fullname").value.trim();
+    var username = $("#reg-username").value.trim();
+    var role = $("#reg-role").value;
+    var password = $("#reg-password").value;
+    var confirm = $("#reg-confirm").value;
+
+    if(!fullName || !username || !password || !confirm){
+      showToast("Vui lòng điền đầy đủ thông tin.", "error");
+      return;
+    }
+    if(state.users.some(function(u){ return u.username === username; })){
+      $("#reg-username-error").classList.remove("hidden");
+      return;
+    }
+    if(password.length < 6){
+      showToast("Mật khẩu cần tối thiểu 6 ký tự.", "error");
+      return;
+    }
+    if(password !== confirm){
+      $("#reg-confirm-error").classList.remove("hidden");
+      return;
+    }
+
+    var newUser = {id: uid(), fullName: fullName, username: username, password: password, role: role, createdAt: Date.now()};
+    state.users.push(newUser);
+    saveUsers().then(function(){
+      showToast("Đăng ký thành công. Vui lòng đăng nhập.", "success");
+      $("#register-form").reset();
+      $("#login-username").value = username;
+      showScreen("login");
+    });
+  });
+
+  /* ============ Enter app / render user menu ============ */
+  function enterApp(){
+    var u = state.currentUser;
+    $("#user-avatar").textContent = initials(u.fullName);
+    $("#user-menu-fullname").textContent = u.fullName;
+    $("#user-menu-role").textContent = u.role;
+    $("#dashboard-greeting").textContent = "Xin chào, " + u.fullName + "!";
+    $("#dashboard-date").textContent = formatDateVN(new Date());
+    navigateTo("dashboard");
+    renderQueue();
+    renderAppointments();
+    renderPatients();
+    showScreen("app");
+  }
+
+  /* ============ Sidebar navigation ============ */
+  $all(".nav-item").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      navigateTo(btn.getAttribute("data-page"));
+      $("#sidebar").classList.remove("open");
+    });
+  });
+  var PAGE_TITLES = {dashboard:"Tổng quan", appointments:"Lịch hẹn", patients:"Danh sách bệnh nhân"};
+  function navigateTo(page){
+    state.activePage = page;
+    $all(".nav-item").forEach(function(btn){
+      btn.classList.toggle("active", btn.getAttribute("data-page") === page);
+    });
+    ["dashboard","appointments","patients"].forEach(function(p){
+      $("#page-" + p).classList.toggle("hidden", p !== page);
+    });
+    $("#page-title").textContent = PAGE_TITLES[page];
+  }
+  $("#sidebar-toggle").addEventListener("click", function(){
+    $("#sidebar").classList.toggle("open");
+  });
+
+  /* ============ User dropdown ============ */
+  var userMenuBtn = $("#user-menu-btn");
+  var userDropdown = $("#user-dropdown");
+  userMenuBtn.addEventListener("click", function(){
+    var open = !userDropdown.classList.contains("hidden");
+    userDropdown.classList.toggle("hidden");
+    userMenuBtn.setAttribute("aria-expanded", String(!open));
+  });
+  document.addEventListener("click", function(e){
+    if(!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)){
+      userDropdown.classList.add("hidden");
+      userMenuBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  /* ============ Logout ============ */
+  $("#logout-btn").addEventListener("click", function(){
+    userDropdown.classList.add("hidden");
+    state.currentUser = null;
+    showScreen("login");
+    showToast("Bạn đã đăng xuất khỏi hệ thống.", "info");
+  });
+
+  /* ============ Modal helpers ============ */
+  function openModal(id){ $("#" + id).classList.remove("hidden"); }
+  function closeModal(id){ $("#" + id).classList.add("hidden"); }
+  $all("[data-close-modal]").forEach(function(btn){
+    btn.addEventListener("click", function(){ closeModal(btn.getAttribute("data-close-modal")); });
+  });
+  $all(".modal-overlay").forEach(function(overlay){
+    overlay.addEventListener("click", function(e){
+      if(e.target === overlay) overlay.classList.add("hidden");
+    });
+  });
+
+  /* ============ Change password ============ */
+  $("#open-change-password").addEventListener("click", function(){
+    userDropdown.classList.add("hidden");
+    $("#password-form").reset();
+    $("#pw-current-error").classList.add("hidden");
+    $("#pw-confirm-error").classList.add("hidden");
+    openModal("modal-password");
+  });
+
+  $("#password-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    $("#pw-current-error").classList.add("hidden");
+    $("#pw-confirm-error").classList.add("hidden");
+
+    var current = $("#pw-current").value;
+    var next = $("#pw-new").value;
+    var confirm = $("#pw-confirm").value;
+
+    if(current !== state.currentUser.password){
+      $("#pw-current-error").classList.remove("hidden");
+      return;
+    }
+    if(next.length < 6){
+      showToast("Mật khẩu mới cần tối thiểu 6 ký tự.", "error");
+      return;
+    }
+    if(next !== confirm){
+      $("#pw-confirm-error").classList.remove("hidden");
+      return;
+    }
+
+    state.currentUser.password = next;
+    var idx = state.users.findIndex(function(u){ return u.id === state.currentUser.id; });
+    if(idx > -1) state.users[idx].password = next;
+
+    saveUsers().then(function(){
+      closeModal("modal-password");
+      showToast("Đổi mật khẩu thành công.", "success");
+    });
+  });
+
+  /* ============ Queue (Hàng chờ khám) ============ */
+  function renderQueue(){
+    var term = $("#queue-search").value.trim().toLowerCase();
+    var tbody = $("#queue-tbody");
+    tbody.innerHTML = "";
+    var filtered = state.queue.filter(function(p){
+      if(!term) return true;
+      return p.name.toLowerCase().indexOf(term) > -1 || p.phone.replace(/\s/g,"").indexOf(term.replace(/\s/g,"")) > -1;
+    });
+
+    $("#queue-empty").classList.toggle("hidden", filtered.length > 0);
+
+    filtered.forEach(function(p){
+      var st = STATUS_QUEUE[p.status];
+      var tr = document.createElement("tr");
+
+      var actions = "";
+      if(p.status === "waiting"){
+        actions += '<button class="btn btn-secondary btn-sm" data-action="start" data-id="' + p.id + '">Bắt đầu khám</button>';
+        actions += '<button class="btn btn-danger btn-sm" data-action="cancel" data-id="' + p.id + '">Hủy</button>';
+      } else if(p.status === "in_progress"){
+        actions += '<button class="btn btn-primary btn-sm" data-action="complete" data-id="' + p.id + '">Hoàn tất</button>';
+      } else {
+        actions += '<span class="cell-sub">Không có thao tác</span>';
+      }
+
+      tr.innerHTML =
+        '<td><strong>' + p.name + '</strong></td>' +
+        '<td>' + p.time + '</td>' +
+        '<td>' + p.doctor + '</td>' +
+        '<td>' + p.phone + '</td>' +
+        '<td><span class="badge ' + st.cls + '"><span class="badge-dot"></span>' + st.label + '</span></td>' +
+        '<td><div class="row-actions">' + actions + '</div></td>';
+      tbody.appendChild(tr);
+    });
+
+    updateStats();
+  }
+
+  $("#queue-search").addEventListener("input", renderQueue);
+
+  $("#queue-tbody").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-action]");
+    if(!btn) return;
+    var id = btn.getAttribute("data-id");
+    var action = btn.getAttribute("data-action");
+    var patient = state.queue.find(function(p){ return p.id === id; });
+    if(!patient) return;
+
+    if(action === "start"){ patient.status = "in_progress"; showToast(patient.name + " đã được đưa vào phòng khám.", "info"); }
+    if(action === "complete"){ patient.status = "done"; showToast(patient.name + " đã khám xong.", "success"); }
+    if(action === "cancel"){ patient.status = "cancelled"; showToast("Đã hủy lượt khám của " + patient.name + ".", "error"); }
+
+    renderQueue();
+  });
+
+  function updateStats(){
+    var total = state.queue.filter(function(p){ return p.status !== "cancelled"; }).length;
+    var waiting = state.queue.filter(function(p){ return p.status === "waiting"; }).length;
+    var done = state.queue.filter(function(p){ return p.status === "done"; }).length;
+    var newAppt = state.appointments.filter(function(a){ return a.status === "pending"; }).length;
+    $("#stat-total").textContent = total;
+    $("#stat-waiting").textContent = waiting;
+    $("#stat-done").textContent = done;
+    $("#stat-newappt").textContent = newAppt;
+  }
+
+  /* ============ Check-in modal (add to queue) ============ */
+  $("#open-checkin").addEventListener("click", function(){
+    $("#checkin-form").reset();
+    openModal("modal-checkin");
+  });
+  $("#checkin-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var name = $("#ci-name").value.trim();
+    var phone = $("#ci-phone").value.trim();
+    var time = $("#ci-time").value;
+    var doctor = $("#ci-doctor").value;
+    if(!name || !phone || !time){
+      showToast("Vui lòng điền đầy đủ thông tin bệnh nhân.", "error");
+      return;
+    }
+    state.queue.push({id:uid(), name:name, time:time, doctor:doctor, phone:phone, status:"waiting"});
+    closeModal("modal-checkin");
+    renderQueue();
+    showToast("Đã thêm " + name + " vào hàng chờ khám.", "success");
+  });
+
+  /* ============ Appointments ============ */
+  function renderAppointments(){
+    var tbody = $("#appointments-tbody");
+    tbody.innerHTML = "";
+    state.appointments.forEach(function(a){
+      var st = STATUS_APPT[a.status];
+      var tr = document.createElement("tr");
+      var actions = "";
+      if(a.status === "pending"){
+        actions += '<button class="btn btn-secondary btn-sm" data-action="confirm" data-id="' + a.id + '">Xác nhận</button>';
+        actions += '<button class="btn btn-danger btn-sm" data-action="cancel" data-id="' + a.id + '">Hủy</button>';
+      } else if(a.status === "confirmed"){
+        actions += '<button class="btn btn-danger btn-sm" data-action="cancel" data-id="' + a.id + '">Hủy</button>';
+      } else {
+        actions += '<span class="cell-sub">Không có thao tác</span>';
+      }
+      tr.innerHTML =
+        '<td>' + a.date + '</td>' +
+        '<td>' + a.time + '</td>' +
+        '<td><strong>' + a.name + '</strong></td>' +
+        '<td>' + a.phone + '</td>' +
+        '<td>' + a.doctor + '</td>' +
+        '<td><span class="badge ' + st.cls + '"><span class="badge-dot"></span>' + st.label + '</span></td>' +
+        '<td><div class="row-actions">' + actions + '</div></td>';
+      tbody.appendChild(tr);
+    });
+  }
+  $("#appointments-tbody").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-action]");
+    if(!btn) return;
+    var appt = state.appointments.find(function(a){ return a.id === btn.getAttribute("data-id"); });
+    if(!appt) return;
+    if(btn.getAttribute("data-action") === "confirm"){ appt.status = "confirmed"; showToast("Đã xác nhận lịch hẹn của " + appt.name + ".", "success"); }
+    if(btn.getAttribute("data-action") === "cancel"){ appt.status = "cancelled"; showToast("Đã hủy lịch hẹn của " + appt.name + ".", "error"); }
+    renderAppointments();
+    updateStats();
+  });
+
+  $("#open-add-appointment").addEventListener("click", function(){
+    $("#appointment-form").reset();
+    openModal("modal-appointment");
+  });
+  $("#appointment-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var name = $("#ap-name").value.trim();
+    var phone = $("#ap-phone").value.trim();
+    var date = $("#ap-date").value;
+    var time = $("#ap-time").value;
+    var doctor = $("#ap-doctor").value;
+    if(!name || !phone || !date || !time){
+      showToast("Vui lòng điền đầy đủ thông tin lịch hẹn.", "error");
+      return;
+    }
+    var d = new Date(date);
+    var dateVN = ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + "/" + d.getFullYear();
+    state.appointments.unshift({id:uid(), date:dateVN, time:time, name:name, phone:phone, doctor:doctor, status:"pending"});
+    closeModal("modal-appointment");
+    renderAppointments();
+    updateStats();
+    showToast("Đã đặt lịch hẹn cho " + name + ".", "success");
+  });
+
+  /* ============ Patients ============ */
+  function renderPatients(){
+    var term = $("#patients-search").value.trim().toLowerCase();
+    var tbody = $("#patients-tbody");
+    tbody.innerHTML = "";
+    var filtered = state.patients.filter(function(p){
+      if(!term) return true;
+      return p.name.toLowerCase().indexOf(term) > -1 || p.phone.replace(/\s/g,"").indexOf(term.replace(/\s/g,"")) > -1;
+    });
+    filtered.forEach(function(p){
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td class="cell-sub">' + p.code + '</td>' +
+        '<td><strong>' + p.name + '</strong></td>' +
+        '<td>' + p.dob + '</td>' +
+        '<td>' + p.gender + '</td>' +
+        '<td>' + p.phone + '</td>' +
+        '<td>' + p.lastVisit + '</td>' +
+        '<td><button class="btn btn-secondary btn-sm" type="button">Xem hồ sơ</button></td>';
+      tbody.appendChild(tr);
+    });
+  }
+  $("#patients-search").addEventListener("input", renderPatients);
+
+  /* ============ Init ============ */
+  function init(){
+    loadUsers().then(seedDefaultUser).then(function(){
+      showScreen("login");
+    });
+  }
+  init();
+})();
+</script>
+</body>
+</html>

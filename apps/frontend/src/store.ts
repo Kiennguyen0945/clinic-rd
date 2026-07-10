@@ -28,29 +28,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username, password) => {
     set({ error: null });
     try {
-      const res = await fetch('/api/login/', {
+      const res = await fetch('/api/auth/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
+      const json = await res.json();
 
-      if (!res.ok) {
-        set({ error: data.errors || 'Đăng nhập thất bại' });
+      if (!res.ok || !json.success) {
+        const msg = json.error?.message || json.message || 'Đăng nhập thất bại';
+        set({ error: msg });
         return false;
       }
 
       const user: User = {
-        id: data.user.id,
-        username: data.user.username,
-        fullName: data.user.full_name || data.user.username,
-        role: (data.user.role || 'doctor').toLowerCase(),
+        id: json.data.user.id,
+        username: json.data.user.username,
+        fullName: json.data.user.full_name || json.data.user.username,
+        role: (json.data.user.role || 'doctor').toLowerCase(),
       };
 
-      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('authToken', json.data.token);
       localStorage.setItem('authUser', JSON.stringify(user));
       set({
-        token: data.token,
+        token: json.data.token,
         user,
         isLoading: false,
         error: null,
@@ -69,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     try {
-      const res = await fetch('/api/users/', {
+      const res = await fetch('/api/auth/users/', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
