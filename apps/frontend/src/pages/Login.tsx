@@ -6,6 +6,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const login = useAuthStore((s) => s.login)
   const error = useAuthStore((s) => s.error)
@@ -26,39 +27,100 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="app-shell login-shell">
-      <div className="login-card">
-        <p className="brand-label">PHÒNG KHÁM</p>
-        <h1>Hệ thống quản lý khám bệnh</h1>
-        <p className="helper-text">Giao diện tối giản, rõ ràng và phù hợp cho bác sĩ và lễ tân.</p>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        {/* Brand */}
+        <div className="brand">
+          <div className="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7l8-4z"/>
+              <path d="M9 12h6M12 9v6"/>
+            </svg>
+          </div>
+          <div>
+            <div className="brand-name">Phòng Khám An Tâm</div>
+            <div className="brand-sub">Hệ thống quản lý lễ tân</div>
+          </div>
+        </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label className="field-label" htmlFor="username">Tên đăng nhập</label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Nhập tên đăng nhập"
-            required
-          />
+        <h1>Đăng nhập</h1>
+        <p className="auth-subtitle">Nhập tài khoản để bắt đầu ca làm việc hôm nay.</p>
 
-          <label className="field-label" htmlFor="password">Mật khẩu</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nhập mật khẩu"
-            required
-          />
+        <form id="login-form" onSubmit={handleSubmit} noValidate>
+          <div className="field">
+            <label htmlFor="username">Tên đăng nhập</label>
+            <input
+              className="form-input"
+              id="username"
+              name="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="VD: letan"
+              autoComplete="username"
+              required
+            />
+          </div>
 
-          <button type="submit" className="primary-button" disabled={isSubmitting}>
+          <div className="field">
+            <label htmlFor="password">Mật khẩu</label>
+            <div className="input-with-action">
+              <input
+                className="form-input"
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nhập mật khẩu"
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                className="input-action-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {showPassword ? (
+                    <>
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                      <path d="M1 1l22 22"/>
+                    </>
+                  ) : (
+                    <>
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
+            {error && <p className="field-error">{error}</p>}
+          </div>
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>
             {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
 
-        {error ? <p className="error-text">{error}</p> : null}
+        {/* Demo hint */}
+        <div className="demo-hint">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <div>Tài khoản dùng thử: <b>letan</b> / mật khẩu <b>123456</b></div>
+        </div>
+
+        <div className="auth-divider">
+          Chưa có tài khoản?{' '}
+          <button type="button" className="link-btn" onClick={() => {}}>
+            Đăng ký ngay
+          </button>
+        </div>
       </div>
     </div>
   )

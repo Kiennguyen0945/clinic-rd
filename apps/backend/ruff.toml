@@ -3,3 +3,4 @@
 "**/views.py" = ["F401"]
 "**/tests.py" = ["F401"]
 "**/models.py" = ["F401"]
+"**/urls.py" = ["F401"]

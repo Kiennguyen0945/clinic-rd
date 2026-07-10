@@ -35,6 +35,7 @@ STATIC_URL = 'static/'
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'auth_service',
     'patient_service',
     'appointment_service',
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -77,13 +79,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # REMOVE or COMMENT OUT 'rest_framework.authentication.SessionAuthentication' if it's here
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny', 
+        'rest_framework.permissions.AllowAny',
     ),
 }
 
