@@ -36,6 +36,7 @@ STATIC_URL = 'static/'
 
 INSTALLED_APPS = [
     'corsheaders',
+    'jazzmin',
     'auth_service',
     'patient_service',
     'appointment_service',
