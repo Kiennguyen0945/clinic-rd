@@ -12,4 +12,5 @@ class PatientSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
         extra_kwargs = {
             'patient_code': {'required': False},
+            'address': {'required': False, 'allow_blank': True},
         }

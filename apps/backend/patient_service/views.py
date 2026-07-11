@@ -7,25 +7,34 @@ from .serializers import PatientSerializer
 from backend.response_utils import success_response, error_response
 
 
-def _check_role(request, *roles):
-    """Check if user is authenticated and has one of the specified roles."""
+def _require_auth(request):
+    """Return error response if not authenticated, else None."""
     if not request.user.is_authenticated:
-        return False
+        return error_response("UNAUTHORIZED", "Vui l\u00f2ng \u0111\u0103ng nh\u1eadp", status=401)
+    return None
+
+
+def _check_role(request, *roles):
+    """Check if user has one of the specified roles. Must call _require_auth first."""
     return request.user.role.code in roles
 
 
 @api_view(['GET', 'POST'])
 def patient_list(request):
+    auth_err = _require_auth(request)
+    if auth_err:
+        return auth_err
+
     if request.method == 'GET':
         # Search - require receptionist, doctor, or manager
         if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
-            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+            return error_response("FORBIDDEN", "B\u1ea1n kh\u00f4ng c\u00f3 quy\u1ec1n truy c\u1eadp", status=403)
 
         keyword = request.query_params.get('keyword', '')
         if not keyword:
             return error_response(
                 "VALIDATION_ERROR",
-                "Vui lòng cung cấp từ khóa tìm kiếm",
+                "Vui l\u00f2ng cung c\u1ea5p t\u1eeb kh\u00f3a t\u00ecm ki\u1ebfm",
                 status=400
             )
 
@@ -97,6 +106,10 @@ def patient_list(request):
 
 @api_view(['GET', 'PUT'])
 def patient_detail(request, pk):
+    auth_err = _require_auth(request)
+    if auth_err:
+        return auth_err
+
     try:
         patient = Patient.objects.get(pk=pk)
     except Patient.DoesNotExist:

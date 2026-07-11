@@ -305,7 +305,11 @@ curl "http://localhost:8000/api/patients/<UUID>/" \
   -H "Authorization: Bearer $TOKEN"
 
 # 4. Test cập nhật (PUT)
-curl -X PUT "http://localhost:8000/api/patients/<UUID>/" \
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username":"receptionist","password":"Recep@123"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+
+curl -s -X PUT http://localhost:8000/api/patients/1/ \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"phone":"0911222333"}'
