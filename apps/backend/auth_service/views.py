@@ -1,10 +1,17 @@
+import secrets
+import string
+
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
 from .models import User, Role
 from .serializers import RoleSerializer, UserSerializer
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from backend.permissions import IsManager
 from backend.response_utils import success_response, error_response
 
 
@@ -129,6 +136,170 @@ def refresh_api(request):
         },
         message="Làm mới phiên đăng nhập thành công"
     )
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not getattr(request.user, 'is_authenticated', False):
+            return error_response("UNAUTHORIZED", "Vui lòng đăng nhập", status=401)
+
+        current_password = request.data.get('currentPassword')
+        new_password = request.data.get('newPassword')
+        confirm_new_password = request.data.get('confirmNewPassword')
+
+        if not check_password(current_password or '', request.user.password_hash):
+            return error_response(
+                "WRONG_PASSWORD",
+                "Mật khẩu hiện tại không đúng",
+                status=400,
+            )
+
+        if new_password != confirm_new_password:
+            return error_response(
+                "PASSWORD_MISMATCH",
+                "Xác nhận mật khẩu mới không khớp",
+                status=400,
+            )
+
+        if not new_password or len(new_password) < 6:
+            return error_response(
+                "WEAK_PASSWORD",
+                "Mật khẩu mới phải có ít nhất 6 ký tự",
+                status=400,
+            )
+
+        request.user.password_hash = make_password(new_password)
+        request.user.save(update_fields=['password_hash', 'updated_at'])
+
+        return success_response({}, message="Đổi mật khẩu thành công")
+
+
+class StaffCreateView(APIView):
+    permission_classes = [IsManager]
+
+    def post(self, request):
+        if not getattr(request.user, 'is_authenticated', False):
+            return error_response("UNAUTHORIZED", "Vui lòng đăng nhập", status=401)
+
+        if getattr(getattr(request.user, 'role', None), 'code', None) != 'MANAGER':
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        username = request.data.get('username')
+        full_name = request.data.get('fullName')
+        phone = request.data.get('phone', '')
+        role_code = request.data.get('roleCode')
+        password = request.data.get('password')
+
+        if not username or not full_name or role_code not in {'RECEPTIONIST', 'DOCTOR'}:
+            return error_response(
+                "VALIDATION_ERROR",
+                "Dữ liệu không hợp lệ",
+                status=400,
+                details={
+                    'username': 'Bắt buộc',
+                    'fullName': 'Bắt buộc',
+                    'roleCode': 'Phải là RECEPTIONIST hoặc DOCTOR',
+                },
+            )
+
+        if User.objects.filter(username=username).exists():
+            return error_response(
+                "DUPLICATE_USERNAME",
+                "Tên đăng nhập đã tồn tại",
+                status=400,
+            )
+
+        try:
+            role = Role.objects.get(code=role_code)
+        except Role.DoesNotExist:
+            return error_response(
+                "VALIDATION_ERROR",
+                "Vai trò không hợp lệ",
+                status=400,
+                details={'roleCode': 'Không tồn tại'},
+            )
+
+        generated_password = password or ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+
+        user = User.objects.create(
+            username=username,
+            full_name=full_name,
+            phone=phone or '',
+            role=role,
+            status='ACTIVE',
+            password_hash=make_password(generated_password),
+        )
+
+        return success_response(
+            {
+                'user': {
+                    'id': str(user.id),
+                    'username': user.username,
+                    'fullName': user.full_name,
+                    'phone': user.phone,
+                    'status': user.status,
+                    'role': user.role.code,
+                },
+                'generatedPassword': generated_password,
+            },
+            message="Tạo tài khoản nhân viên thành công",
+            status=201,
+        )
+
+
+class StaffToggleLockView(APIView):
+    permission_classes = [IsManager]
+
+    def patch(self, request, pk):
+        if not getattr(request.user, 'is_authenticated', False):
+            return error_response("UNAUTHORIZED", "Vui lòng đăng nhập", status=401)
+
+        if getattr(getattr(request.user, 'role', None), 'code', None) != 'MANAGER':
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        action = request.data.get('action')
+        if action not in {'lock', 'unlock'}:
+            return error_response(
+                "VALIDATION_ERROR",
+                "Dữ liệu không hợp lệ",
+                status=400,
+                details={'action': 'Phải là lock hoặc unlock'},
+            )
+
+        if str(request.user.id) == str(pk):
+            return error_response(
+                "SELF_LOCK",
+                "Không thể tự khóa tài khoản của chính mình",
+                status=400,
+            )
+
+        try:
+            user = User.objects.select_related('role').get(pk=pk)
+        except User.DoesNotExist:
+            return error_response(
+                "USER_NOT_FOUND",
+                "Không tìm thấy người dùng",
+                status=404,
+            )
+
+        user.status = 'LOCKED' if action == 'lock' else 'ACTIVE'
+        user.save(update_fields=['status', 'updated_at'])
+
+        return success_response(
+            {
+                'user': {
+                    'id': str(user.id),
+                    'username': user.username,
+                    'fullName': user.full_name,
+                    'phone': user.phone,
+                    'status': user.status,
+                    'role': user.role.code,
+                }
+            },
+            message="Cập nhật trạng thái tài khoản thành công",
+        )
 
 
 def homePageView(request):

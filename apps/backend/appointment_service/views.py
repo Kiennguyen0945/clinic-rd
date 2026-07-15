@@ -1,9 +1,12 @@
 from datetime import datetime
 
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.views import APIView
 
 from auth_service.models import User
+from backend.permissions import IsManager
 from backend.response_utils import error_response, success_response
 from patient_service.models import Patient
 
@@ -377,4 +380,89 @@ class DashboardTodayView(APIView):
                 'upcomingAppointments': upcoming_appointments,
             },
             message="Lấy dữ liệu dashboard thành công",
+        )
+
+
+class AppointmentStatsView(APIView):
+    permission_classes = [IsManager]
+
+    def get(self, request):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+
+        if not _check_role(request, 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        start_date_raw = request.query_params.get('startDate')
+        end_date_raw = request.query_params.get('endDate')
+        group_by = request.query_params.get('groupBy')
+
+        if not start_date_raw or not end_date_raw or not group_by:
+            return error_response(
+                "VALIDATION_ERROR",
+                "Dữ liệu không hợp lệ",
+                status=400,
+                details={
+                    'startDate': 'Bắt buộc',
+                    'endDate': 'Bắt buộc',
+                    'groupBy': 'Bắt buộc',
+                },
+            )
+
+        start_date = _parse_date(start_date_raw)
+        end_date = _parse_date(end_date_raw)
+
+        if start_date is None or end_date is None:
+            return error_response(
+                "VALIDATION_ERROR",
+                "Dữ liệu không hợp lệ",
+                status=400,
+                details={
+                    'startDate': 'Định dạng phải là YYYY-MM-DD',
+                    'endDate': 'Định dạng phải là YYYY-MM-DD',
+                },
+            )
+
+        if end_date < start_date:
+            return error_response(
+                "INVALID_DATE_RANGE",
+                "Ngày kết thúc không được trước ngày bắt đầu",
+                status=400,
+            )
+
+        queryset = Appointment.objects.select_related('doctor').filter(
+            appointment_time__date__range=(start_date, end_date)
+        )
+
+        if group_by == 'status':
+            stats = [
+                {'label': row['status'], 'count': row['count']}
+                for row in queryset.values('status').annotate(count=Count('id')).order_by('status')
+            ]
+        elif group_by == 'doctor':
+            stats = [
+                {
+                    'doctorId': str(row['doctor_id']),
+                    'doctorName': row['doctor__full_name'],
+                    'count': row['count'],
+                }
+                for row in queryset.values('doctor_id', 'doctor__full_name').annotate(count=Count('id')).order_by('doctor__full_name')
+            ]
+        elif group_by == 'day':
+            stats = [
+                {'date': row['date'].isoformat(), 'count': row['count']}
+                for row in queryset.annotate(date=TruncDate('appointment_time')).values('date').annotate(count=Count('id')).order_by('date')
+            ]
+        else:
+            return error_response(
+                "VALIDATION_ERROR",
+                "groupBy không hợp lệ",
+                status=400,
+                details={'groupBy': 'Phải là status, doctor hoặc day'},
+            )
+
+        return success_response(
+            {'stats': stats},
+            message="Lấy thống kê thành công",
         )
