@@ -1,10 +1,13 @@
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
 from django.db.models import Q
 from datetime import date
 import re
 from .models import Patient
 from .serializers import PatientSerializer
 from backend.response_utils import success_response, error_response
+from appointment_service.models import MedicalRecord
+from appointment_service.serializers import MedicalRecordListSerializer
 
 
 def _require_auth(request):
@@ -17,6 +20,35 @@ def _require_auth(request):
 def _check_role(request, *roles):
     """Check if user has one of the specified roles. Must call _require_auth first."""
     return request.user.role.code in roles
+
+
+class PatientMedicalHistoryView(APIView):
+    def get(self, request, patientId):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+
+        if not _check_role(request, 'DOCTOR'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        try:
+            Patient.objects.get(pk=patientId)
+        except Patient.DoesNotExist:
+            return error_response(
+                "PATIENT_NOT_FOUND",
+                "Không tìm thấy bệnh nhân",
+                status=404,
+            )
+
+        records = MedicalRecord.objects.select_related('appointment', 'appointment__doctor').filter(
+            appointment__patient_id=patientId
+        ).order_by('-appointment__appointment_time')
+
+        serializer = MedicalRecordListSerializer(records, many=True)
+        return success_response(
+            {"medicalRecords": serializer.data},
+            message="Lấy lịch sử bệnh án thành công",
+        )
 
 
 @api_view(['GET', 'POST'])
