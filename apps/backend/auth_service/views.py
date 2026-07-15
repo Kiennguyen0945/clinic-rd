@@ -4,6 +4,7 @@ from .models import User, Role
 from .serializers import RoleSerializer, UserSerializer
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from backend.response_utils import success_response, error_response
 
 
@@ -81,6 +82,7 @@ def login_api(request):
     return success_response(
         {
             'token': str(refresh.access_token),
+            'refreshToken': str(refresh),
             'user': {
                 'id': str(user.id),
                 'username': user.username,
@@ -89,6 +91,43 @@ def login_api(request):
             }
         },
         message="Đăng nhập thành công"
+    )
+
+
+@api_view(['POST'])
+def refresh_api(request):
+    refresh_token = request.data.get('refreshToken') or request.data.get('refresh_token')
+    if not refresh_token:
+        return error_response(
+            "VALIDATION_ERROR",
+            "Thiếu refresh token.",
+            status=400
+        )
+
+    try:
+        refresh = RefreshToken(refresh_token)
+        user = User.objects.get(id=refresh["user_id"])
+    except (TokenError, User.DoesNotExist):
+        return error_response(
+            "UNAUTHORIZED",
+            "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+            status=401
+        )
+
+    if getattr(user, 'status', '') == 'LOCKED':
+        return error_response(
+            "ACCOUNT_LOCKED",
+            "Tài khoản đã bị khóa.",
+            status=403
+        )
+
+    new_refresh = RefreshToken.for_user(user)
+    return success_response(
+        {
+            'token': str(new_refresh.access_token),
+            'refreshToken': str(new_refresh),
+        },
+        message="Làm mới phiên đăng nhập thành công"
     )
 
 

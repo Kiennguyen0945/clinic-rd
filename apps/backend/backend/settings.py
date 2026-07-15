@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -94,6 +95,8 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'CHECK_USER_IS_ACTIVE': False,
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
 

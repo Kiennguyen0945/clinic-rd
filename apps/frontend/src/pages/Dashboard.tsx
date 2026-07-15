@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store'
+import { authFetch } from '../lib/authFetch'
 import { format, parseISO } from 'date-fns'
 import { Activity, Clock, CheckCircle, CalendarPlus, Search, Plus } from 'lucide-react'
 
@@ -46,9 +47,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!token) return
 
-    fetch('/api/dashboard/today/', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    authFetch('/api/dashboard/today/')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
