@@ -107,13 +107,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo hint */}
-        <div className="demo-hint">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
-          </svg>
-          <div>Tài khoản dùng thử: <b>letan</b> / mật khẩu <b>123456</b></div>
-        </div>
 
         <div className="auth-divider">
           Chưa có tài khoản?{' '}

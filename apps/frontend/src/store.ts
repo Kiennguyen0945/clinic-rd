@@ -9,11 +9,13 @@ export interface User {
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   user: User | null;
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   fetchCurrentUser: () => Promise<void>;
+  refreshAccessToken: () => Promise<boolean>;
   logout: () => void;
   loadFromStorage: () => void;
   clearError: () => void;
@@ -21,6 +23,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
+  refreshToken: null,
   user: null,
   isLoading: true,
   error: null,
@@ -49,9 +52,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
 
       localStorage.setItem('authToken', json.data.token);
+      if (json.data.refreshToken) {
+        localStorage.setItem('refreshToken', json.data.refreshToken);
+      }
       localStorage.setItem('authUser', JSON.stringify(user));
       set({
         token: json.data.token,
+        refreshToken: json.data.refreshToken || null,
         user,
         isLoading: false,
         error: null,
@@ -92,21 +99,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  refreshAccessToken: async () => {
+    const { refreshToken } = get();
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch('/api/auth/refresh/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('authUser');
+        set({ token: null, refreshToken: null, user: null });
+        return false;
+      }
+
+      localStorage.setItem('authToken', json.data.token);
+      if (json.data.refreshToken) {
+        localStorage.setItem('refreshToken', json.data.refreshToken);
+      }
+
+      set({
+        token: json.data.token,
+        refreshToken: json.data.refreshToken || refreshToken,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('authUser');
-    set({ token: null, user: null });
+    set({ token: null, refreshToken: null, user: null });
   },
 
   loadFromStorage: () => {
     const token = localStorage.getItem('authToken');
+    const refreshToken = localStorage.getItem('refreshToken');
     const storedUser = localStorage.getItem('authUser');
     if (token) {
       const user = storedUser ? JSON.parse(storedUser) : null;
       if (user?.role) user.role = user.role.toLowerCase();
-      set({ token, user, isLoading: false });
+      set({ token, refreshToken, user, isLoading: false });
     } else {
-      set({ isLoading: false });
+      set({ refreshToken, isLoading: false });
     }
   },
 
