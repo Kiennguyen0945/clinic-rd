@@ -62,7 +62,15 @@ def patient_list(request):
         if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
             return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
 
-        keyword = request.query_params.get('keyword', '')
+        keyword = request.query_params.get('keyword')
+        if keyword is None or not keyword.strip():
+            return error_response(
+                "VALIDATION_ERROR",
+                "Thiếu keyword tìm kiếm",
+                status=400,
+                details={"keyword": "Bắt buộc"},
+            )
+
         patients = Patient.objects.all().order_by('-created_at')
         if keyword:
             patients = patients.filter(

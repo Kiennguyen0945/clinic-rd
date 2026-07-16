@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { Search, Plus, X, Loader2, AlertTriangle, Users, Edit3, Eye } from 'lucide-react'
 import { useAuthStore } from '../store'
 import { authFetch } from '../lib/authFetch'
@@ -94,10 +94,17 @@ export default function PatientsPage() {
   // ── Search API ──
   const searchPatients = useCallback(async (kw: string) => {
     if (!token) return
+    const trimmedKeyword = kw.trim()
+    if (!trimmedKeyword) {
+      setPatients([])
+      setSearched(false)
+      return
+    }
+
     setLoading(true)
     setSearched(true)
     try {
-      const url = kw.trim() ? `/api/patients/?keyword=${encodeURIComponent(kw.trim())}` : '/api/patients/'
+      const url = `/api/patients/?keyword=${encodeURIComponent(trimmedKeyword)}`
       const res = await authFetch(url)
       const json = await res.json()
       if (json.success) {
@@ -112,16 +119,6 @@ export default function PatientsPage() {
       setLoading(false)
     }
   }, [token])
-
-  useEffect(() => {
-    if (!token || !isReceptionist) return
-
-    const timer = window.setTimeout(() => {
-      void searchPatients('')
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [token, isReceptionist, searchPatients])
 
   // ── Search handlers ──
   const handleSearch = () => {
@@ -200,8 +197,14 @@ export default function PatientsPage() {
       const json = await res.json()
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
+        const createdPatient = json.data.patient as Patient
         closeModal()
-        searchPatients(keyword)
+        if (keyword.trim()) {
+          searchPatients(keyword)
+        } else {
+          setPatients((current) => [createdPatient, ...current])
+          setSearched(true)
+        }
         return true
       }
       const code = json.error?.code
@@ -253,8 +256,14 @@ export default function PatientsPage() {
       const json = await res.json()
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
+        const createdPatient = json.data.patient as Patient
         closeModal()
-        searchPatients(keyword)
+        if (keyword.trim()) {
+          searchPatients(keyword)
+        } else {
+          setPatients((current) => [createdPatient, ...current])
+          setSearched(true)
+        }
       } else {
         setApiError(json.error?.message || 'Tạo bệnh nhân thất bại')
       }
