@@ -254,31 +254,39 @@ export default function AppointmentsPage() {
   }, [dateFilter, doctorFilter, isDoctor, statusFilter, token])
 
   useEffect(() => {
-    loadDoctors()
+    const timer = window.setTimeout(() => {
+      void loadDoctors()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [loadDoctors])
 
   useEffect(() => {
-    fetchAppointments()
+    const timer = window.setTimeout(() => {
+      void fetchAppointments()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [fetchAppointments])
 
   useEffect(() => {
     if (!showModal || modalMode !== 'create') return
 
     const trimmedQuery = patientQuery.trim()
-    if (!trimmedQuery || trimmedQuery.length < 2) {
-      setPatientResults([])
-      setPatientLoading(false)
-      return
-    }
-
-    if (selectedPatient && trimmedQuery === patientLabel(selectedPatient)) {
-      setPatientResults([])
-      setPatientLoading(false)
-      return
-    }
-
     const timer = window.setTimeout(async () => {
       if (!token) return
+
+      if (!trimmedQuery || trimmedQuery.length < 2) {
+        setPatientResults([])
+        setPatientLoading(false)
+        return
+      }
+
+      if (selectedPatient && trimmedQuery === patientLabel(selectedPatient)) {
+        setPatientResults([])
+        setPatientLoading(false)
+        return
+      }
 
       setPatientLoading(true)
       try {

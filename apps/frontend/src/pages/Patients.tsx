@@ -114,9 +114,13 @@ export default function PatientsPage() {
   }, [token])
 
   useEffect(() => {
-    if (token && isReceptionist) {
-      searchPatients('')
-    }
+    if (!token || !isReceptionist) return
+
+    const timer = window.setTimeout(() => {
+      void searchPatients('')
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [token, isReceptionist, searchPatients])
 
   // ── Search handlers ──
@@ -197,10 +201,7 @@ export default function PatientsPage() {
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
         closeModal()
-        // Auto search again
-        if (keyword.trim()) {
-          searchPatients(keyword)
-        }
+        searchPatients(keyword)
         return true
       }
       const code = json.error?.code
@@ -253,7 +254,7 @@ export default function PatientsPage() {
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
         closeModal()
-        if (keyword.trim()) searchPatients(keyword)
+        searchPatients(keyword)
       } else {
         setApiError(json.error?.message || 'Tạo bệnh nhân thất bại')
       }
