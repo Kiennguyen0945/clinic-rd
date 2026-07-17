@@ -1,12 +1,20 @@
 name: cd
 on:
-  push:
+  workflow_run:
+    workflows:
+      - ci
     branches:
       - main
+    types:
+      - completed
   workflow_dispatch:
 jobs:
   deploy:
     runs-on: clinic-staging
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
