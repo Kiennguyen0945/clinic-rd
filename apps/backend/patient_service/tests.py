@@ -300,17 +300,22 @@ class PatientAPITestCase(TestCase):
         self.assertEqual(len(resp.json()['data']['patients']), 1)
 
     def test_search_no_keyword(self):
-        """Thiếu keyword → 400 VALIDATION_ERROR."""
+        """Thiếu keyword → trả toàn bộ danh sách."""
         self._auth(self.receptionist)
         resp = self.client.get(self.url)
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()['error']['code'], 'VALIDATION_ERROR')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body['success'])
+        self.assertEqual(len(body['data']['patients']), 2)
 
     def test_search_empty_keyword(self):
-        """Keyword rỗng → 400 VALIDATION_ERROR."""
+        """Keyword rỗng → trả toàn bộ danh sách."""
         self._auth(self.receptionist)
         resp = self.client.get(f'{self.url}?keyword=')
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertTrue(body['success'])
+        self.assertEqual(len(body['data']['patients']), 2)
 
     def test_search_no_results(self):
         """Không có kết quả → mảng rỗng."""
@@ -556,4 +561,3 @@ class PatientAPITestCase(TestCase):
         self.assertEqual(self.patient1.phone, '0999888777')
         self.assertEqual(self.patient1.full_name, old_name)
         self.assertEqual(self.patient1.address, old_addr)
-

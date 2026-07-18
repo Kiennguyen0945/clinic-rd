@@ -62,15 +62,7 @@ def patient_list(request):
         if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
             return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
 
-        keyword = request.query_params.get('keyword')
-        if keyword is None or not keyword.strip():
-            return error_response(
-                "VALIDATION_ERROR",
-                "Thiếu keyword tìm kiếm",
-                status=400,
-                details={"keyword": "Bắt buộc"},
-            )
-
+        keyword = (request.query_params.get('keyword') or '').strip()
         patients = Patient.objects.all().order_by('-created_at')
         if keyword:
             patients = patients.filter(
@@ -82,7 +74,7 @@ def patient_list(request):
         serializer = PatientSerializer(patients, many=True)
         return success_response(
             {"patients": serializer.data},
-            message="Tìm kiếm bệnh nhân thành công"
+            message="Lấy danh sách bệnh nhân thành công" if not keyword else "Tìm kiếm bệnh nhân thành công"
         )
 
     elif request.method == 'POST':
