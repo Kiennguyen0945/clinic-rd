@@ -1,347 +1,92 @@
-import { useCallback, useEffect, useState } from 'react'
-import { format, parseISO } from 'date-fns'
-import {
-  AlertTriangle, CalendarDays, CheckCircle2, ClipboardPlus, Clock3, FileClock,
-  Loader2, Search, Stethoscope, UserRound, X,
-} from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { authFetch } from '../lib/authFetch'
+import {
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, ClipboardList, Clock3,
+  FileClock, FileText, FlaskConical, History, MoreHorizontal,
+  Plus, Save, Search, Stethoscope, Trash2, UserRound, X,
+} from 'lucide-react'
 import { useAuthStore } from '../store'
 
-interface Appointment {
-  id: number
-  patient: { id: string; patientCode: string; fullName: string; phone: string }
-  doctor: { id: string; fullName: string }
-  appointment_time: string
-  reason: string
-  status: string
-}
+type AppointmentStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED'
+type OrderType = 'LAB_TEST' | 'IMAGING' | 'PROCEDURE' | 'OTHER'
+interface Patient { id: string; code: string; fullName: string; gender: string; age: number; phone: string; address: string; allergy: string; bloodType: string; history: string; chronic: string; note: string }
+interface WaitingAppointment { id: string; patient: Patient; time: string; reason: string; status: AppointmentStatus; appointmentCode: string }
+interface Prescription { id: string; medicationName: string; dosage: string; quantity: number; unit: string; instructions: string }
+interface MedicalOrder { id: string; orderType: OrderType; name: string; purpose: string; instructions: string }
 
-interface MedicalRecord {
-  id: number
-  appointmentId: number
-  visitDate: string
-  doctorName: string
-  symptoms: string
-  diagnosis: string
-  notes: string | null
-}
+const MOCK_PATIENTS: Patient[] = [
+  { id: 'patient-1', code: 'BN001', fullName: 'Nguyễn Văn A', gender: 'Nam', age: 34, phone: '090 123 4567', address: '123 Đường ABC, Quận 1, TP.HCM', allergy: 'Penicillin', bloodType: 'O+', history: 'Tăng huyết áp (2 năm)', chronic: 'Không', note: 'Theo dõi huyết áp định kỳ' },
+  { id: 'patient-2', code: 'BN002', fullName: 'Lê Thị B', gender: 'Nữ', age: 29, phone: '091 222 3344', address: '45 Nguyễn Trãi, Quận 5, TP.HCM', allergy: 'Không ghi nhận', bloodType: 'A+', history: 'Viêm dạ dày', chronic: 'Không', note: '-' },
+  { id: 'patient-3', code: 'BN003', fullName: 'Trần Minh C', gender: 'Nam', age: 46, phone: '093 555 6677', address: '18 Lê Lợi, Quận 3, TP.HCM', allergy: 'Chưa cập nhật', bloodType: 'B+', history: 'Rối loạn mỡ máu', chronic: 'Đái tháo đường type 2', note: '-' },
+]
+const INITIAL_WAITING: WaitingAppointment[] = [
+  { id: 'visit-1', patient: MOCK_PATIENTS[0], time: '10:30', reason: 'Đau đầu 3 ngày, chóng mặt nhẹ', status: 'WAITING', appointmentCode: 'LH20260718001' },
+  { id: 'visit-2', patient: MOCK_PATIENTS[1], time: '11:00', reason: 'Đau dạ dày, đầy hơi', status: 'WAITING', appointmentCode: 'LH20260718002' },
+  { id: 'visit-3', patient: MOCK_PATIENTS[2], time: '11:30', reason: 'Tái khám và kiểm tra đường huyết', status: 'WAITING', appointmentCode: 'LH20260718003' },
+]
+const orderTypeLabels: Record<OrderType, string> = { LAB_TEST: 'Xét nghiệm', IMAGING: 'Chẩn đoán hình ảnh', PROCEDURE: 'Thủ thuật', OTHER: 'Khác' }
 
-interface RecordForm {
-  symptoms: string
-  diagnosis: string
-  notes: string
-}
-
-const EMPTY_FORM: RecordForm = { symptoms: '', diagnosis: '', notes: '' }
-
-function formatAppointmentTime(value: string) {
-  try {
-    return format(parseISO(value), 'HH:mm')
-  } catch {
-    return value
-  }
-}
-
-function formatVisitDate(value: string) {
-  try {
-    return format(new Date(value.replace(' ', 'T')), 'HH:mm - dd/MM/yyyy')
-  } catch {
-    return value
-  }
-}
+interface Draft { symptoms: string; diagnosis: string; icdCode: string; treatmentPlan: string; notes: string; pulse: string; systolic: string; diastolic: string; temperature: string; spo2: string; weight: string; height: string; prescriptions: Prescription[]; orders: MedicalOrder[] }
+type MedicationDraft = { medicationName: string; dosage: string; quantity: string; unit: string; instructions: string }
+type OrderDraft = { orderType: OrderType; name: string; purpose: string; instructions: string }
+const EMPTY_DRAFT: Draft = { symptoms: '', diagnosis: '', icdCode: '', treatmentPlan: '', notes: '', pulse: '78', systolic: '120', diastolic: '80', temperature: '36.7', spo2: '98', weight: '', height: '', prescriptions: [], orders: [] }
 
 export default function MedicalRecordsPage() {
-  const token = useAuthStore((state) => state.token)
+  const user = useAuthStore((s) => s.user)
   const [searchParams, setSearchParams] = useSearchParams()
-  const patientId = searchParams.get('patientId')?.trim() || ''
-  const [activeTab, setActiveTab] = useState<'today' | 'history'>(patientId ? 'history' : 'today')
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [appointmentsLoading, setAppointmentsLoading] = useState(false)
-  const [appointmentsError, setAppointmentsError] = useState<string | null>(null)
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
-  const [form, setForm] = useState<RecordForm>({ ...EMPTY_FORM })
-  const [formErrors, setFormErrors] = useState<Partial<RecordForm>>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [records, setRecords] = useState<MedicalRecord[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [historyError, setHistoryError] = useState<string | null>(null)
-  const [lookupPatientId, setLookupPatientId] = useState(patientId)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [activeTab, setActiveTab] = useState<'consultation' | 'history'>(searchParams.get('tab') === 'history' ? 'history' : 'consultation')
+  const [waiting, setWaiting] = useState(INITIAL_WAITING)
+  const [activeVisit, setActiveVisit] = useState<WaitingAppointment | null>(null)
+  const [draft, setDraft] = useState<Draft>({ ...EMPTY_DRAFT })
+  const [savedAt, setSavedAt] = useState('Chưa lưu nháp')
+  const [errors, setErrors] = useState<{ symptoms?: string; diagnosis?: string }>({})
+  const [showComplete, setShowComplete] = useState(false)
+  const [modal, setModal] = useState<'medication' | 'order' | null>(null)
+  const [medication, setMedication] = useState<MedicationDraft>({ medicationName: '', dosage: '', quantity: '1', unit: 'viên', instructions: '' })
+  const [order, setOrder] = useState<OrderDraft>({ orderType: 'LAB_TEST', name: '', purpose: '', instructions: '' })
+  const [toast, setToast] = useState('')
 
-  const loadTodayAppointments = useCallback(async () => {
-    if (!token) return
-    setAppointmentsLoading(true)
-    setAppointmentsError(null)
-    try {
-      const today = format(new Date(), 'yyyy-MM-dd')
-      const response = await authFetch(`/api/appointments/?status=CONFIRMED&date=${today}`)
-      const json = await response.json()
-      if (!response.ok || !json.success) {
-        setAppointments([])
-        setAppointmentsError(json.error?.message || 'Không thể tải danh sách bệnh nhân chờ khám')
-        return
-      }
-      setAppointments(Array.isArray(json.data?.appointments) ? json.data.appointments : [])
-    } catch {
-      setAppointments([])
-      setAppointmentsError('Không thể kết nối đến máy chủ')
-    } finally {
-      setAppointmentsLoading(false)
-    }
-  }, [token])
-
-  const loadMedicalHistory = useCallback(async (id: string) => {
-    if (!token || !id) return
-    setHistoryLoading(true)
-    setHistoryError(null)
-    try {
-      const response = await authFetch(`/api/patients/${encodeURIComponent(id)}/medical-records/`)
-      const json = await response.json()
-      if (!response.ok || !json.success) {
-        setRecords([])
-        setHistoryError(json.error?.message || 'Không thể tải lịch sử bệnh án')
-        return
-      }
-      setRecords(Array.isArray(json.data?.medicalRecords) ? json.data.medicalRecords : [])
-    } catch {
-      setRecords([])
-      setHistoryError('Không thể kết nối đến máy chủ')
-    } finally {
-      setHistoryLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadTodayAppointments() }, 0)
-    return () => window.clearTimeout(timer)
-  }, [loadTodayAppointments])
-
-  useEffect(() => {
-    if (!patientId) return
-    const timer = window.setTimeout(() => {
-      setActiveTab('history')
-      setLookupPatientId(patientId)
-      void loadMedicalHistory(patientId)
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [loadMedicalHistory, patientId])
-
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 3500)
-    return () => window.clearTimeout(timer)
-  }, [toast])
-
-  const openRecordForm = (appointment: Appointment) => {
-    setSelectedAppointment(appointment)
-    setForm({ ...EMPTY_FORM })
-    setFormErrors({})
-    setSubmitError(null)
+  const currentDoctor = user?.fullName || 'Nguyễn Minh Đức'
+  const openVisit = (visit: WaitingAppointment) => {
+    setActiveVisit({ ...visit, status: 'IN_PROGRESS' }); setWaiting((items) => items.map((item) => item.id === visit.id ? { ...item, status: 'IN_PROGRESS' } : item)); setDraft({ ...EMPTY_DRAFT }); setErrors({}); setSavedAt('Chưa lưu nháp')
   }
+  const backToDashboard = () => { setActiveVisit(null); setShowComplete(false) }
+  const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
+  const saveDraft = () => { setSavedAt(`Đã lưu lúc ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`); setToast('Đã lưu bản nháp bệnh án') }
+  const requestComplete = () => { const next: typeof errors = {}; if (!draft.symptoms.trim()) next.symptoms = 'Triệu chứng là bắt buộc'; if (!draft.diagnosis.trim()) next.diagnosis = 'Chẩn đoán là bắt buộc'; setErrors(next); if (Object.keys(next).length === 0) setShowComplete(true) }
+  const completeVisit = () => { if (!activeVisit) return; setWaiting((items) => items.map((item) => item.id === activeVisit.id ? { ...item, status: 'COMPLETED' } : item)); setShowComplete(false); setActiveVisit(null); setToast('Đã hoàn thành ca khám'); setActiveTab('consultation') }
+  const addMedication = (event: React.FormEvent) => { event.preventDefault(); if (!medication.medicationName.trim() || !medication.instructions.trim()) return; updateDraft('prescriptions', [...draft.prescriptions, { ...medication, id: `med-${Date.now()}`, quantity: Number(medication.quantity) || 1 }]); setMedication({ medicationName: '', dosage: '', quantity: '1', unit: 'viên', instructions: '' }); setModal(null) }
+  const addOrder = (event: React.FormEvent) => { event.preventDefault(); if (!order.name.trim()) return; updateDraft('orders', [...draft.orders, { ...order, id: `order-${Date.now()}` }]); setOrder({ orderType: 'LAB_TEST', name: '', purpose: '', instructions: '' }); setModal(null) }
+  const setTab = (tab: 'consultation' | 'history') => { setActiveTab(tab); setSearchParams(tab === 'history' ? { tab: 'history' } : {}) }
 
-  const closeRecordForm = () => {
-    if (submitting) return
-    setSelectedAppointment(null)
-    setForm({ ...EMPTY_FORM })
-    setFormErrors({})
-    setSubmitError(null)
-  }
-
-  const submitMedicalRecord = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!selectedAppointment) return
-    const errors: Partial<RecordForm> = {}
-    if (!form.symptoms.trim()) errors.symptoms = 'Vui lòng nhập triệu chứng'
-    if (!form.diagnosis.trim()) errors.diagnosis = 'Vui lòng nhập chẩn đoán'
-    setFormErrors(errors)
-    if (Object.keys(errors).length > 0) return
-
-    setSubmitting(true)
-    setSubmitError(null)
-    try {
-      const response = await authFetch('/api/medical-records/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appointmentId: selectedAppointment.id,
-          symptoms: form.symptoms.trim(),
-          diagnosis: form.diagnosis.trim(),
-          notes: form.notes.trim(),
-        }),
-      })
-      const json = await response.json()
-      if (!response.ok || !json.success) {
-        setSubmitError(json.error?.message || 'Không thể lưu bệnh án')
-        return
-      }
-      setAppointments((current) => current.filter((item) => item.id !== selectedAppointment.id))
-      setToast({ message: 'Đã lưu bệnh án và hoàn thành lượt khám', type: 'success' })
-      setSelectedAppointment(null)
-      setForm({ ...EMPTY_FORM })
-    } catch {
-      setSubmitError('Không thể kết nối đến máy chủ')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const selectTab = (tab: 'today' | 'history') => {
-    setActiveTab(tab)
-    if (tab === 'today' && patientId) setSearchParams({})
-  }
-
-  const searchHistory = (event: React.FormEvent) => {
-    event.preventDefault()
-    const id = lookupPatientId.trim()
-    if (!id) {
-      setHistoryError('Vui lòng nhập mã định danh bệnh nhân')
-      setRecords([])
-      return
-    }
-    setSearchParams({ patientId: id })
-    if (id === patientId) void loadMedicalHistory(id)
-  }
-
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <div className="page-title">Quản lý bệnh án</div>
-          <div className="page-subtitle">Tiếp nhận lượt khám hôm nay và tra cứu lịch sử điều trị.</div>
-        </div>
-      </div>
-
-      <div className="medical-tabs" role="tablist" aria-label="Chế độ xem bệnh án">
-        <button className={`medical-tab ${activeTab === 'today' ? 'active' : ''}`} onClick={() => selectTab('today')} role="tab" aria-selected={activeTab === 'today'}>
-          <Stethoscope size={18} /> Bệnh án hôm nay
-          <span className="medical-tab-count">{appointments.length}</span>
-        </button>
-        <button className={`medical-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => selectTab('history')} role="tab" aria-selected={activeTab === 'history'}>
-          <FileClock size={18} /> Tra cứu bệnh án
-        </button>
-      </div>
-
-      {activeTab === 'today' ? (
-        <section className="medical-section">
-          <div className="medical-section-heading">
-            <div><h3>Danh sách đang chờ khám</h3><p>Các lịch hẹn đã xác nhận của bác sĩ trong ngày hôm nay.</p></div>
-            <button className="btn btn-secondary btn-sm" onClick={() => void loadTodayAppointments()} disabled={appointmentsLoading}>
-              {appointmentsLoading ? <Loader2 size={16} className="spin" /> : <CalendarDays size={16} />} Tải lại
-            </button>
-          </div>
-
-          {appointmentsError ? (
-            <div className="api-error-box"><AlertTriangle size={17} /><span>{appointmentsError}</span></div>
-          ) : appointmentsLoading ? (
-            <div className="medical-empty"><Loader2 size={34} className="spin" /><strong>Đang tải danh sách chờ...</strong></div>
-          ) : appointments.length === 0 ? (
-            <div className="medical-empty"><CheckCircle2 size={42} /><strong>Không còn bệnh nhân chờ khám</strong><span>Các lịch hẹn đã xác nhận hôm nay sẽ xuất hiện tại đây.</span></div>
-          ) : (
-            <div className="appointment-card-grid">
-              {appointments.map((appointment) => (
-                <button className="appointment-medical-card" key={appointment.id} onClick={() => openRecordForm(appointment)}>
-                  <div className="appointment-card-time"><Clock3 size={17} />{formatAppointmentTime(appointment.appointment_time)}</div>
-                  <div className="appointment-card-patient">
-                    <div className="appointment-card-avatar"><UserRound size={22} /></div>
-                    <div><strong>{appointment.patient.fullName}</strong><span>{appointment.patient.patientCode} · {appointment.patient.phone}</span></div>
-                  </div>
-                  <div className="appointment-card-reason"><span>Lý do khám</span><p>{appointment.reason || 'Chưa ghi nhận'}</p></div>
-                  <div className="appointment-card-action"><ClipboardPlus size={17} />Lập bệnh án</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className="medical-section">
-          <div className="medical-section-heading history-heading">
-            <div><h3>Lịch sử khám bệnh</h3><p>Các lần khám được sắp xếp từ mới nhất đến cũ nhất.</p></div>
-            <form className="history-search" onSubmit={searchHistory}>
-              <input className="form-input" inputMode="numeric" placeholder="Nhập ID bệnh nhân" value={lookupPatientId} onChange={(event) => setLookupPatientId(event.target.value)} />
-              <button className="btn btn-primary" type="submit" disabled={historyLoading}>
-                {historyLoading ? <Loader2 size={16} className="spin" /> : <Search size={16} />} Tra cứu
-              </button>
-            </form>
-          </div>
-
-          {historyError ? (
-            <div className="api-error-box"><AlertTriangle size={17} /><span>{historyError}</span></div>
-          ) : historyLoading ? (
-            <div className="medical-empty"><Loader2 size={34} className="spin" /><strong>Đang tải lịch sử bệnh án...</strong></div>
-          ) : !patientId ? (
-            <div className="medical-empty"><Search size={42} /><strong>Chọn một bệnh nhân để tra cứu</strong><span>Có thể mở nhanh từ nút “Xem bệnh án” trong trang Bệnh nhân.</span></div>
-          ) : records.length === 0 ? (
-            <div className="medical-empty"><FileClock size={42} /><strong>Bệnh nhân chưa có lịch sử khám bệnh</strong><span>ID bệnh nhân: {patientId}</span></div>
-          ) : (
-            <div className="medical-timeline">
-              {records.map((record) => (
-                <article className="medical-timeline-item" key={record.id}>
-                  <div className="medical-timeline-marker"><Stethoscope size={17} /></div>
-                  <div className="medical-record-card">
-                    <div className="medical-record-header">
-                      <div><span className="medical-record-date">{formatVisitDate(record.visitDate)}</span><h4>{record.diagnosis}</h4></div>
-                      <span className="badge badge-info">BS. {record.doctorName}</span>
-                    </div>
-                    <div className="medical-record-detail">
-                      <div><span>Triệu chứng</span><p>{record.symptoms}</p></div>
-                      <div><span>Ghi chú</span><p>{record.notes || 'Không có ghi chú'}</p></div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {selectedAppointment && (
-        <div className="modal-overlay" onClick={closeRecordForm}>
-          <div className="modal-box wide" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div><h3>Lập bệnh án khám</h3><p>{selectedAppointment.patient.fullName} · {selectedAppointment.patient.patientCode}</p></div>
-              <button className="modal-close" onClick={closeRecordForm} disabled={submitting} aria-label="Đóng"><X size={20} /></button>
-            </div>
-            <form onSubmit={submitMedicalRecord}>
-              <div className="modal-body">
-                <div className="record-appointment-summary">
-                  <div><Clock3 size={16} /><span>Giờ hẹn</span><strong>{formatAppointmentTime(selectedAppointment.appointment_time)}</strong></div>
-                  <div><CalendarDays size={16} /><span>Lý do khám</span><strong>{selectedAppointment.reason || 'Chưa ghi nhận'}</strong></div>
-                </div>
-                {submitError && <div className="api-error-box"><AlertTriangle size={16} /><span>{submitError}</span></div>}
-                <div className="form-group">
-                  <label className="form-label required">Triệu chứng</label>
-                  <textarea className={`form-textarea ${formErrors.symptoms ? 'error' : ''}`} rows={3} placeholder="Mô tả các triệu chứng bệnh nhân đang gặp phải..." value={form.symptoms} onChange={(event) => setForm({ ...form, symptoms: event.target.value })} disabled={submitting} />
-                  {formErrors.symptoms && <div className="form-error">{formErrors.symptoms}</div>}
-                </div>
-                <div className="form-group">
-                  <label className="form-label required">Chẩn đoán</label>
-                  <textarea className={`form-textarea ${formErrors.diagnosis ? 'error' : ''}`} rows={3} placeholder="Nhập kết luận chẩn đoán..." value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} disabled={submitting} />
-                  {formErrors.diagnosis && <div className="form-error">{formErrors.diagnosis}</div>}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Ghi chú</label>
-                  <textarea className="form-textarea" rows={3} placeholder="Dặn dò hoặc thông tin bổ sung (không bắt buộc)..." value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} disabled={submitting} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" type="button" onClick={closeRecordForm} disabled={submitting}>Hủy</button>
-                <button className="btn btn-primary" type="submit" disabled={submitting}>
-                  {submitting ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}{submitting ? 'Đang lưu...' : 'Lưu bệnh án'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>
-          {toast.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}<span>{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}><X size={16} /></button>
-        </div>
-      )}
-    </>
-  )
+  if (activeVisit) return <>
+    <ConsultationWorkspace visit={activeVisit} doctorName={currentDoctor} draft={draft} updateDraft={updateDraft} errors={errors} savedAt={savedAt} onBack={backToDashboard} onSave={saveDraft} onComplete={requestComplete} onRemoveMedication={(id) => updateDraft('prescriptions', draft.prescriptions.filter((item) => item.id !== id))} onRemoveOrder={(id) => updateDraft('orders', draft.orders.filter((item) => item.id !== id))} onAddMedication={() => setModal('medication')} onAddOrder={() => setModal('order')} />
+    {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
+    {modal === 'medication' && <MedicationModal value={medication} setValue={setMedication} onClose={() => setModal(null)} onSubmit={addMedication} />}
+    {modal === 'order' && <OrderModal value={order} setValue={setOrder} onClose={() => setModal(null)} onSubmit={addOrder} />}
+  </>
+  return <>
+    <div className="page-header doctor-page-heading"><div><div className="page-title">Khám bệnh</div><div className="page-subtitle">Tiếp nhận và ghi nhận thông tin khám bệnh hôm nay.</div></div><div className="doctor-header-status"><span className="live-dot" /> Phòng khám đang hoạt động</div></div>
+    <div className="doctor-tabs"><button className={activeTab === 'consultation' ? 'active' : ''} onClick={() => setTab('consultation')}><Stethoscope size={17} /> Khám bệnh <span>{waiting.filter((item) => item.status === 'WAITING').length}</span></button><button className={activeTab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><History size={17} /> Lịch sử khám</button></div>
+    {activeTab === 'history' ? <HistoryPanel visits={waiting.filter((item) => item.status === 'COMPLETED')} /> : <DoctorDashboard waiting={waiting} onStart={openVisit} activeVisit={waiting.find((item) => item.status === 'IN_PROGRESS') || null} />}
+    {toast && <div className="doctor-toast"><CheckCircle2 size={16} /> {toast}</div>}
+    {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
+    {modal === 'medication' && <MedicationModal value={medication} setValue={setMedication} onClose={() => setModal(null)} onSubmit={addMedication} />}
+    {modal === 'order' && <OrderModal value={order} setValue={setOrder} onClose={() => setModal(null)} onSubmit={addOrder} />}
+  </>
 }
+
+function DoctorDashboard({ waiting, onStart, activeVisit }: { waiting: WaitingAppointment[]; onStart: (visit: WaitingAppointment) => void; activeVisit: WaitingAppointment | null }) { const waitingItems = useMemo(() => waiting.filter((item) => item.status === 'WAITING'), [waiting]); return <div className="doctor-dashboard"><div className="doctor-summary-grid"><div className="doctor-stat-card"><span className="doctor-stat-icon blue"><ClipboardList size={19} /></span><strong>{waitingItems.length}</strong><span>Đang chờ khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon green"><Stethoscope size={19} /></span><strong>{activeVisit ? 1 : 0}</strong><span>Đang khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon gray"><CheckCircle2 size={19} /></span><strong>{waiting.filter((item) => item.status === 'COMPLETED').length}</strong><span>Đã hoàn tất</span></div></div>{activeVisit && <div className="active-consultation-banner"><div><span className="active-label"><span className="live-dot" /> ĐANG KHÁM</span><strong>{activeVisit.patient.fullName}</strong><span>{activeVisit.patient.code} · {activeVisit.reason}</span></div><button className="btn btn-primary btn-sm" onClick={() => onStart(activeVisit)}>Tiếp tục khám</button></div>}<section className="doctor-queue-card"><div className="doctor-section-heading"><div><h3>Danh sách chờ khám</h3><p>Bệnh nhân đã được lễ tân xác nhận và đang chờ bác sĩ.</p></div><span className="queue-count">{waitingItems.length} bệnh nhân</span></div>{waitingItems.length === 0 ? <div className="doctor-empty"><CheckCircle2 size={38} /><strong>Không còn bệnh nhân chờ khám</strong><span>Bạn đã hoàn tất các lượt khám trong danh sách.</span></div> : <div className="doctor-queue-list">{waitingItems.map((visit, index) => <div className="doctor-queue-row" key={visit.id}><span className="doctor-queue-number">{String(index + 1).padStart(2, '0')}</span><div className="doctor-queue-avatar"><UserRound size={20} /></div><div className="doctor-queue-patient"><strong>{visit.patient.fullName}</strong><span>{visit.patient.code} · {visit.patient.gender} · {visit.patient.age} tuổi</span></div><div className="doctor-queue-reason"><small>Lý do khám</small><span>{visit.reason}</span></div><div className="doctor-queue-time"><Clock3 size={15} />{visit.time}</div><button className="btn btn-primary btn-sm" onClick={() => onStart(visit)}>Bắt đầu khám</button><button className="icon-button" aria-label="Thêm thao tác"><MoreHorizontal size={17} /></button></div>)}</div>}</section></div> }
+
+function HistoryPanel({ visits }: { visits: WaitingAppointment[] }) { return <section className="doctor-queue-card history-panel"><div className="doctor-section-heading"><div><h3>Lịch sử khám</h3><p>Các ca khám đã hoàn tất trong phiên mock hiện tại.</p></div><div className="history-search-box"><Search size={15} /><input placeholder="Tìm bệnh nhân" /></div></div>{visits.length === 0 ? <div className="doctor-empty"><FileClock size={38} /><strong>Chưa có ca khám hoàn tất</strong></div> : visits.map((visit) => <div className="history-row" key={visit.id}><span>{visit.time}</span><strong>{visit.patient.fullName}</strong><span>{visit.patient.code}</span><span>{visit.reason}</span><span className="status-pill completed">Đã hoàn tất</span></div>)}</section> }
+
+function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, savedAt, onBack, onSave, onComplete, onRemoveMedication, onRemoveOrder, onAddMedication, onAddOrder }: { visit: WaitingAppointment; doctorName: string; draft: Draft; updateDraft: <K extends keyof Draft>(key: K, value: Draft[K]) => void; errors: { symptoms?: string; diagnosis?: string }; savedAt: string; onBack: () => void; onSave: () => void; onComplete: () => void; onRemoveMedication: (id: string) => void; onRemoveOrder: (id: string) => void; onAddMedication: () => void; onAddOrder: () => void }) { const patient = visit.patient; return <div className="consultation-page"><div className="consultation-topbar"><button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Quay lại Khám bệnh</button><div className="consultation-top-actions"><button className="btn btn-secondary btn-sm"><UserRound size={15} /> Xem hồ sơ bệnh nhân</button><button className="icon-button"><MoreHorizontal size={17} /></button></div></div><section className="patient-header-card"><div className="patient-header-main"><div className="patient-large-avatar">NA</div><div><h1>{patient.fullName}</h1><p>{patient.gender} · {patient.age} tuổi</p><div className="patient-quick-info"><span>Mã BN: <b>{patient.code}</b></span><span>{patient.phone}</span><span>{patient.address}</span></div></div></div><div className="patient-appointment-meta"><div><span>Mã lịch hẹn</span><strong>{visit.appointmentCode}</strong></div><div><span>Thời gian hẹn</span><strong>18/07/2026 {visit.time}</strong></div><div><span>Trạng thái</span><b className="status-pill in-progress">ĐANG KHÁM</b></div><div><span>Bác sĩ</span><strong>BS. {doctorName}</strong></div></div></section><div className="clinical-warning"><AlertTriangle size={17} /><span><strong>Dị ứng:</strong> {patient.allergy}</span></div><div className="consultation-tabs"><button className="active">Thông tin khám</button><button>Tiền sử bệnh</button><button>Lịch sử khám</button><button>Ghi chú</button></div><div className="consultation-grid"><aside className="clinical-sidebar"><ClinicalSummary patient={patient} /><div className="visit-reason-card"><h3>Lý do khám</h3><p>{visit.reason}</p></div></aside><main className="consultation-form"><section className="consultation-section"><SectionTitle icon={<Stethoscope size={17} />} title="Nội dung khám" /><label className="clinical-label">Triệu chứng *<textarea className={errors.symptoms ? 'has-error' : ''} rows={4} value={draft.symptoms} onChange={(e) => updateDraft('symptoms', e.target.value)} placeholder="Mô tả triệu chứng, diễn biến bệnh..." />{errors.symptoms && <small className="field-error">{errors.symptoms}</small>}</label><div className="vitals-block"><div className="subsection-title"><span>Dấu hiệu sinh tồn</span><small>Tùy chọn</small></div><div className="vitals-grid">{([['pulse', 'Mạch', 'lần/phút'], ['systolic', 'HA tâm thu', 'mmHg'], ['diastolic', 'HA tâm trương', 'mmHg'], ['temperature', 'Nhiệt độ', '°C'], ['spo2', 'SpO2', '%'], ['weight', 'Cân nặng', 'kg'], ['height', 'Chiều cao', 'cm']] as const).map(([key, label, unit]) => <label key={key}>{label}<div className="input-with-unit"><input type="number" value={draft[key]} onChange={(e) => updateDraft(key, e.target.value)} /><span>{unit}</span></div></label>)}</div></div><div className="diagnosis-grid"><label className="clinical-label">Chẩn đoán *<input className={errors.diagnosis ? 'has-error' : ''} value={draft.diagnosis} onChange={(e) => updateDraft('diagnosis', e.target.value)} placeholder="Nhập chẩn đoán" />{errors.diagnosis && <small className="field-error">{errors.diagnosis}</small>}</label><label className="clinical-label">Mã ICD<input value={draft.icdCode} onChange={(e) => updateDraft('icdCode', e.target.value)} placeholder="Ví dụ: F43.9" /></label></div><label className="clinical-label">Hướng điều trị / Kế hoạch<textarea rows={3} value={draft.treatmentPlan} onChange={(e) => updateDraft('treatmentPlan', e.target.value)} placeholder="Nhập kế hoạch điều trị..." /></label></section><PrescriptionSection items={draft.prescriptions} onAdd={onAddMedication} onRemove={onRemoveMedication} /><OrdersSection items={draft.orders} onAdd={onAddOrder} onRemove={onRemoveOrder} /><section className="consultation-section"><label className="clinical-label">Ghi chú thêm<textarea rows={3} value={draft.notes} onChange={(e) => updateDraft('notes', e.target.value)} placeholder="Ghi chú nội bộ cho ca khám" /></label></section></main></div><div className="consultation-actionbar"><div className="save-state"><button className="btn btn-secondary" onClick={onSave}><Save size={16} /> Lưu nháp</button><span><Check size={14} /> {savedAt}</span></div><button className="btn btn-primary btn-lg" onClick={onComplete}>Hoàn thành ca khám</button></div></div> }
+
+function ClinicalSummary({ patient }: { patient: Patient }) { return <section className="clinical-summary-card"><div className="doctor-section-heading"><h3>Thông tin bệnh nhân</h3><button className="text-button">Xem chi tiết</button></div><dl className="clinical-summary-list"><div><dt>Dị ứng</dt><dd className={patient.allergy !== 'Không ghi nhận' ? 'warning-text' : ''}>{patient.allergy}</dd></div><div><dt>Nhóm máu</dt><dd>{patient.bloodType}</dd></div><div><dt>Tiền sử bệnh</dt><dd>{patient.history}</dd></div><div><dt>Bệnh nền khác</dt><dd>{patient.chronic}</dd></div><div><dt>Ghi chú</dt><dd>{patient.note}</dd></div></dl></section> }
+function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="consultation-section-title">{icon}<h2>{title}</h2></div> }
+function PrescriptionSection({ items, onAdd, onRemove }: { items: Prescription[]; onAdd: () => void; onRemove: (id: string) => void }) { return <section className="consultation-section compact-section"><SectionTitle icon={<FileText size={17} />} title="Đơn thuốc" /><button className="section-add-button" onClick={onAdd}><Plus size={15} /> Thêm thuốc</button>{items.length === 0 ? <div className="section-empty">Chưa có thuốc được kê. Đơn thuốc là tùy chọn.</div> : <div className="clinical-table"><div className="clinical-table-head"><span>Tên thuốc</span><span>Liều dùng</span><span>Số lượng</span><span>Cách dùng</span><span /></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{item.medicationName}</strong><span>{item.dosage || '—'}</span><span>{item.quantity} {item.unit}</span><span>{item.instructions}</span><button onClick={() => onRemove(item.id)} aria-label="Xóa thuốc"><Trash2 size={15} /></button></div>)}</div>}</section> }
+function OrdersSection({ items, onAdd, onRemove }: { items: MedicalOrder[]; onAdd: () => void; onRemove: (id: string) => void }) { return <section className="consultation-section compact-section"><SectionTitle icon={<FlaskConical size={17} />} title="Chỉ định" /><button className="section-add-button" onClick={onAdd}><Plus size={15} /> Thêm chỉ định</button>{items.length === 0 ? <div className="section-empty">Chưa có chỉ định. Chỉ định là tùy chọn.</div> : <div className="clinical-table"><div className="clinical-table-head"><span>Loại</span><span>Tên chỉ định</span><span>Mục đích</span><span>Hướng dẫn</span><span /></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{orderTypeLabels[item.orderType]}</strong><span>{item.name}</span><span>{item.purpose || '—'}</span><span>{item.instructions || '—'}</span><button onClick={() => onRemove(item.id)} aria-label="Xóa chỉ định"><Trash2 size={15} /></button></div>)}</div>}</section> }
+
+function ConfirmModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) { return <div className="modal-backdrop"><div className="doctor-confirm-modal"><div className="confirm-icon"><CheckCircle2 size={25} /></div><h2>Hoàn thành ca khám?</h2><p>Sau khi hoàn thành, hồ sơ khám sẽ được khóa và bệnh nhân được chuyển sang trạng thái hoàn tất.</p><div className="modal-footer"><button className="btn btn-secondary" onClick={onCancel}>Quay lại</button><button className="btn btn-primary" onClick={onConfirm}>Hoàn thành</button></div></div></div> }
+function MedicationModal({ value, setValue, onClose, onSubmit }: { value: MedicationDraft; setValue: React.Dispatch<React.SetStateAction<MedicationDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <div className="modal-backdrop"><form className="doctor-form-modal" onSubmit={onSubmit}><div className="modal-header"><div><h2>Thêm thuốc</h2><p>Nhập thông tin thuốc cho đơn khám.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="doctor-modal-fields"><label>Tên thuốc *<input autoFocus value={value.medicationName} onChange={(e) => setValue((v) => ({ ...v, medicationName: e.target.value }))} placeholder="Ví dụ: Paracetamol 500mg" /></label><label>Liều dùng<input value={value.dosage} onChange={(e) => setValue((v) => ({ ...v, dosage: e.target.value }))} placeholder="500mg" /></label><label>Số lượng *<input type="number" min="1" value={value.quantity} onChange={(e) => setValue((v) => ({ ...v, quantity: e.target.value }))} /></label><label>Đơn vị<input value={value.unit} onChange={(e) => setValue((v) => ({ ...v, unit: e.target.value }))} /></label><label className="span-two">Cách dùng *<textarea rows={2} value={value.instructions} onChange={(e) => setValue((v) => ({ ...v, instructions: e.target.value }))} placeholder="Uống 1 viên sau ăn" /></label></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button><button className="btn btn-primary" type="submit">Thêm thuốc</button></div></form></div> }
+function OrderModal({ value, setValue, onClose, onSubmit }: { value: OrderDraft; setValue: React.Dispatch<React.SetStateAction<OrderDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <div className="modal-backdrop"><form className="doctor-form-modal" onSubmit={onSubmit}><div className="modal-header"><div><h2>Thêm chỉ định</h2><p>Ghi nhận xét nghiệm hoặc chỉ định cần thực hiện.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="doctor-modal-fields"><label>Loại chỉ định<select value={value.orderType} onChange={(e) => setValue((v) => ({ ...v, orderType: e.target.value as OrderType }))}>{Object.entries(orderTypeLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label className="span-two">Tên chỉ định *<input autoFocus value={value.name} onChange={(e) => setValue((v) => ({ ...v, name: e.target.value }))} placeholder="Ví dụ: Công thức máu" /></label><label>Mục đích<input value={value.purpose} onChange={(e) => setValue((v) => ({ ...v, purpose: e.target.value }))} placeholder="Đánh giá thiếu máu" /></label><label>Hướng dẫn / Ghi chú<input value={value.instructions} onChange={(e) => setValue((v) => ({ ...v, instructions: e.target.value }))} placeholder="Nhịn ăn sáng" /></label></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button><button className="btn btn-primary" type="submit">Thêm chỉ định</button></div></form></div> }

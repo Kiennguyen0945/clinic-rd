@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Users,
   FileText,
+  Stethoscope,
   UserCog,
   BarChart3,
   Shield,
@@ -20,7 +21,8 @@ const navConfig: Record<string, Array<{ path: string; label: string; icon: React
     { path: '/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
     { path: '/appointments', label: 'Lịch hẹn', icon: <CalendarDays size={20} /> },
     { path: '/patients', label: 'Bệnh nhân', icon: <Users size={20} /> },
-    { path: '/medical-records', label: 'Bệnh án', icon: <FileText size={20} /> },
+    { path: '/medical-records', label: 'Khám bệnh', icon: <Stethoscope size={20} /> },
+    { path: '/medical-records?tab=history', label: 'Lịch sử khám', icon: <FileText size={20} /> },
   ],
   manager: [
     { path: '/dashboard', label: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
@@ -56,7 +58,7 @@ export default function Sidebar() {
         {items.map((item) => (
           <button
             key={item.path}
-            className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+            className={`nav-item ${location.pathname + location.search === item.path || (item.path === '/medical-records' && location.pathname === item.path && !location.search) ? 'active' : ''}`}
             onClick={() => navigate(item.path)}
           >
             <span className="nav-item-icon">{item.icon}</span>
