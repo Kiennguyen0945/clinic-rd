@@ -143,6 +143,11 @@ jobs:
         working-directory: apps/backend
         env:
           DJANGO_DB_ENGINE: postgres
+          POSTGRES_DB: db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
           BACKEND_AUTH_CHANGED: ${{ needs.detect-changes.outputs.backend_auth_changed }}
           BACKEND_APPOINTMENT_CHANGED: ${{ needs.detect-changes.outputs.backend_appointment_changed }}
           BACKEND_PATIENT_CHANGED: ${{ needs.detect-changes.outputs.backend_patient_changed }}
