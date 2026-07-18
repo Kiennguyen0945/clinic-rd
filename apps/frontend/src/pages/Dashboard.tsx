@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store'
 import { authFetch } from '../lib/authFetch'
 import { format, parseISO } from 'date-fns'
-import { Activity, Clock, CheckCircle, CalendarPlus, Search, Plus } from 'lucide-react'
+import { Activity, Clock, CheckCircle, CalendarCheck, Search, Plus, Stethoscope, Ban } from 'lucide-react'
 
 interface TodayStats {
   total: number
@@ -31,7 +31,7 @@ function statusBadge(status: string) {
   const map: Record<string, { label: string; cls: string }> = {
     PENDING:     { label: 'Đang chờ',     cls: 'badge-pending' },
     CONFIRMED:   { label: 'Đã xác nhận',   cls: 'badge-info' },
-    IN_PROGRESS: { label: 'Đang khám',     cls: 'badge-brand' },
+    IN_PROGRESS: { label: 'Đang khám',     cls: 'badge-pending' },
     COMPLETED:   { label: 'Hoàn thành',    cls: 'badge-completed' },
     CANCELLED:   { label: 'Đã huỷ',        cls: 'badge-cancelled' },
   }
@@ -98,7 +98,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid (like HTML) */}
-      <div className="stats-grid">
+      <div className="stats-grid dashboard-stats-grid">
         <div className="stat-card">
           <div className="stat-top">
             <div className="stat-icon tint-primary">
@@ -116,7 +116,27 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="stat-value">{todayStats.pending}</div>
-          <div className="stat-label">Đang chờ khám</div>
+          <div className="stat-label">Chờ xác nhận</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-success">
+              <CalendarCheck size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.confirmed}</div>
+          <div className="stat-label">Đã xác nhận</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-top">
+            <div className="stat-icon tint-info">
+              <Stethoscope size={20} />
+            </div>
+          </div>
+          <div className="stat-value">{todayStats.inProgress}</div>
+          <div className="stat-label">Đang khám</div>
         </div>
 
         <div className="stat-card">
@@ -131,12 +151,12 @@ export default function DashboardPage() {
 
         <div className="stat-card">
           <div className="stat-top">
-            <div className="stat-icon tint-info">
-              <CalendarPlus size={20} />
+            <div className="stat-icon tint-danger">
+              <Ban size={20} />
             </div>
           </div>
-          <div className="stat-value">{todayStats.confirmed}</div>
-          <div className="stat-label">Lịch hẹn chờ xác nhận</div>
+          <div className="stat-value">{todayStats.cancelled}</div>
+          <div className="stat-label">Đã hủy</div>
         </div>
       </div>
 

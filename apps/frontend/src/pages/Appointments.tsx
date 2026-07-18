@@ -11,6 +11,7 @@ import {
   Plus,
   X,
   UserRoundSearch,
+  CheckCircle2,
 } from 'lucide-react'
 import { authFetch } from '../lib/authFetch'
 import { useAuthStore } from '../store'
@@ -94,6 +95,16 @@ const EMPTY_FORM: AppointmentFormState = {
   doctorId: '',
   appointmentTime: '',
   reason: '',
+}
+
+function resolveAppointmentError(code?: string) {
+  if (code === 'ALREADY_COMPLETED') {
+    return 'Không thể sửa/hủy lịch hẹn đã hoàn thành'
+  }
+  if (code === 'APPOINTMENT_NOT_FOUND') {
+    return 'Không tìm thấy lịch hẹn'
+  }
+  return null
 }
 
 function getTodayValue() {
@@ -182,6 +193,8 @@ export default function AppointmentsPage() {
   const [formErrors, setFormErrors] = useState<AppointmentFormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [pendingCancelAppointment, setPendingCancelAppointment] = useState<AppointmentRow | null>(null)
+  const [cancelling, setCancelling] = useState(false)
 
   const [patientQuery, setPatientQuery] = useState('')
   const [patientResults, setPatientResults] = useState<PatientOption[]>([])
@@ -354,6 +367,11 @@ export default function AppointmentsPage() {
     setSelectedPatient(null)
   }
 
+  const closeCancelDialog = () => {
+    if (cancelling) return
+    setPendingCancelAppointment(null)
+  }
+
   const validateForm = () => {
     const errors: AppointmentFormErrors = {}
 
@@ -433,7 +451,8 @@ export default function AppointmentsPage() {
       return
     }
 
-    setApiError(json.error?.message || 'Cập nhật lịch hẹn thất bại')
+    const mappedError = resolveAppointmentError(json.error?.code)
+    setApiError(mappedError || json.error?.message || 'Cập nhật lịch hẹn thất bại')
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -461,24 +480,31 @@ export default function AppointmentsPage() {
 
   const handleCancelAppointment = async (appointment: AppointmentRow) => {
     if (!token) return
+    setPendingCancelAppointment(appointment)
+  }
 
-    const confirmed = window.confirm('Huỷ lịch hẹn này?')
-    if (!confirmed) return
+  const confirmCancelAppointment = async () => {
+    if (!token || !pendingCancelAppointment) return
 
+    setCancelling(true)
     try {
-      const response = await authFetch(`/api/appointments/${appointment.id}/cancel/`, {
+      const response = await authFetch(`/api/appointments/${pendingCancelAppointment.id}/cancel/`, {
         method: 'PATCH',
       })
       const json = await response.json()
 
       if (json.success) {
-        setToast({ message: 'Huỷ lịch hẹn thành công', type: 'success' })
+        setToast({ message: 'Hủy lịch hẹn thành công', type: 'success' })
+        setPendingCancelAppointment(null)
         await refreshList()
       } else {
-        setToast({ message: json.error?.message || 'Huỷ lịch hẹn thất bại', type: 'error' })
+        const mappedError = resolveAppointmentError(json.error?.code)
+        setToast({ message: mappedError || json.error?.message || 'Hủy lịch hẹn thất bại', type: 'error' })
       }
     } catch {
       setToast({ message: 'Không thể kết nối đến máy chủ', type: 'error' })
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -591,7 +617,7 @@ export default function AppointmentsPage() {
             <thead>
               <tr>
                 <th>Giờ</th>
-                <th>Mã BN</th>
+                <th>Mã bệnh nhân</th>
                 <th>Bệnh nhân</th>
                 <th>Bác sĩ</th>
                 <th>Lý do</th>
@@ -650,7 +676,12 @@ export default function AppointmentsPage() {
                       </span>
                     </td>
                     <td>
-                      {canManageActions && appointment.status !== 'COMPLETED' ? (
+                      {appointment.status === 'COMPLETED' ? (
+                        <span className="badge badge-completed" title="Đã hoàn thành">
+                          <CheckCircle2 size={14} />
+                          Đã hoàn thành
+                        </span>
+                      ) : canManageActions ? (
                         <div className="row-actions">
                           <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(appointment)}>
                             <Edit3 size={16} />
@@ -707,7 +738,7 @@ export default function AppointmentsPage() {
                         <UserRoundSearch size={18} />
                         <input
                           className={`form-input ${formErrors.patientId ? 'error' : ''}`}
-                          placeholder="Tìm theo mã BN, tên hoặc SĐT"
+                          placeholder="Tìm theo mã bệnh nhân, tên hoặc số điện thoại"
                           value={patientQuery}
                           onChange={(event) => {
                             setPatientQuery(event.target.value)
@@ -927,6 +958,39 @@ export default function AppointmentsPage() {
           <button className="toast-close" onClick={() => setToast(null)}>
             <X size={16} />
           </button>
+        </div>
+      )}
+
+      {pendingCancelAppointment && (
+        <div className="modal-overlay" onClick={!cancelling ? closeCancelDialog : undefined}>
+          <div className="modal-box" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Xác nhận hủy lịch hẹn</h3>
+                <p>Bạn có chắc chắn muốn hủy lịch hẹn này?</p>
+              </div>
+              <button className="modal-close" onClick={closeCancelDialog} disabled={cancelling}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="api-error-box" style={{ marginBottom: 0 }}>
+                <AlertTriangle size={16} />
+                <span>
+                  {formatDate(pendingCancelAppointment.appointment_time)} {formatTime(pendingCancelAppointment.appointment_time)} - {pendingCancelAppointment.patient.fullName}
+                </span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={closeCancelDialog} disabled={cancelling}>
+                Không
+              </button>
+              <button type="button" className="btn btn-danger" onClick={confirmCancelAppointment} disabled={cancelling}>
+                {cancelling ? <Loader2 size={16} className="spin" /> : null}
+                {cancelling ? 'Đang hủy...' : 'Đồng ý hủy'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

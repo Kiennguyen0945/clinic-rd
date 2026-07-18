@@ -1045,7 +1045,7 @@ PHẦN 1: SỬA DASHBOARD (Dashboard.tsx)
 
 1. **Sửa lại `Dashboard.tsx` để khớp với response format mới:**
    - API trả về: { success, data: { todayStats: {...}, upcomingAppointments: [...] } }
-   - todayStats: total, pending, confirmed, inProgress, completed, cancelled
+   - todayStats: total, pending, confirmed, completed, cancelled
    - upcomingAppointments: id, patientName, patientCode, doctorName, appointmentTime, status
    - **LƯU Ý:** Frontend hiện tại đang dùng data.stats và data.appointments, cần sửa thành data.todayStats và data.upcomingAppointments
    - Status badge thêm màu cho CONFIRMED (xanh dương), IN_PROGRESS (cam)

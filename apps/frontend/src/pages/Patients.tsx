@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Search, Plus, X, Loader2, AlertTriangle, Users, Edit3, Eye } from 'lucide-react'
 import { useAuthStore } from '../store'
 import { authFetch } from '../lib/authFetch'
+import { useNavigate } from 'react-router-dom'
 
 interface Patient {
   id: number
@@ -56,6 +57,7 @@ const INITIAL_FORM: FormData = {
 }
 
 export default function PatientsPage() {
+  const navigate = useNavigate()
   const token = useAuthStore((s) => s.token)
   const user = useAuthStore((s) => s.user)
   const isReceptionist = user?.role === 'receptionist'
@@ -92,19 +94,16 @@ export default function PatientsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // ── Search API ──
-  const searchPatients = useCallback(async (kw: string) => {
+  const searchPatients = useCallback(async (kw: string = '') => {
     if (!token) return
     const trimmedKeyword = kw.trim()
-    if (!trimmedKeyword) {
-      setPatients([])
-      setSearched(false)
-      return
-    }
 
     setLoading(true)
     setSearched(true)
     try {
-      const url = `/api/patients/?keyword=${encodeURIComponent(trimmedKeyword)}`
+      const url = trimmedKeyword
+        ? `/api/patients/?keyword=${encodeURIComponent(trimmedKeyword)}`
+        : '/api/patients/'
       const res = await authFetch(url)
       const json = await res.json()
       if (json.success) {
@@ -128,6 +127,12 @@ export default function PatientsPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch()
   }
+
+  useEffect(() => {
+    if (!token) return
+    const timer = window.setTimeout(() => { void searchPatients('') }, 0)
+    return () => window.clearTimeout(timer)
+  }, [searchPatients, token])
 
   // ── Open / close modal ──
   const openModal = () => {
@@ -197,14 +202,8 @@ export default function PatientsPage() {
       const json = await res.json()
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
-        const createdPatient = json.data.patient as Patient
         closeModal()
-        if (keyword.trim()) {
-          searchPatients(keyword)
-        } else {
-          setPatients((current) => [createdPatient, ...current])
-          setSearched(true)
-        }
+        await searchPatients(keyword)
         return true
       }
       const code = json.error?.code
@@ -256,14 +255,8 @@ export default function PatientsPage() {
       const json = await res.json()
       if (json.success) {
         setToast({ message: 'Tạo hồ sơ bệnh nhân thành công', type: 'success' })
-        const createdPatient = json.data.patient as Patient
         closeModal()
-        if (keyword.trim()) {
-          searchPatients(keyword)
-        } else {
-          setPatients((current) => [createdPatient, ...current])
-          setSearched(true)
-        }
+        await searchPatients(keyword)
       } else {
         setApiError(json.error?.message || 'Tạo bệnh nhân thất bại')
       }
@@ -372,7 +365,7 @@ export default function PatientsPage() {
         setToast({ message: 'Cập nhật thông tin thành công', type: 'success' })
         closeDetail()
         // Refresh list
-        if (keyword.trim()) searchPatients(keyword)
+        await searchPatients(keyword)
       } else {
         setDetailError(json.error?.message || 'Cập nhật thất bại')
       }
@@ -432,7 +425,7 @@ export default function PatientsPage() {
               <Search size={18} />
               <input
                 className="form-input"
-                placeholder="Tìm theo tên, mã BN hoặc SĐT..."
+                placeholder="Tìm theo tên, mã bệnh nhân hoặc số điện thoại..."
                 style={{ height: 40 }}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -450,11 +443,11 @@ export default function PatientsPage() {
           <table>
             <thead>
               <tr>
-                <th>Mã BN</th>
+                <th>Mã bệnh nhân</th>
                 <th>Họ và tên</th>
                 <th>Ngày sinh</th>
                 <th>Giới tính</th>
-                <th>SĐT</th>
+                <th>Số điện thoại</th>
                 <th>Địa chỉ</th>
               </tr>
             </thead>
@@ -464,7 +457,7 @@ export default function PatientsPage() {
                   <td colSpan={6}>
                     <div className="empty-state" style={{ padding: 48 }}>
                       <Loader2 size={36} className="spin" style={{ opacity: 0.3, marginBottom: 8 }} />
-                      <div className="empty-state-text">Đang tìm kiếm...</div>
+                      <div className="empty-state-text">Đang tải danh sách bệnh nhân...</div>
                     </div>
                   </td>
                 </tr>
@@ -473,9 +466,9 @@ export default function PatientsPage() {
                   <td colSpan={6}>
                     <div className="empty-state" style={{ padding: 48 }}>
                       <Search size={36} style={{ opacity: 0.3, marginBottom: 8 }} />
-                      <div className="empty-state-text">Nhập từ khóa để tìm kiếm</div>
+                      <div className="empty-state-text">Chưa có dữ liệu bệnh nhân</div>
                       <div className="empty-state-hint">
-                        Tìm kiếm theo mã bệnh nhân, họ tên hoặc số điện thoại.
+                        Có thể tìm kiếm theo mã bệnh nhân, họ tên hoặc số điện thoại.
                       </div>
                     </div>
                   </td>
@@ -487,7 +480,9 @@ export default function PatientsPage() {
                       <Users size={36} style={{ opacity: 0.3, marginBottom: 8 }} />
                       <div className="empty-state-text">Không tìm thấy bệnh nhân nào</div>
                       <div className="empty-state-hint">
-                        Thử thay đổi từ khóa tìm kiếm hoặc thêm bệnh nhân mới.
+                        {keyword.trim()
+                          ? 'Thử thay đổi từ khóa tìm kiếm hoặc thêm bệnh nhân mới.'
+                          : 'Hiện chưa có bệnh nhân nào trong hệ thống.'}
                       </div>
                     </div>
                   </td>
@@ -608,7 +603,7 @@ export default function PatientsPage() {
                       disabled={submitting}
                     />
                     {formErrors.phone && <div className="form-error">{formErrors.phone}</div>}
-                    <div className="form-hint">SĐT phải có 10-11 chữ số.</div>
+                    <div className="form-hint">Số điện thoại phải có 10-11 chữ số.</div>
                   </div>
 
                   <div className="form-group">
@@ -647,8 +642,8 @@ export default function PatientsPage() {
                 <h3>{detailMode === 'view' ? 'Chi tiết bệnh nhân' : 'Chỉnh sửa thông tin'}</h3>
                 <p>
                   {detailMode === 'view'
-                    ? `Mã BN: ${selectedPatient.patient_code}`
-                    : 'Chỉ được sửa Họ tên, SĐT và Địa chỉ.'}
+                    ? `Mã bệnh nhân: ${selectedPatient.patient_code}`
+                    : 'Chỉ được sửa họ tên, số điện thoại và địa chỉ.'}
                 </p>
               </div>
               <button className="modal-close" onClick={closeDetail} disabled={editSubmitting}>
@@ -678,7 +673,7 @@ export default function PatientsPage() {
                 <div className="modal-body">
                   <table className="detail-table">
                     <tbody>
-                      <tr><td className="detail-label">Mã BN</td><td><span className="badge badge-brand">{selectedPatient.patient_code}</span></td></tr>
+                      <tr><td className="detail-label">Mã bệnh nhân</td><td><span className="badge badge-brand">{selectedPatient.patient_code}</span></td></tr>
                       <tr><td className="detail-label">Họ và tên</td><td className="detail-value">{selectedPatient.full_name}</td></tr>
                       <tr><td className="detail-label">Ngày sinh</td><td>{formatDob(selectedPatient.dob)}</td></tr>
                       <tr><td className="detail-label">Giới tính</td><td>{formatGender(selectedPatient.gender)}</td></tr>
@@ -691,7 +686,10 @@ export default function PatientsPage() {
                 </div>
                 <div className="modal-footer">
                   {isDoctor && (
-                    <button className="btn btn-secondary" onClick={() => setToast({ message: 'Tính năng đang phát triển', type: 'error' })}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => navigate(`/medical-records?patientId=${selectedPatient.id}`)}
+                    >
                       <Eye size={16} />
                       Xem bệnh án
                     </button>
@@ -718,7 +716,7 @@ export default function PatientsPage() {
 
                   {/* Read-only fields */}
                   <div className="form-group">
-                    <label className="form-label">Mã BN</label>
+                    <label className="form-label">Mã bệnh nhân</label>
                     <input className="form-input" value={selectedPatient.patient_code} disabled style={{ opacity: 0.6 }} />
                   </div>
                   <div className="form-row-2">

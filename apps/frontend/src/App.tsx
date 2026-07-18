@@ -7,6 +7,12 @@ import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import AppointmentsPage from './pages/Appointments'
 import PatientsPage from './pages/Patients'
+import MedicalRecordsPage from './pages/MedicalRecords'
+
+function DoctorRoute() {
+  const user = useAuthStore((s) => s.user)
+  return user?.role === 'doctor' ? <MedicalRecordsPage /> : <Navigate to="/dashboard" replace />
+}
 
 function App() {
   const token = useAuthStore((s) => s.token)
@@ -35,6 +41,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="/patients" element={<PatientsPage />} />
+          <Route path="/medical-records" element={<DoctorRoute />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -44,4 +51,3 @@ function App() {
 }
 
 export default App
-
