@@ -848,6 +848,15 @@ tbody td {
   max-width: 560px;
 }
 
+.change-password-modal {
+  max-width: 500px;
+}
+
+.change-password-error {
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
 @keyframes slideUp {
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
