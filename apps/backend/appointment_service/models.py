@@ -25,6 +25,7 @@ class DoctorSlot(models.Model):
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ("PENDING", "Pending"), ("CONFIRMED", "Confirmed"),
+        ("WAITING", "Waiting"), ("IN_PROGRESS", "In progress"),
         ("COMPLETED", "Completed"), ("CANCELLED", "Cancelled"),
     ]
     BOOKING_TYPE_CHOICES = [("SCHEDULE", "Schedule"), ("WALK_IN", "Walk in")]
@@ -40,6 +41,7 @@ class Appointment(models.Model):
     booking_type = models.CharField(max_length=20, choices=BOOKING_TYPE_CHOICES, default="SCHEDULE")
     patient_type = models.CharField(max_length=20, choices=PATIENT_TYPE_CHOICES, default="SERVICE")
     bhyt_number = models.CharField(max_length=50, blank=True, null=True)
+    cancellation_reason = models.TextField(blank=True, default="")
     appointment_time = models.DateTimeField()
     reason = models.TextField(blank=True, default="")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")

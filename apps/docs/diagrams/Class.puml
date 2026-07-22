@@ -88,7 +88,7 @@ class Appointments {
     + slotId : Long               
     + patientId : Long
     + doctorId : Long
-    + bookingCode : String
+    + appointmentCode : String
     + departmentId: Long
     + sequenceNumber : Int       
     + bookingType : String        

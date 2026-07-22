@@ -13,9 +13,17 @@ class AppointmentListSerializer(serializers.ModelSerializer):
             'id',
             'patient',
             'doctor',
+            'slot_id',
+            'appointment_code',
+            'department_id',
+            'sequence_number',
+            'booking_type',
+            'patient_type',
+            'bhyt_number',
             'appointment_time',
             'reason',
             'status',
+            'cancellation_reason',
             'created_at',
             'updated_at',
         ]
@@ -38,22 +46,16 @@ class AppointmentListSerializer(serializers.ModelSerializer):
 class AppointmentCreateSerializer(serializers.Serializer):
     patientId = serializers.IntegerField(write_only=True)
     doctorId = serializers.IntegerField(write_only=True)
-    appointmentTime = serializers.DateTimeField(source='appointment_time')
+    slotId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    departmentId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    appointmentTime = serializers.DateTimeField(source='appointment_time', required=False, allow_null=True)
+    bookingType = serializers.ChoiceField(choices=Appointment.BOOKING_TYPE_CHOICES, required=False, default='SCHEDULE')
+    patientType = serializers.ChoiceField(choices=Appointment.PATIENT_TYPE_CHOICES, required=False, default='SERVICE')
+    bhytNumber = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_reason(self, value):
         return value or ''
-
-    def create(self, validated_data):
-        return Appointment.objects.create(
-            patient_id=validated_data['patientId'],
-            doctor_id=validated_data['doctorId'],
-            creator_id=self.context['request'].user.id,
-            appointment_time=validated_data['appointment_time'],
-            reason=validated_data.get('reason', ''),
-            status='PENDING',
-        )
-
 
 class AppointmentUpdateSerializer(serializers.Serializer):
     appointmentTime = serializers.DateTimeField(source='appointment_time', required=False)
