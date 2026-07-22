@@ -22,6 +22,8 @@ class "Roles" {
     + description : String
 }
 
+' code: MANAGER, DOCTOR, RECEPTIONIST
+
 class "Users" {
     + id : Long
     + roleId : Long
@@ -34,7 +36,24 @@ class "Users" {
     + updatedAt : DateTime
 }
 
-class "Patients" {
+class Departments {
+    + id: Long
+    + code: String
+    + name: String
+    + description: String
+}
+
+class DoctorDepartment {
+    + departmentId: Long
+    + doctorId: Long
+}
+
+class Rooms {
+    + id : Long
+    + roomNumber : String
+}
+
+class Patients {
     + id : Long
     + patientCode : String
     + fullName : String
@@ -42,21 +61,68 @@ class "Patients" {
     + gender : String
     + phone : String
     + address : String
+    + email: String
+    + cccd : String
+    + bhytNumber : String          
     + createdAt : DateTime
     + updatedAt : DateTime
 }
 
-class "Appointments" {
+class DoctorSlot {
     + id : Long
+    + doctorId : Long
+    + slotDate : Date
+    + startTime : Time           
+    + endTime : Time
+    + capacity : Int              
+    + status : String             
+}
+
+
+'capacity: lưu số lượng bệnh nhân tối đa cho một slot'
+'Mặc định trước mắt là 5 bệnh nhân cho một slot'
+
+class Appointments {
+    + id : Long
+    + slotId : Long               
     + patientId : Long
     + doctorId : Long
-    + creatorId : Long
-    + appointmentTime : DateTime
+    + appointmentId : Long
+    + departmentId: Long
+    + sequenceNumber : Int       
+    + bookingType : String        
+    + patientType : String       
+    + bhytNumber : String        
     + reason : String
-    + status : String
+    + status : String     
+    + creatorId : Long
     + createdAt : DateTime
     + updatedAt : DateTime
 }
+'slotId: liên kết DoctorSlot'
+'Apointments status: CONFIRMED, WAITING, IN_PROGRESS, COMPLETED, CANCELLED'
+'bookingType status: SCHEDULE, WALK_IN'
+'patientType status: BHYT, SERVICE'
+'Một bác sĩ cho phép khám nhiều bệnh nhân cùng lúc.
+' Cho phép lưu nháp hồ sơ hiện tại và giữ trạng thái IN_PROGRESS, sau đó bệnh nhân làm xét nghiệm các thứ xong thì quay lại khám tiếp
+' Đặt lịch xong đưa số luôn, không quan trọng là bệnh nhân có đến khám hay không -> từ bỏ tính tuyệt đối của số  khám bệnh 
+
+' Chuyển trạng thái:
+' Đặt qua điện thoại: Lễ tân bấm "Tạo lịch" -> confirmed, tạo số, tạo mã cuộc hẹn -> Khách đến -> bấm "Vào khám" -> chuyển sang waiting -> bác sĩ bấm "Bắt đầu khám" -> In_Progress
+' Khách vãng lai: Bước vào phòng khám -> Bắt số  -> lễ tân bấm "Khám ngay" -> tạo số, tạo mã cuộc hẹn -> Trạng thái waiting
+' IN_PROGRESS -> CANCELLED
+    'Bác sĩ cancel
+    'Trường hợp bác sĩ không thể khám tiếp được: Có ca cấp cứu, hoặc có chuyện đột xuất -> bác sĩ cancelled khám, điền lý do cancelled
+    'Trường hợp bệnh nhân bỏ về: Bác sĩ cancelled -> điền lý do cancelled
+' WAITING -> CAnCELLED
+    ' Lễ tân cancel
+    ' Khách đang đợi đột nhiên đi về -> lễ tân có thể cancel ngay tại giao diện
+    ' Khi cuộc hẹn chuyển sang đang khám, lễ tân hết trách nhiệm
+' CONFIRMTED -> CANCELLED
+    ' Lễ tân cacel thủ công
+    ' hệ thống cancel tự động
+    ' Khách 
+
 
 together {
     class "MedicalRecords" {
@@ -92,3 +158,15 @@ Appointments "1" *-- "0..1" MedicalRecords
 
 ' Quan hệ với dịch vụ bên ngoài (Microservices)
 Auth_Service "1" .. "0..*" Users
+
+DoctorSlot "1" -- "0..*" Appointments
+
+Departments "1" -- "0..*" Users
+Departments "1" -- "0..*" Appointments
+
+DoctorDepartment "1" -- "0..*" Users
+DoctorDepartment "1" -- "0..*" Departments
+
+
+Rooms "1" -- "0..*" DoctorSlot
+
