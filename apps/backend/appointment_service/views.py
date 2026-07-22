@@ -442,11 +442,7 @@ class AppointmentStatsView(APIView):
             ]
         elif group_by == 'doctor':
             stats = [
-                {
-                    'doctorId': str(row['doctor_id']),
-                    'doctorName': row['doctor__full_name'],
-                    'count': row['count'],
-                }
+                {'doctorId': str(row['doctor_id']), 'doctorName': row['doctor__full_name'], 'count': row['count']}
                 for row in queryset.values('doctor_id', 'doctor__full_name').annotate(count=Count('id')).order_by('doctor__full_name')
             ]
         elif group_by == 'day':

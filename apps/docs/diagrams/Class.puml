@@ -70,6 +70,7 @@ class Patients {
 
 class DoctorSlot {
     + id : Long
+    + roomId : Long
     + doctorId : Long
     + slotDate : Date
     + startTime : Time           
@@ -87,7 +88,7 @@ class Appointments {
     + slotId : Long               
     + patientId : Long
     + doctorId : Long
-    + appointmentId : Long
+    + bookingCode : String
     + departmentId: Long
     + sequenceNumber : Int       
     + bookingType : String        
@@ -121,7 +122,8 @@ class Appointments {
 ' CONFIRMTED -> CANCELLED
     ' Lễ tân cacel thủ công
     ' hệ thống cancel tự động
-    ' Khách 
+        ' Giả sử khách đặt vé trong khoảng từ 6:00 - 16:00 nhưng bệnh nhân không có mặt đúng giờ, hệ thống tự động hủy vé đó
+        ' Đảm bảo bệnh nhân đặt lịch trong khoảng 16:00 - 17:00 có thể khám và bác sĩ có thể về lúc 17:00
 
 
 together {

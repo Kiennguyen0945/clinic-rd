@@ -48,7 +48,7 @@ class AppointmentCreateSerializer(serializers.Serializer):
         return Appointment.objects.create(
             patient_id=validated_data['patientId'],
             doctor_id=validated_data['doctorId'],
-            creator=validated_data['creator'],
+            creator_id=self.context['request'].user.id,
             appointment_time=validated_data['appointment_time'],
             reason=validated_data.get('reason', ''),
             status='PENDING',
@@ -86,6 +86,7 @@ class MedicalRecordListSerializer(serializers.ModelSerializer):
             'diagnosis',
             'notes',
         ]
+
 
 
 class MedicalRecordCreateSerializer(serializers.Serializer):
