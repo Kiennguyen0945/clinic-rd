@@ -13,6 +13,7 @@ class Department(models.Model):
 
 class Room(models.Model):
     room_number = models.CharField(max_length=50, unique=True)
+    room_name = models.CharField(max_length=150, unique=True)
 
     def __str__(self):
         return self.room_number

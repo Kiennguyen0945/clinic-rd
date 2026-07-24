@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+import secrets
+import string
 
 from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Max, Q, Value, When
@@ -51,6 +53,28 @@ def _parse_date(value):
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError:
         return None
+
+
+def generate_patient_code():
+    """Generate the next global patient code: BN-########."""
+    numeric_codes = Patient.objects.filter(patient_code__startswith='BN-').values_list('patient_code', flat=True)
+    last_sequence = 0
+    for code in numeric_codes:
+        suffix = code[3:]
+        if len(suffix) == 8 and suffix.isdigit():
+            last_sequence = max(last_sequence, int(suffix))
+    return f'BN-{last_sequence + 1:08d}'
+
+
+def generate_appointment_code(appointment_date=None):
+    """Generate a unique appointment code: LHK-YYMMDD + six random characters."""
+    appointment_date = appointment_date or timezone.localdate()
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        random_part = ''.join(secrets.choice(alphabet) for _ in range(6))
+        code = f'LHK-{appointment_date:%y%m%d}{random_part}'
+        if not Appointment.objects.filter(appointment_code=code).exists():
+            return code
 
 
 def _slot_datetimes(slot):
@@ -480,7 +504,7 @@ class AppointmentListView(APIView):
                 patient=patient,
                 doctor=doctor,
                 creator=request.user,
-                appointment_code=f"LH{slot.slot_date:%Y%m%d}D{doctor.id}-{sequence_number:03d}",
+                appointment_code=generate_appointment_code(slot.slot_date),
                 department=department,
                 sequence_number=sequence_number,
                 booking_type=booking_type,

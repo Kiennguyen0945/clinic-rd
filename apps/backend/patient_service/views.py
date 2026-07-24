@@ -1,12 +1,12 @@
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from django.db.models import Q
-from datetime import date
 import re
 from .models import Patient
 from .serializers import PatientSerializer
 from backend.response_utils import success_response, error_response
 from appointment_service.models import MedicalRecord
+from appointment_service.views import generate_patient_code
 from appointment_service.serializers import MedicalRecordListSerializer
 
 
@@ -102,14 +102,7 @@ def patient_list(request):
                 status=400
             )
 
-        # Auto-generate patient code
-        today = date.today()
-        date_str = today.strftime("%Y%m%d")
-        count_today = Patient.objects.filter(
-            created_at__date=today
-        ).count()
-        seq = str(count_today + 1).zfill(3)
-        patient_code = f"BN-{date_str}-{seq}"
+        patient_code = generate_patient_code()
 
         serializer = PatientSerializer(data={
             **request.data,

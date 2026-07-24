@@ -250,7 +250,7 @@
 .searchable-select { position: relative; display: flex; align-items: center; }
 .searchable-select input { padding-right: 28px; }
 .searchable-select > svg { position: absolute; right: 10px; color: #8190a7; pointer-events: none; }
-.searchable-suggestions { top: 42px; right: 0; }
+.searchable-select .searchable-suggestions { top: calc(100% + 4px); left: 0; right: 0; z-index: 20; }
 .searchable-suggestions span { display: block; padding: 8px 9px; color: #8190a7; font-size: 11px; }
 .input-with-action button { display: grid; place-items: center; width: 37px; border: 1px solid #9abcf7; border-radius: 8px; color: #2563eb; background: #f5f9ff; cursor: pointer; }
 .suggestion-list { position: absolute; top: 63px; left: 0; right: 43px; z-index: 4; overflow: hidden; padding: 4px; border: 1px solid #dbe4ef; border-radius: 8px; background: #fff; box-shadow: 0 12px 25px rgba(15, 23, 42, .14); }
@@ -287,3 +287,40 @@
 .appointment-overview-page .overview-empty-state { display: none; }
 .appointment-overview-page .overview-side { position: sticky; top: 16px; align-self: start; padding-top: 2px; }
 @media (max-width: 1100px) { .appointment-overview-page .overview-table { min-width: 850px; table-layout: auto; }.appointment-overview-page .overview-table th:first-child, .appointment-overview-page .overview-table td:first-child { width: 210px; }.appointment-overview-page .overview-side { position: static; padding-top: 0; } }
+
+/* Wide desktop density: enlarge actual controls and text at 100% browser zoom. */
+@media (min-width: 1600px) {
+  .patients-mock-page, .appointments-page { max-width: 1440px; }
+
+  .patient-toolbar { gap: 12px; margin-bottom: 16px; }
+  .patient-search, .patient-toolbar select, .filter-button { height: 44px; }
+  .patient-search { padding-inline: 14px; }
+  .patient-search input, .patient-toolbar select { font-size: 15px; }
+  .patient-table th { padding: 14px 18px; font-size: 13px; }
+  .patient-table tbody td { min-height: 82px; padding: 15px 18px; }
+  .patient-cell, .contact-cell, .info-cell, .visit-cell { gap: 4px; }
+  .patient-cell strong, .contact-cell strong, .info-cell strong, .visit-cell strong { font-size: 14px; }
+  .patient-cell span, .contact-cell span, .info-cell span, .visit-cell span { font-size: 13px; }
+  .patient-avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 14px; }
+  .patient-table-footer { padding: 15px 18px; font-size: 13px; }
+
+  .appointments-redesign .page-title { font-size: 28px; }
+  .appointments-redesign .page-subtitle { font-size: 17px; }
+  .appointments-redesign .appointment-tabs button { min-height: 48px; font-size: 15px; }
+  .screenshot-toolbar { padding: 14px 16px; }
+  .screenshot-toolbar .toolbar-date { font-size: 16px; }
+  .appointment-filters label { height: 42px; padding-inline: 12px; }
+  .appointment-filters select { font-size: 15px; }
+  .slot-panel-header { padding: 22px 24px 16px; }
+  .slot-panel-header h2, .side-panel-title h2 { font-size: 18px; }
+  .slot-panel-header p, .slot-refresh { font-size: 14px; }
+  .slot-legend { padding-inline: 24px; font-size: 13px; }
+  .slot-table-head { padding: 15px 24px; font-size: 14px; }
+  .slot-list { padding-inline: 18px; gap: 10px; }
+  .slot-row { min-height: 76px; padding: 10px 16px; }
+  .slot-row strong { font-size: 16px; }
+  .slot-row small, .slot-detail { font-size: 13px; }
+  .queue-search input, .queue-tabs button, .queue-main-button b { font-size: 13px; }
+  .queue-main-button small { font-size: 12px; }
+  .detail-list dt, .detail-list dd { font-size: 13px; }
+}
