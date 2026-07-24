@@ -48,13 +48,13 @@ Quyền: `receptionist`, `doctor`, `manager`.
         },
         "doctor": { "id": "3", "fullName": "BS. Trần B" },
         "slot_id": 5,
-        "appointment_code": "LH20260722001",
+        "appointment_code": "LH20260722D3-001",
         "department_id": 2,
         "sequence_number": 1,
         "booking_type": "SCHEDULE",
         "patient_type": "SERVICE",
         "bhyt_number": null,
-        "appointment_time": "2026-07-22T08:30:00Z",
+        "appointment_time": "2026-07-22T08:00:00Z",
         "reason": "Đau đầu",
         "status": "CONFIRMED",
         "cancellation_reason": "",
@@ -83,7 +83,6 @@ Request:
   "doctorId": 3,
   "slotId": 5,
   "departmentId": 2,
-  "appointmentTime": "2026-07-22T08:30:00+07:00",
   "bookingType": "SCHEDULE",
   "patientType": "SERVICE",
   "bhytNumber": null,
@@ -93,13 +92,14 @@ Request:
 
 Các quy tắc:
 
-- `patientId`, `doctorId` là bắt buộc.
+- `patientId`, `doctorId`, `slotId` là bắt buộc.
 - `bookingType`: `SCHEDULE` hoặc `WALK_IN`, mặc định `SCHEDULE`.
-- Lịch `SCHEDULE` bắt buộc `appointmentTime` và thời gian phải ở tương lai.
-- Lịch `WALK_IN` có thể bỏ `appointmentTime`; hệ thống dùng thời điểm hiện tại.
-- `slotId` không bắt buộc để tương thích lịch chưa gắn slot. Nếu có, bác sĩ, ngày, giờ và công suất phải khớp slot.
+- Giờ hẹn luôn lấy từ `slot.start_time`; không gửi giờ tự do. Nếu gửi `appointmentTime`, giá trị phải trùng giờ bắt đầu slot.
+- Slot phải `OPEN`, còn chỗ và thỏa lead time 30 phút cho `SCHEDULE`.
+- `WALK_IN` chỉ được tạo trong slot đang diễn ra, còn chỗ và chưa kết thúc.
+- Hệ thống ngừng tạo appointment mới trong ngày hiện tại từ 16:00.
 - `patientType`: `BHYT` hoặc `SERVICE`, mặc định `SERVICE`. `BHYT` bắt buộc `bhytNumber`.
-- Hệ thống sinh `appointment_code` theo dạng `LHYYYYMMDDNNN` và sinh `sequence_number`.
+- Hệ thống sinh `appointment_code` theo dạng `LHYYYYMMDDD{doctorId}-{sequence}` và `sequence_number` tăng xuyên suốt theo bác sĩ/ngày, không tái sử dụng khi lịch bị hủy.
 - `SCHEDULE` tạo với trạng thái `CONFIRMED`; `WALK_IN` tạo với trạng thái `WAITING`.
 
 Response `201 Created` trả về object `appointment` giống endpoint danh sách.
@@ -109,8 +109,8 @@ Các lỗi thường gặp:
 - `VALIDATION_ERROR`: thiếu hoặc sai dữ liệu.
 - `PAST_TIME`: thời gian lịch đặt đã ở quá khứ.
 - `PATIENT_NOT_FOUND`, `DOCTOR_NOT_FOUND`, `SLOT_NOT_FOUND`, `DEPARTMENT_NOT_FOUND`.
-- `SLOT_FULL`: slot đã đủ công suất.
-- `SLOT_CANCELLED`, `SLOT_DOCTOR_MISMATCH`, `SLOT_TIME_MISMATCH`.
+- `SLOT_FULL`, `SLOT_CLOSED`, `SLOT_NOT_BOOKABLE`, `SLOT_NOT_CURRENT`.
+- `SLOT_DOCTOR_MISMATCH`, `SLOT_TIME_MISMATCH`, `DOCTOR_DEPARTMENT_MISMATCH`, `RECEPTION_CLOSED`.
 - `403 FORBIDDEN`: tài khoản không phải lễ tân.
 
 ## 3. Cập nhật lịch khám
@@ -131,7 +131,7 @@ Request chỉ cần gửi các trường muốn thay đổi:
 }
 ```
 
-Không được sửa lịch có trạng thái `COMPLETED`; `appointmentTime` mới phải ở tương lai.
+Không được sửa lịch có trạng thái `COMPLETED`. Lịch đã gắn `slotId` chỉ được sửa lý do khám; không được đổi giờ hoặc bác sĩ.
 
 Lỗi: `APPOINTMENT_NOT_FOUND`, `ALREADY_COMPLETED`, `PAST_TIME`, `VALIDATION_ERROR`, `DOCTOR_NOT_FOUND`, `403 FORBIDDEN`.
 
@@ -267,3 +267,26 @@ Lỗi: `VALIDATION_ERROR`, `INVALID_DATE_RANGE`, `403 FORBIDDEN`.
 | `IN_PROGRESS` | `CANCELLED` | `PATCH /api/appointments/{id}/cancel/` + lý do | Bác sĩ phụ trách |
 
 `PENDING` được giữ để tương thích với dữ liệu cũ; lịch mới không còn tạo ở trạng thái này.
+
+## 11. Danh sách DoctorSlot
+
+```http
+GET /api/doctor-slots/?date={YYYY-MM-DD}&doctorId={id}&bookingType={SCHEDULE|WALK_IN}
+GET /api/doctor-slots/{slotId}/
+```
+
+Quyền: `receptionist`, `doctor`, `manager`. Bác sĩ chỉ xem ca của mình.
+
+Mỗi slot trả về `capacity`, `bookedCount`, `remainingCapacity`, `isFull`, `isBookable`, `isOngoing`, `isEnded`, `status` (`OPEN` hoặc `CLOSED`) và khoảng thời gian `startTime` - `endTime`. `bookedCount` tính các appointment không bị `CANCELLED`; `FULL` là giá trị suy ra, không lưu trong database.
+
+Endpoint chi tiết trả thêm danh sách appointment thuộc slot, sắp theo `sequence_number`.
+
+## 12. Danh sách chờ lễ tân
+
+```http
+GET /api/appointments/queue/?date={YYYY-MM-DD}&keyword={text}
+```
+
+Quyền: `receptionist`, `doctor`, `manager`.
+
+Chỉ trả các lịch `WAITING` và `CONFIRMED`, sắp xếp `WAITING` trước `CONFIRMED`, sau đó theo `sequence_number` tăng dần. `keyword` hỗ trợ họ tên, mã bệnh nhân, số điện thoại, số khám và mã lịch hẹn.

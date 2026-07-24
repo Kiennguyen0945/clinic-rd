@@ -55,7 +55,7 @@ export default function Sidebar() {
         {items.map((item) => (
           <button
             key={item.path}
-            className={`nav-item ${location.pathname + location.search === item.path || (item.path === '/medical-records' && location.pathname === item.path && !location.search) ? 'active' : ''}`}
+            className={`nav-item ${location.pathname === item.path || (item.path === '/medical-records' && location.pathname === item.path && !location.search) ? 'active' : ''}`}
             onClick={() => navigate(item.path)}
           >
             <span className="nav-item-icon">{item.icon}</span>

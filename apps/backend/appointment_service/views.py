@@ -10,7 +10,7 @@ from auth_service.models import User
 from backend.permissions import IsManager
 from backend.response_utils import error_response, success_response
 from patient_service.models import Patient
-from organization_service.models import Department, DoctorDepartment
+from organization_service.models import Department, DoctorDepartment, Room
 
 from .models import (
     ONLINE_BOOKING_LEAD_TIME_MINUTES,
@@ -84,6 +84,8 @@ def _slot_payload(slot, booking_type='SCHEDULE'):
         'id': slot.id,
         'doctorId': str(slot.doctor_id),
         'roomId': str(slot.room_id),
+        'doctor': {'id': str(slot.doctor_id), 'fullName': slot.doctor.full_name},
+        'room': {'id': str(slot.room_id), 'roomNumber': slot.room.room_number},
         'slotDate': slot.slot_date.isoformat(),
         'startTime': start.isoformat(),
         'endTime': end.isoformat(),
@@ -96,6 +98,100 @@ def _slot_payload(slot, booking_type='SCHEDULE'):
         'isEnded': now >= end,
         'status': slot.status,
     }
+
+
+class AppointmentReceptionContextView(APIView):
+    """Data needed by the receptionist appointment board in one request."""
+
+    def get(self, request):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST', 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        target_date = _parse_date(request.query_params.get('date'))
+        if target_date is None:
+            return error_response("VALIDATION_ERROR", "Ngày không hợp lệ", status=400)
+
+        doctors = list(
+            User.objects.filter(role__code='DOCTOR', status='ACTIVE')
+            .prefetch_related('department_assignments__department')
+            .order_by('full_name')
+        )
+        slots = list(
+            DoctorSlot.objects.select_related('doctor', 'room')
+            .prefetch_related('appointments')
+            .filter(slot_date=target_date, doctor__in=doctors)
+            .order_by('doctor__full_name', 'start_time')
+        )
+        slots_by_doctor = {}
+        for slot in slots:
+            slots_by_doctor.setdefault(slot.doctor_id, []).append(slot)
+
+        appointment_queryset = Appointment.objects.filter(
+            slot__slot_date=target_date,
+        ).select_related('doctor')
+        reception_summary = {
+            'waiting': appointment_queryset.filter(status='WAITING').count(),
+            'confirmed': appointment_queryset.filter(status='CONFIRMED').count(),
+            'inProgress': appointment_queryset.filter(status='IN_PROGRESS').count(),
+            'completed': appointment_queryset.filter(status='COMPLETED').count(),
+            'cancelled': appointment_queryset.filter(status='CANCELLED').count(),
+        }
+
+        now = timezone.now()
+        overview = []
+        waiting_doctors = []
+        for doctor in doctors:
+            doctor_slots = slots_by_doctor.get(doctor.id, [])
+            total_capacity = sum(slot.capacity for slot in doctor_slots)
+            booked = sum(_slot_capacity(slot)[0] for slot in doctor_slots)
+            remaining = max(total_capacity - booked, 0)
+            ongoing_slot = next(
+                (slot for slot in doctor_slots if _slot_datetimes(slot)[0] <= now < _slot_datetimes(slot)[1]),
+                next((slot for slot in doctor_slots if _slot_capacity(slot)[1] > 0 and slot.status == 'OPEN'), None),
+            )
+            waiting_count = appointment_queryset.filter(doctor=doctor, status='WAITING').count()
+            if waiting_count:
+                waiting_doctors.append({'doctorId': str(doctor.id), 'doctorName': doctor.full_name, 'waitingCount': waiting_count})
+            departments = [
+                {'id': assignment.department_id, 'name': assignment.department.name}
+                for assignment in doctor.department_assignments.all()
+            ]
+            status = 'FULL' if remaining == 0 and total_capacity else 'NEAR_FULL' if total_capacity and remaining / total_capacity <= .2 else 'OPEN'
+            overview.append({
+                'doctor': {'id': str(doctor.id), 'fullName': doctor.full_name},
+                'departments': departments,
+                'totalSlots': len(doctor_slots),
+                'capacity': total_capacity,
+                'bookedCount': booked,
+                'remainingCapacity': remaining,
+                'ongoingSlot': _slot_payload(ongoing_slot) if ongoing_slot else None,
+                'status': status,
+            })
+
+        return success_response(
+            {
+                'doctors': [
+                    {
+                        'id': str(doctor.id),
+                        'fullName': doctor.full_name,
+                        'departments': [
+                            {'id': assignment.department_id, 'name': assignment.department.name}
+                            for assignment in doctor.department_assignments.all()
+                        ],
+                    }
+                    for doctor in doctors
+                ],
+                'departments': [{'id': department.id, 'name': department.name} for department in Department.objects.order_by('name')],
+                'rooms': [{'id': str(room.id), 'roomNumber': room.room_number} for room in Room.objects.order_by('room_number')],
+                'overview': overview,
+                'receptionSummary': reception_summary,
+                'waitingDoctors': sorted(waiting_doctors, key=lambda item: item['waitingCount'], reverse=True),
+            },
+            message='Lấy dữ liệu tiếp nhận thành công',
+        )
 
 
 def _next_sequence(slot):

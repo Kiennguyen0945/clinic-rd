@@ -36,6 +36,8 @@ class "Users" {
     + updatedAt : DateTime
 }
 
+
+
 class Departments {
     + id: Long
     + code: String
@@ -80,8 +82,8 @@ class DoctorSlot {
 }
 
 
-'capacity: lưu số lượng bệnh nhân tối đa cho một slot'
-'Mặc định trước mắt là 5 bệnh nhân cho một slot'
+'capacity: lưu số lượng bệnh nhân tối đa cho một slot, mặc định 4'
+'status: OPEN | CLOSED; FULL là trạng thái suy ra từ capacity còn lại'
 
 class Appointments {
     + id : Long
@@ -122,8 +124,9 @@ class Appointments {
 ' CONFIRMTED -> CANCELLED
     ' Lễ tân cacel thủ công
     ' hệ thống cancel tự động
-        ' Giả sử khách đặt vé trong khoảng từ 6:00 - 16:00 nhưng bệnh nhân không có mặt đúng giờ, hệ thống tự động hủy vé đó
+        ' Giả sử khách đặt vé trong khoảng từ 7:00 - 8:00 khách hàng không có mặc đúng khung giờ thì phiếu khám vẫn có hiệu lực trong khoảng 7:00 - 16:00 giờ, sau 16:00 phiếu khám sẽ không còn hiệu lực nữa
         ' Đảm bảo bệnh nhân đặt lịch trong khoảng 16:00 - 17:00 có thể khám và bác sĩ có thể về lúc 17:00
+        ' Các ca đặt lịch trong khoảng 16:00 - 17:00 vẫn tiếp nhận bình thường
 
 
 together {
@@ -171,4 +174,3 @@ DoctorDepartment "1" -- "0..*" Departments
 
 
 Rooms "1" -- "0..*" DoctorSlot
-
