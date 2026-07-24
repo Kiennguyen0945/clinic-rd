@@ -112,13 +112,14 @@ class Command(BaseCommand):
                     'gender': gender,
                     'phone': phone,
                     'address': 'Quận 1, TP.HCM',
+                    'insurance_number': 'DN-TEST-2026-001' if code in {'BN-00000005', 'BN-00000008', 'BN-00000011'} else None,
                 },
             )
             patients[code] = patient
         return patients
 
     def _seed_slots(self, users, rooms, today, tomorrow):
-        slot_hours = (7, 8, 9, 10, 11, 13, 14, 15, 16)
+        slot_hours = tuple(range(6, 17))
         doctors = [('doctor1', 'Phòng 1'), ('doctor2', 'Phòng 2'), ('doctor3', 'Phòng 3')]
         slots = {}
         for slot_date in (today, tomorrow):

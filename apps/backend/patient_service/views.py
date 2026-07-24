@@ -157,7 +157,7 @@ def patient_detail(request, pk):
             return error_response("FORBIDDEN", "Bạn không có quyền thực hiện hành động này", status=403)
 
         # Only update allowed fields
-        allowed_fields = ['full_name', 'phone', 'address']
+        allowed_fields = ['full_name', 'phone', 'address', 'insurance_number']
         update_data = {}
         for field in allowed_fields:
             if field in request.data:

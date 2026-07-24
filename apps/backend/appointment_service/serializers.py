@@ -54,6 +54,7 @@ class AppointmentListSerializer(serializers.ModelSerializer):
             'slotDate': obj.slot.slot_date.isoformat(),
             'startTime': obj.slot.start_time.strftime('%H:%M'),
             'endTime': obj.slot.end_time.strftime('%H:%M'),
+            'roomNumber': obj.slot.room.room_number,
             'status': obj.slot.status,
         }
 
@@ -72,6 +73,7 @@ class AppointmentCreateSerializer(serializers.Serializer):
     bookingType = serializers.ChoiceField(choices=Appointment.BOOKING_TYPE_CHOICES, required=False, default='SCHEDULE')
     patientType = serializers.ChoiceField(choices=Appointment.PATIENT_TYPE_CHOICES, required=False, default='SERVICE')
     bhytNumber = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    deferWalkIn = serializers.BooleanField(required=False, default=False, write_only=True)
     reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_reason(self, value):
