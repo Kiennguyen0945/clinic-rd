@@ -317,6 +317,31 @@ class PatientAPITestCase(TestCase):
         self.assertTrue(body['success'])
         self.assertEqual(len(body['data']['patients']), 2)
 
+    def test_patient_list_is_paginated_by_ten(self):
+        """Danh sách mặc định trả tối đa 10 bệnh nhân và có metadata phân trang."""
+        self._auth(self.receptionist)
+        for index in range(10):
+            Patient.objects.create(
+                patient_code=f'BN-PAGE-{index:03d}',
+                full_name=f'Bệnh nhân {index}',
+                dob='1990-01-01',
+                gender='M',
+                phone=f'091000{index:04d}',
+                address='Địa chỉ test',
+            )
+
+        first_page = self.client.get(self.url).json()['data']
+        second_page = self.client.get(f'{self.url}?page=2').json()['data']
+
+        self.assertEqual(len(first_page['patients']), 10)
+        self.assertEqual(len(second_page['patients']), 2)
+        self.assertEqual(first_page['pagination'], {
+            'page': 1,
+            'pageSize': 10,
+            'totalItems': 12,
+            'totalPages': 2,
+        })
+
     def test_search_no_results(self):
         """Không có kết quả → mảng rỗng."""
         self._auth(self.receptionist)

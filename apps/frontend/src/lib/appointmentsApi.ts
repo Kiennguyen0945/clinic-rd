@@ -14,6 +14,8 @@ export interface ApiPatient {
   dob: string
   gender: 'M' | 'F' | 'O'
   phone: string
+  email?: string | null
+  cccd?: string | null
   address: string
   insurance_number?: string | null
 }
@@ -104,8 +106,20 @@ export const appointmentApi = {
   slots: (date: string, doctorId: string, bookingType = 'SCHEDULE') => request<{ slots: ApiSlot[] }>(`/api/doctor-slots/?date=${date}&doctorId=${doctorId}&bookingType=${bookingType}`),
   appointments: (date: string, doctorId: string) => request<{ appointments: ApiAppointment[] }>(`/api/appointments/?date=${date}&doctorId=${doctorId}`),
   queue: (date: string, doctorId?: string, keyword = '') => request<{ appointments: ApiAppointment[] }>(`/api/appointments/queue/?date=${date}${doctorId ? `&doctorId=${doctorId}` : ''}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`),
-  patients: (keyword = '') => request<{ patients: ApiPatient[] }>(`/api/patients/${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
+  patients: (options: { keyword?: string; page?: number; pageSize?: number; gender?: string; age?: string } = {}) => {
+    const params = new URLSearchParams()
+    if (options.keyword) params.set('keyword', options.keyword)
+    if (options.page) params.set('page', String(options.page))
+    if (options.pageSize) params.set('pageSize', String(options.pageSize))
+    if (options.gender && options.gender !== 'all') params.set('gender', options.gender)
+    if (options.age && options.age !== 'all') params.set('age', options.age)
+    const query = params.toString()
+    return request<{ patients: ApiPatient[]; pagination: { page: number; pageSize: number; totalItems: number; totalPages: number } }>(`/api/patients/${query ? `?${query}` : ''}`)
+  },
+  createPatient: (body: { full_name: string; phone: string; dob: string; gender: 'M' | 'F' | 'O'; email?: string; cccd?: string; address?: string; insurance_number?: string }) => request<{ patient: ApiPatient }>('/api/patients/', { method: 'POST', body: JSON.stringify(body) }),
+  updatePatient: (id: number, body: { full_name: string; phone: string; email: string; cccd: string; address: string; insurance_number: string }) => request<{ patient: ApiPatient }>(`/api/patients/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
   create: (body: { patientId: number; doctorId: number; slotId: number; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; deferWalkIn?: boolean; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: number, body: { reason: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
   checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
   cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
 }

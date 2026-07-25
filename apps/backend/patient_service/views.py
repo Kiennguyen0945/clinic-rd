@@ -1,6 +1,8 @@
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from django.db.models import Q
+from django.core.paginator import EmptyPage, Paginator
+from datetime import date
 import re
 from .models import Patient
 from .serializers import PatientSerializer
@@ -63,17 +65,56 @@ def patient_list(request):
             return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
 
         keyword = (request.query_params.get('keyword') or '').strip()
+        gender = (request.query_params.get('gender') or '').strip().upper()
+        age_group = (request.query_params.get('age') or '').strip()
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('pageSize', 10))))
+        except (TypeError, ValueError):
+            return error_response("VALIDATION_ERROR", "Thông tin phân trang không hợp lệ", status=400)
+
         patients = Patient.objects.all().order_by('-created_at')
         if keyword:
             patients = patients.filter(
                 Q(patient_code__icontains=keyword) |
                 Q(full_name__icontains=keyword) |
-                Q(phone__icontains=keyword)
+                Q(phone__icontains=keyword) |
+                Q(email__icontains=keyword) |
+                Q(cccd__icontains=keyword)
             )
+        if gender in {'M', 'F', 'O'}:
+            patients = patients.filter(gender=gender)
 
-        serializer = PatientSerializer(patients, many=True)
+        def years_ago(years):
+            today = date.today()
+            try:
+                return today.replace(year=today.year - years)
+            except ValueError:
+                return today.replace(year=today.year - years, day=28)
+
+        if age_group == 'under30':
+            patients = patients.filter(dob__gt=years_ago(30))
+        elif age_group == '30to40':
+            patients = patients.filter(dob__lte=years_ago(30), dob__gt=years_ago(41))
+        elif age_group == 'over40':
+            patients = patients.filter(dob__lte=years_ago(41))
+
+        paginator = Paginator(patients, page_size)
+        try:
+            patient_page = paginator.page(page)
+        except EmptyPage:
+            patient_page = paginator.page(paginator.num_pages)
+        serializer = PatientSerializer(patient_page.object_list, many=True)
         return success_response(
-            {"patients": serializer.data},
+            {
+                "patients": serializer.data,
+                "pagination": {
+                    "page": patient_page.number,
+                    "pageSize": page_size,
+                    "totalItems": paginator.count,
+                    "totalPages": paginator.num_pages,
+                },
+            },
             message="Lấy danh sách bệnh nhân thành công" if not keyword else "Tìm kiếm bệnh nhân thành công"
         )
 
@@ -157,7 +198,7 @@ def patient_detail(request, pk):
             return error_response("FORBIDDEN", "Bạn không có quyền thực hiện hành động này", status=403)
 
         # Only update allowed fields
-        allowed_fields = ['full_name', 'phone', 'address', 'insurance_number']
+        allowed_fields = ['full_name', 'phone', 'email', 'cccd', 'address', 'insurance_number']
         update_data = {}
         for field in allowed_fields:
             if field in request.data:

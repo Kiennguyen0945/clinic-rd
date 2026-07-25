@@ -11,6 +11,7 @@ import {
   Filter,
   LockKeyhole,
   Phone,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -34,6 +35,7 @@ interface PatientProfile {
   fullName: string
   phone: string
   email: string
+  cccd: string
   gender: 'Nam' | 'Nữ'
   age: number
   dob: string
@@ -136,7 +138,8 @@ function mapPatient(patient: ApiPatient): PatientProfile {
     code: patient.patient_code,
     fullName: patient.full_name,
     phone: patient.phone,
-    email: 'Chưa cập nhật',
+    email: patient.email || 'Chưa cập nhật',
+    cccd: patient.cccd || '',
     gender: patient.gender === 'F' ? 'Nữ' : 'Nam',
     age: ageFromDob(patient.dob),
     dob: patient.dob,
@@ -175,7 +178,7 @@ function mapSlot(slot: ApiSlot): SlotDefinition {
 function mapAppointment(appointment: ApiAppointment, patients: PatientProfile[], slots: SlotDefinition[]): Appointment {
   const patient = patients.find((item) => item.id === String(appointment.patient.id)) || {
     id: String(appointment.patient.id), code: appointment.patient.patientCode, fullName: appointment.patient.fullName,
-    phone: appointment.patient.phone, email: 'Chưa cập nhật', gender: 'Nam', age: 0, dob: '', address: 'Chưa cập nhật',
+    phone: appointment.patient.phone, email: 'Chưa cập nhật', cccd: '', gender: 'Nam', age: 0, dob: '', address: 'Chưa cập nhật',
     lastVisit: { date: '', doctor: 'Chưa cập nhật', reason: 'Chưa có dữ liệu' },
   }
   const slot = slots.find((item) => item.id === String(appointment.slot_id))
@@ -233,6 +236,8 @@ export default function AppointmentsPage() {
   const [bookingSuggestion, setBookingSuggestion] = useState<BookingSuggestion | null>(null)
   const [printAppointment, setPrintAppointment] = useState<Appointment | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null)
+  const [patientEditTarget, setPatientEditTarget] = useState<Appointment | null>(null)
+  const [appointmentEditTarget, setAppointmentEditTarget] = useState<Appointment | null>(null)
   const [draft, setDraft] = useState<AppointmentDraft>({ patientId: '', patientName: '', doctorId: '', department: '', room: '', date: selectedDate, slotId: '', service: 'Dịch vụ', insuranceNumber: '', reason: '', note: '' })
   const [formError, setFormError] = useState('')
   const [pageError, setPageError] = useState('')
@@ -518,6 +523,39 @@ export default function AppointmentsPage() {
     }
   }
 
+  const savePatient = async (values: { fullName: string; phone: string; email: string; cccd: string; insuranceNumber: string; address: string }) => {
+    if (!patientEditTarget) return
+    setSaving(true)
+    try {
+      const response = await appointmentApi.updatePatient(Number(patientEditTarget.patient.id), {
+        full_name: values.fullName.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        cccd: values.cccd.trim(),
+        insurance_number: values.insuranceNumber.trim(),
+        address: values.address.trim(),
+      })
+      const updated = mapPatient(response.patient)
+      setPatientDirectory((current) => current.map((patient) => patient.id === updated.id ? { ...patient, ...updated } : patient))
+      setAppointments((current) => current.map((appointment) => appointment.patient.id === updated.id ? { ...appointment, patient: { ...appointment.patient, ...updated } } : appointment))
+      setPatientEditTarget(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveAppointmentReason = async (reason: string) => {
+    if (!appointmentEditTarget) return
+    setSaving(true)
+    try {
+      await appointmentApi.update(Number(appointmentEditTarget.id), { reason: reason.trim() })
+      setAppointments((current) => current.map((appointment) => appointment.id === appointmentEditTarget.id ? { ...appointment, reason: reason.trim() } : appointment))
+      setAppointmentEditTarget(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (!requestedDoctorId) {
     return <>
       <AppointmentOverview selectedDate={selectedDate} onDateChange={setSelectedDate} onCreate={openCreateWithoutSlot} onViewDoctor={(id) => setSearchParams({ doctorId: id })} context={context} loading={loading} error={pageError} receptionClosed={isReceptionClosed} departmentFilter={overviewDepartment} onDepartmentFilterChange={setOverviewDepartment} doctorFilter={overviewDoctor} onDoctorFilterChange={setOverviewDoctor} slotStatusFilter={overviewSlotStatus} onSlotStatusFilterChange={setOverviewSlotStatus} />
@@ -542,11 +580,11 @@ export default function AppointmentsPage() {
       </section>
       <aside className="appointments-side">
         <section className="queue-panel"><div className="side-panel-title"><h2>Danh sách chờ</h2></div><label className="queue-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên, SĐT, mã BN hoặc số khám..." /></label><div className="queue-tabs"><button className={queueTab === 'WAITING' ? 'active' : ''} onClick={() => setQueueTab('WAITING')}>Đang chờ ({queue.filter((item) => item.status === 'WAITING').length})</button><button className={queueTab === 'CONFIRMED' ? 'active' : ''} onClick={() => setQueueTab('CONFIRMED')}>Đã xác nhận ({queue.filter((item) => item.status === 'CONFIRMED').length})</button></div><QueueGroup items={queue.filter((item) => item.status === queueTab)} selectedId={selectedId} onSelect={setSelectedId} /></section>
-        <AppointmentDetail appointment={selectedAppointment} onOpenProfile={(id) => { setSelectedId(id); setDrawerAppointmentId(id) }} onStatusChange={updateStatus} />
+        <AppointmentDetail appointment={selectedAppointment} onOpenProfile={(id) => { setSelectedId(id); setDrawerAppointmentId(id) }} onEditPatient={() => selectedAppointment && setPatientEditTarget(selectedAppointment)} onEditAppointment={() => selectedAppointment && setAppointmentEditTarget(selectedAppointment)} onStatusChange={updateStatus} />
       </aside>
     </main>
     <div className="mock-api-hint"><span className="mock-dot" /> Dữ liệu đồng bộ từ hệ thống</div><span className="sr-only">Đang đăng nhập: {user?.fullName || 'Lễ tân'}</span>
-    {bookingSlot && <CreateAppointmentModal patients={patientDirectory} doctors={(bookingContext || context)?.doctors || []} departments={(bookingContext || context)?.departments || []} rooms={(bookingContext || context)?.rooms || []} assignments={(bookingContext || context)?.openSlotAssignments || []} doctorLocked={true} draft={draft} setDraft={setDraft} slots={slotDefinitions} slot={bookingSlot} mode={bookingMode} setMode={changeBookingMode} onDateChange={changeBookingDate} onDoctorChange={changeBookingDoctor} onDepartmentChange={changeBookingDepartment} onRoomChange={changeBookingRoom} suggestedSlot={bookingSuggestion} onConfirmSuggestion={confirmSuggestedBooking} onChooseAnother={chooseAnotherSlot} onAddPatient={addPatient} onClose={() => setBookingSlot(null)} onSubmit={handleCreate} error={formError} saving={saving} />}{cancelTarget && <CancellationModal appointment={cancelTarget} saving={saving} onClose={() => setCancelTarget(null)} onConfirm={async (reason, note) => { setSaving(true); try { await appointmentApi.cancel(Number(cancelTarget.id), reason, note); setCancelTarget(null); setRefreshVersion((value) => value + 1) } catch (error) { setPageError(error instanceof Error ? error.message : 'Không thể hủy lịch hẹn') } finally { setSaving(false) } }} />}{drawerAppointment && <ReceptionistPatientDrawer appointment={drawerAppointment} onClose={() => setDrawerAppointmentId(null)} />}{printAppointment && <PrintTicket appointment={printAppointment} onClose={() => setPrintAppointment(null)} />}
+    {bookingSlot && <CreateAppointmentModal patients={patientDirectory} doctors={(bookingContext || context)?.doctors || []} departments={(bookingContext || context)?.departments || []} rooms={(bookingContext || context)?.rooms || []} assignments={(bookingContext || context)?.openSlotAssignments || []} doctorLocked={true} draft={draft} setDraft={setDraft} slots={slotDefinitions} slot={bookingSlot} mode={bookingMode} setMode={changeBookingMode} onDateChange={changeBookingDate} onDoctorChange={changeBookingDoctor} onDepartmentChange={changeBookingDepartment} onRoomChange={changeBookingRoom} suggestedSlot={bookingSuggestion} onConfirmSuggestion={confirmSuggestedBooking} onChooseAnother={chooseAnotherSlot} onAddPatient={addPatient} onClose={() => setBookingSlot(null)} onSubmit={handleCreate} error={formError} saving={saving} />}{cancelTarget && <CancellationModal appointment={cancelTarget} saving={saving} onClose={() => setCancelTarget(null)} onConfirm={async (reason, note) => { setSaving(true); try { await appointmentApi.cancel(Number(cancelTarget.id), reason, note); setCancelTarget(null); setRefreshVersion((value) => value + 1) } catch (error) { setPageError(error instanceof Error ? error.message : 'Không thể hủy lịch hẹn') } finally { setSaving(false) } }} />}{patientEditTarget && <PatientQuickEditModal appointment={patientEditTarget} saving={saving} onClose={() => setPatientEditTarget(null)} onSave={savePatient} />}{appointmentEditTarget && <AppointmentQuickEditModal appointment={appointmentEditTarget} saving={saving} onClose={() => setAppointmentEditTarget(null)} onSave={saveAppointmentReason} />}{drawerAppointment && <ReceptionistPatientDrawer appointment={drawerAppointment} onClose={() => setDrawerAppointmentId(null)} />}{printAppointment && <PrintTicket appointment={printAppointment} onClose={() => setPrintAppointment(null)} />}
   </div>
 }
 
@@ -571,13 +609,47 @@ function QueueGroup({ items, selectedId, onSelect }: { items: Appointment[]; sel
   return <div className="queue-group">{items.map((item) => <div className={`queue-item ${selectedId === item.id ? 'selected' : ''}`} key={item.id}><button className="queue-main-button" onClick={() => onSelect(item.id)}><strong className="queue-number">{String(item.sequenceNumber).padStart(2, '0')}</strong><span><b>{item.patient.fullName}</b><small>{timeLabel(item.startTime)} - {timeLabel(item.endTime)} · {item.doctor.fullName}</small></span></button><span className={`status-badge ${statusConfig[item.status].className}`}>{statusConfig[item.status].label}</span></div>)}{items.length === 0 && <div className="empty-context">Không có lịch trong nhóm này.</div>}</div>
 }
 
-function AppointmentDetail({ appointment, onOpenProfile, onStatusChange }: { appointment: Appointment | null; onOpenProfile: (id: string) => void; onStatusChange: (status: AppointmentStatus) => void }) {
+function AppointmentDetail({ appointment, onOpenProfile, onEditPatient, onEditAppointment, onStatusChange }: { appointment: Appointment | null; onOpenProfile: (id: string) => void; onEditPatient: () => void; onEditAppointment: () => void; onStatusChange: (status: AppointmentStatus) => void }) {
   if (!appointment) return <section className="detail-panel"><div className="side-panel-title"><h2>Chi tiết lịch hẹn</h2></div><div className="empty-context">Chọn một lịch hẹn để xem chi tiết.</div></section>
   const status = statusConfig[appointment.status]
-  return <section className="detail-panel"><div className="side-panel-title"><h2>Chi tiết lịch hẹn</h2><button className="icon-button" aria-label="Đóng chi tiết"><X size={16} /></button></div><div className="detail-patient"><div className="detail-avatar"><UserRound size={21} /></div><div><strong>{appointment.patient.fullName}</strong><span>{appointment.patient.code}</span><a href={`tel:${appointment.patient.phone}`}><Phone size={13} /> {appointment.patient.phone}</a></div></div><span className={`status-badge ${status.className}`}>{status.label}</span><dl className="detail-list"><DetailRow label="Số khám" value={String(appointment.sequenceNumber).padStart(2, '0')} /><DetailRow label="Mã lịch hẹn" value={appointment.appointmentCode} /><DetailRow label="Khung giờ" value={`${timeLabel(appointment.startTime)} - ${timeLabel(appointment.endTime)}`} /><DetailRow label="Bác sĩ" value={appointment.doctor.fullName} /><DetailRow label="Khoa" value={appointment.doctor.department} /><DetailRow label="Loại đặt lịch" value={appointment.appointmentType === 'SCHEDULED' ? 'Đặt trước' : 'Đến trực tiếp'} /><DetailRow label="Hình thức khám" value={appointment.insuranceNumber ? 'BHYT' : 'Dịch vụ'} /><DetailRow label="Lý do khám" value={appointment.reason} />{appointment.status === 'CANCELLED' && <DetailRow label="Lý do hủy" value={cancellationReasonLabel(appointment.cancellationReason, appointment.cancellationNote)} />}<DetailRow label="Trạng thái" value={status.label} /></dl><div className="detail-actions"><button className="btn btn-secondary btn-sm" onClick={() => onOpenProfile(appointment.id)}><Search size={15} /> {appointment.status === 'CANCELLED' ? 'Xem chi tiết lý do hủy' : 'Xem hồ sơ'}</button>{appointment.status === 'CONFIRMED' && <><button className="btn btn-primary btn-sm" onClick={() => onStatusChange('WAITING')}>Tiếp nhận</button><button className="btn btn-danger-outline btn-sm" onClick={() => onStatusChange('CANCELLED')}><X size={15} /> Hủy</button></>}{appointment.status === 'WAITING' && <button className="btn btn-danger-outline btn-sm" onClick={() => onStatusChange('CANCELLED')}><X size={15} /> Hủy</button>}{appointment.status === 'IN_PROGRESS' && <span className="detail-state-note">Đang khám</span>}</div></section>
+  return <section className="detail-panel"><div className="side-panel-title"><h2>Chi tiết lịch hẹn</h2><button className="icon-button" aria-label="Đóng chi tiết"><X size={16} /></button></div><div className="detail-patient-row"><div className="detail-patient"><div className="detail-avatar"><UserRound size={21} /></div><div><strong>{appointment.patient.fullName}</strong><span>{appointment.patient.code}</span><a href={`tel:${appointment.patient.phone}`}><Phone size={13} /> {appointment.patient.phone}</a></div></div><button className="btn btn-outline-primary btn-sm" onClick={onEditPatient}><Pencil size={14} /> Cập nhật thông tin</button></div><span className={`status-badge ${status.className}`}>{status.label}</span><dl className="detail-list"><DetailRow label="Số khám" value={String(appointment.sequenceNumber).padStart(2, '0')} /><DetailRow label="Mã lịch hẹn" value={appointment.appointmentCode} /><DetailRow label="Khung giờ" value={`${timeLabel(appointment.startTime)} - ${timeLabel(appointment.endTime)}`} /><DetailRow label="Bác sĩ" value={appointment.doctor.fullName} /><DetailRow label="Khoa" value={appointment.doctor.department} /><DetailRow label="Loại đặt lịch" value={appointment.appointmentType === 'SCHEDULED' ? 'Đặt trước' : 'Đến trực tiếp'} /><DetailRow label="Hình thức khám" value={appointment.insuranceNumber ? 'BHYT' : 'Dịch vụ'} /><DetailRow label="Lý do khám" value={appointment.reason} />{appointment.status === 'CANCELLED' && <DetailRow label="Lý do hủy" value={cancellationReasonLabel(appointment.cancellationReason, appointment.cancellationNote)} />}<DetailRow label="Trạng thái" value={status.label} /></dl><div className="detail-update-action"><button className="btn btn-outline-primary btn-sm" onClick={onEditAppointment} disabled={appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED'}><CalendarDays size={14} /> Cập nhật lịch khám</button></div><div className="detail-actions"><button className="btn btn-secondary btn-sm" onClick={() => onOpenProfile(appointment.id)}><Search size={15} /> {appointment.status === 'CANCELLED' ? 'Xem chi tiết lý do hủy' : 'Xem hồ sơ'}</button>{appointment.status === 'CONFIRMED' && <><button className="btn btn-primary btn-sm" onClick={() => onStatusChange('WAITING')}>Tiếp nhận</button><button className="btn btn-danger-outline btn-sm" onClick={() => onStatusChange('CANCELLED')}><X size={15} /> Hủy</button></>}{appointment.status === 'WAITING' && <button className="btn btn-danger-outline btn-sm" onClick={() => onStatusChange('CANCELLED')}><X size={15} /> Hủy</button>}{appointment.status === 'IN_PROGRESS' && <span className="detail-state-note">Đang khám</span>}</div></section>
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div> }
+
+function PatientQuickEditModal({ appointment, saving, onClose, onSave }: { appointment: Appointment; saving: boolean; onClose: () => void; onSave: (values: { fullName: string; phone: string; email: string; cccd: string; insuranceNumber: string; address: string }) => Promise<void> }) {
+  const [values, setValues] = useState({ fullName: appointment.patient.fullName, phone: appointment.patient.phone, email: appointment.patient.email === 'Chưa cập nhật' ? '' : appointment.patient.email, cccd: appointment.patient.cccd, insuranceNumber: appointment.patient.insuranceNumber || '', address: appointment.patient.address === 'Chưa cập nhật' ? '' : appointment.patient.address })
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!values.fullName.trim()) return setError('Vui lòng nhập họ và tên.')
+    if (!/^\d{10,11}$/.test(values.phone.trim())) return setError('Số điện thoại phải có 10–11 chữ số.')
+    if (values.cccd.trim() && !/^\d{9,12}$/.test(values.cccd.trim())) return setError('Số CCCD/CMND phải có từ 9 đến 12 chữ số.')
+    setError('')
+    try {
+      await onSave(values)
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Không thể cập nhật thông tin bệnh nhân.')
+    }
+  }
+  return <div className="modal-backdrop patient-edit-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="patient-edit-modal" onSubmit={submit}><div className="modal-header"><div><h2>Cập nhật thông tin bệnh nhân</h2><p>{appointment.patient.code}</p></div><button type="button" className="icon-button" onClick={onClose} aria-label="Đóng"><X size={18} /></button></div><div className="patient-edit-notice">ⓘ Thay đổi thông tin tại đây sẽ cập nhật vào hồ sơ bệnh nhân.</div><div className="patient-edit-grid"><label>Họ và tên *<input value={values.fullName} onChange={(event) => setValues((current) => ({ ...current, fullName: event.target.value }))} /></label><label>Số điện thoại *<input inputMode="numeric" value={values.phone} onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value.replace(/\D/g, '') }))} /></label><label>Email<input type="email" value={values.email} onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} /></label><label>Số CCCD/CMND<input inputMode="numeric" maxLength={12} value={values.cccd} onChange={(event) => setValues((current) => ({ ...current, cccd: event.target.value.replace(/\D/g, '') }))} /></label><label>Số BHYT<input value={values.insuranceNumber} onChange={(event) => setValues((current) => ({ ...current, insuranceNumber: event.target.value }))} /></label><label>Ngày sinh<input type="date" value={appointment.patient.dob} disabled title="Ngày sinh chỉ chỉnh sửa tại hồ sơ bệnh nhân đầy đủ" /></label><label className="span-two">Địa chỉ<textarea rows={3} value={values.address} onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} /></label></div>{error && <div className="form-error patient-edit-error">{error}</div>}<div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy bỏ</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button></div></form></div>
+}
+
+function AppointmentQuickEditModal({ appointment, saving, onClose, onSave }: { appointment: Appointment; saving: boolean; onClose: () => void; onSave: (reason: string) => Promise<void> }) {
+  const [reason, setReason] = useState(appointment.reason)
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!reason.trim()) return setError('Vui lòng nhập lý do khám.')
+    setError('')
+    try {
+      await onSave(reason)
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Không thể cập nhật lịch khám.')
+    }
+  }
+  return <div className="modal-backdrop patient-edit-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="patient-edit-modal appointment-quick-edit-modal" onSubmit={submit}><div className="modal-header"><div><h2>Cập nhật lịch khám</h2><p>{appointment.patient.fullName} · {appointment.appointmentCode}</p></div><button type="button" className="icon-button" onClick={onClose} aria-label="Đóng"><X size={18} /></button></div><div className="patient-edit-grid"><label>Ngày khám<input value={shortDateLabel(appointment.startTime.slice(0, 10))} disabled /></label><label>Khung giờ<input value={`${timeLabel(appointment.startTime)} - ${timeLabel(appointment.endTime)}`} disabled /></label><label className="span-two">Lý do khám *<textarea rows={4} value={reason} onChange={(event) => setReason(event.target.value)} /></label></div>{error && <div className="form-error patient-edit-error">{error}</div>}<div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy bỏ</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button></div></form></div>
+}
 
 function CancellationModal({ appointment, saving, onClose, onConfirm }: { appointment: Appointment; saving: boolean; onClose: () => void; onConfirm: (reason: string, note: string) => Promise<void> }) {
   const [reason, setReason] = useState('PATIENT_REQUEST')
