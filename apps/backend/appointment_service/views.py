@@ -215,6 +215,18 @@ class AppointmentReceptionContextView(APIView):
                 ],
                 'departments': [{'id': department.id, 'name': department.name} for department in Department.objects.order_by('name')],
                 'rooms': [{'id': str(room.id), 'roomNumber': room.room_number} for room in Room.objects.order_by('room_number')],
+                'openSlotAssignments': [
+                    {
+                        'doctorId': str(doctor_id),
+                        'roomId': str(room_id),
+                        'roomNumber': room_number,
+                    }
+                    for doctor_id, room_id, room_number in sorted({
+                        (slot.doctor_id, slot.room_id, slot.room.room_number)
+                        for slot in slots
+                        if slot.status == 'OPEN'
+                    }, key=lambda item: (item[2], item[0]))
+                ],
                 'overview': overview,
                 'receptionSummary': reception_summary,
                 'waitingDoctors': sorted(waiting_doctors, key=lambda item: item['waitingCount'], reverse=True),
@@ -657,15 +669,35 @@ class AppointmentCancelView(APIView):
                     details={"cancellationReason": "Bắt buộc khi bác sĩ hủy lượt khám"},
                 )
             appointment.cancellation_reason = cancellation_reason
+            appointment.cancellation_note = ''
         elif appointment.status not in ('PENDING', 'CONFIRMED', 'WAITING'):
             return error_response(
                 "INVALID_STATUS_TRANSITION",
                 "Lễ tân chỉ có thể hủy lịch đã đặt hoặc đang chờ",
                 status=400,
             )
+        else:
+            cancellation_reason = (request.data.get('cancellationReason') or '').strip()
+            cancellation_note = (request.data.get('cancellationNote') or '').strip()
+            if cancellation_reason not in Appointment.CANCELLATION_REASON_CODES:
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Vui lòng chọn lý do hủy hợp lệ",
+                    status=400,
+                    details={"cancellationReason": "Lý do hủy không hợp lệ"},
+                )
+            if cancellation_reason == 'OTHER' and not cancellation_note:
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Vui lòng nhập chi tiết lý do hủy",
+                    status=400,
+                    details={"cancellationNote": "Bắt buộc khi chọn lý do khác"},
+                )
+            appointment.cancellation_reason = cancellation_reason
+            appointment.cancellation_note = cancellation_note
 
         appointment.status = 'CANCELLED'
-        appointment.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
+        appointment.save(update_fields=['status', 'cancellation_reason', 'cancellation_note', 'updated_at'])
 
         return success_response(
             {"appointment": AppointmentListSerializer(appointment).data},

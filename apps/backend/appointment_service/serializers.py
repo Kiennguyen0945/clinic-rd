@@ -28,6 +28,7 @@ class AppointmentListSerializer(serializers.ModelSerializer):
             'reason',
             'status',
             'cancellation_reason',
+            'cancellation_note',
             'created_at',
             'updated_at',
         ]

@@ -66,6 +66,10 @@ class Appointment(models.Model):
     ]
     BOOKING_TYPE_CHOICES = [("SCHEDULE", "Schedule"), ("WALK_IN", "Walk in")]
     PATIENT_TYPE_CHOICES = [("BHYT", "BHYT"), ("SERVICE", "Service")]
+    CANCELLATION_REASON_CODES = (
+        'PATIENT_REQUEST', 'PATIENT_WRONG_INFO', 'NO_SHOW',
+        'DOCTOR_UNAVAILABLE', 'ROOM_ISSUE', 'OTHER',
+    )
 
     slot = models.ForeignKey(DoctorSlot, on_delete=models.PROTECT, related_name="appointments", null=True, blank=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="appointments")
@@ -83,6 +87,7 @@ class Appointment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    cancellation_note = models.TextField(null=True, blank=True, default="")
 
     def __str__(self):
         return f"Appointment #{self.id}"

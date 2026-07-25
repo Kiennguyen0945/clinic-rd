@@ -55,12 +55,14 @@ export interface ApiAppointment {
   reason: string
   status: 'PENDING' | 'CONFIRMED' | 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   cancellation_reason: string
+  cancellation_note: string | null
 }
 
 export interface ReceptionContext {
   doctors: ApiDoctor[]
   departments: Array<{ id: number; name: string }>
   rooms: Array<{ id: string; roomNumber: string }>
+  openSlotAssignments: Array<{ doctorId: string; roomId: string; roomNumber: string }>
   overview: Array<{
     doctor: { id: string; fullName: string }
     departments: Array<{ id: number; name: string }>
@@ -105,5 +107,5 @@ export const appointmentApi = {
   patients: (keyword = '') => request<{ patients: ApiPatient[] }>(`/api/patients/${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
   create: (body: { patientId: number; doctorId: number; slotId: number; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; deferWalkIn?: boolean; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
   checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
-  cancel: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({}) }),
+  cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
 }

@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+TZ=Asia/Ho_Chi_Minh
+
+30 17 * * * cd /apps/backend && /opt/venv/bin/python manage.py cancel_confirmed_no_shows >> /proc/1/fd/1 2>> /proc/1/fd/2
+59 23 * * * cd /apps/backend && /opt/venv/bin/python manage.py generate_doctor_slots >> /proc/1/fd/1 2>> /proc/1/fd/2
+59 23 * * * cd /apps/backend && /opt/venv/bin/python manage.py cancel_expired_waiting >> /proc/1/fd/1 2>> /proc/1/fd/2
