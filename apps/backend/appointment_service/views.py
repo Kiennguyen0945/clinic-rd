@@ -237,10 +237,46 @@ class AppointmentReceptionContextView(APIView):
 
 def _next_sequence(slot):
     max_sequence = Appointment.objects.filter(
-        doctor_id=slot.doctor_id,
+        slot__room_id=slot.room_id,
         slot__slot_date=slot.slot_date,
     ).aggregate(max_sequence=Max('sequence_number'))['max_sequence'] or 0
     return max_sequence + 1
+
+
+def _next_available_slot(doctor_id, now, booking_type, exclude_slot_id=None):
+    """Return the nearest open future/current slot with capacity for confirmation."""
+    candidates = DoctorSlot.objects.select_related('doctor', 'room').filter(
+        doctor_id=doctor_id,
+        status='OPEN',
+        slot_date__gte=timezone.localdate(now),
+    ).order_by('slot_date', 'start_time')
+    if booking_type == 'WALK_IN':
+        candidates = candidates.filter(slot_date=timezone.localdate(now))
+    if exclude_slot_id:
+        candidates = candidates.exclude(pk=exclude_slot_id)
+    for candidate in candidates:
+        _, remaining = _slot_capacity(candidate)
+        if remaining <= 0:
+            continue
+        start, end = _slot_datetimes(candidate)
+        if booking_type == 'SCHEDULE':
+            if now + timedelta(minutes=ONLINE_BOOKING_LEAD_TIME_MINUTES) < end:
+                return candidate
+        elif end > now:
+            return candidate
+    return None
+
+
+def _slot_confirmation_required(slot, booking_type, message):
+    return error_response(
+        "SLOT_CONFIRMATION_REQUIRED",
+        message,
+        status=409,
+        details={
+            "bookingType": booking_type,
+            "suggestedSlot": _slot_payload(slot, booking_type),
+        },
+    )
 
 
 class DoctorSlotListView(APIView):
@@ -417,8 +453,6 @@ class AppointmentListView(APIView):
         data = serializer.validated_data
         booking_type = data.get('bookingType', 'SCHEDULE')
         patient_type = data.get('patientType', 'SERVICE')
-        defer_walk_in = data.get('deferWalkIn', False)
-
         if patient_type == 'BHYT' and not (data.get('bhytNumber') or '').strip():
             return error_response(
                 "VALIDATION_ERROR",
@@ -470,39 +504,71 @@ class AppointmentListView(APIView):
                 )
 
         with transaction.atomic():
-            try:
-                slot = DoctorSlot.objects.select_for_update().get(pk=data['slotId'])
-            except DoctorSlot.DoesNotExist:
-                return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+            now = timezone.now()
+            requested_slot_id = data.get('slotId')
+            slot = None
+            if requested_slot_id is not None:
+                try:
+                    slot = DoctorSlot.objects.select_related('room').select_for_update().get(pk=requested_slot_id)
+                except DoctorSlot.DoesNotExist:
+                    return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+
+            # No selected slot: walk-in may enter the ongoing slot immediately.
+            # Schedule bookings and overflow walk-ins require receptionist confirmation.
+            if slot is None:
+                ongoing_slot = None
+                if booking_type == 'WALK_IN':
+                    for candidate in DoctorSlot.objects.select_related('room').select_for_update().filter(
+                        doctor_id=doctor.id,
+                        slot_date=timezone.localdate(now),
+                        status='OPEN',
+                    ).order_by('start_time'):
+                        start, end = _slot_datetimes(candidate)
+                        if start <= now < end and _slot_capacity(candidate)[1] > 0:
+                            ongoing_slot = candidate
+                            break
+                if ongoing_slot is not None:
+                    slot = ongoing_slot
+                else:
+                    suggested_slot = _next_available_slot(doctor.id, now, booking_type)
+                    if suggested_slot is None:
+                        return error_response("NO_AVAILABLE_SLOT", "Không còn ca khám phù hợp", status=409)
+                    return _slot_confirmation_required(
+                        suggested_slot,
+                        booking_type,
+                        "Vui lòng xác nhận ca khám phù hợp gần nhất",
+                    )
 
             if slot.doctor_id != doctor.id:
                 return error_response("SLOT_DOCTOR_MISMATCH", "Ca khám không thuộc bác sĩ đã chọn", status=400)
 
-            # Lock all slots of the doctor on this day before allocating the daily queue number.
-            list(DoctorSlot.objects.select_for_update().filter(doctor_id=doctor.id, slot_date=slot.slot_date))
-            now = timezone.now()
-
+            # Queue numbers are allocated per room/day, so lock that allocation scope.
+            list(DoctorSlot.objects.select_for_update().filter(room_id=slot.room_id, slot_date=slot.slot_date))
             _, remaining_capacity = _slot_capacity(slot)
             if slot.status == 'CLOSED':
                 return error_response("SLOT_CLOSED", "Ca khám đã bị khóa", status=400)
             if remaining_capacity == 0:
-                return error_response("SLOT_FULL", "Ca khám đã đủ số lượng", status=409)
+                suggested_slot = _next_available_slot(doctor.id, now, booking_type, slot.id)
+                if suggested_slot is not None:
+                    return _slot_confirmation_required(
+                        suggested_slot,
+                        booking_type,
+                        "Ca khám đã đủ chỗ. Vui lòng xác nhận ca gần nhất còn chỗ",
+                    )
+                return error_response("SLOT_FULL", "Ca khám đã đủ số lượng và không còn ca phù hợp", status=409)
             slot_start, slot_end = _slot_datetimes(slot)
-            deferred_walk_in = booking_type == 'WALK_IN' and defer_walk_in and now < slot_start
-            if not _slot_bookability(now, slot, booking_type, remaining_capacity) and not deferred_walk_in:
+            schedule_bookable = (
+                booking_type == 'SCHEDULE'
+                and now + timedelta(minutes=ONLINE_BOOKING_LEAD_TIME_MINUTES) < slot_end
+            )
+            walk_in_bookable = booking_type == 'WALK_IN' and now < slot_end
+            if slot.status != 'OPEN' or not (schedule_bookable or walk_in_bookable):
                 return error_response(
                     "SLOT_NOT_BOOKABLE",
                     "Ca khám không còn đủ thời gian tiếp nhận cho loại lịch này",
                     status=400,
                 )
 
-            is_current_walk_in = booking_type == 'WALK_IN' and slot_start <= now < slot_end
-            if booking_type == 'WALK_IN' and not is_current_walk_in and not deferred_walk_in:
-                return error_response(
-                    "SLOT_NOT_CURRENT",
-                    "Khách khám ngay phải được xếp vào ca đang diễn ra",
-                    status=400,
-                )
             requested_time = data.get('appointment_time')
             if requested_time and timezone.localtime(requested_time) != slot_start:
                 return error_response(
@@ -524,8 +590,9 @@ class AppointmentListView(APIView):
                 patient_type=patient_type,
                 bhyt_number=(data.get('bhytNumber') or '').strip() or None,
                 appointment_time=slot_start,
+                check_in_at=now if booking_type == 'WALK_IN' else None,
                 reason=data.get('reason', ''),
-                status='CONFIRMED' if booking_type == 'SCHEDULE' or deferred_walk_in else 'WAITING',
+                status='CONFIRMED' if booking_type == 'SCHEDULE' else 'WAITING',
             )
             if patient_type == 'BHYT':
                 patient.insurance_number = (data.get('bhytNumber') or '').strip() or None
@@ -725,7 +792,8 @@ class AppointmentCheckInView(APIView):
             )
 
         appointment.status = 'WAITING'
-        appointment.save(update_fields=['status', 'updated_at'])
+        appointment.check_in_at = timezone.now()
+        appointment.save(update_fields=['status', 'check_in_at', 'updated_at'])
         return success_response(
             {"appointment": AppointmentListSerializer(appointment).data},
             message="Bệnh nhân đã được tiếp nhận",

@@ -70,10 +70,6 @@ class Appointment(models.Model):
         'PATIENT_REQUEST', 'PATIENT_WRONG_INFO', 'NO_SHOW',
         'DOCTOR_UNAVAILABLE', 'ROOM_ISSUE', 'OTHER',
     )
-    CHECK_IN_AT_CHOICES = [
-        ("NULL", "Null"), ("NOW", "Now"),
-    ]
-
     slot = models.ForeignKey(DoctorSlot, on_delete=models.PROTECT, related_name="appointments", null=True, blank=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="appointments")
     doctor = models.ForeignKey(User, on_delete=models.PROTECT, related_name="doctor_appointments")
@@ -86,7 +82,7 @@ class Appointment(models.Model):
     bhyt_number = models.CharField(max_length=50, blank=True, null=True)
     cancellation_reason = models.TextField(blank=True, default="")
     appointment_time = models.DateTimeField()
-    check_in_at = models.CharField(max_length=20, choices=CHECK_IN_AT_CHOICES, default="NULL")
+    check_in_at = models.DateTimeField(null=True, blank=True)
     reason = models.TextField(blank=True, default="")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
     created_at = models.DateTimeField(auto_now_add=True)
