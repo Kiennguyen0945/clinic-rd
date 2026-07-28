@@ -200,10 +200,20 @@
 .appointments-redesign .appointment-tabs button { min-height: 42px; padding: 0 2px; margin-right: 30px; border: 0; border-bottom: 2px solid transparent; color: #8391a8; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; }
 .appointments-redesign .appointment-tabs button.active { border-color: #2563eb; color: #2563eb; }
 .appointments-redesign .appointment-filters .locked-filter select:disabled { opacity: 1; color: #344258; cursor: not-allowed; }
-.booking-suggestion-panel { display: flex; flex-direction: column; gap: 8px; margin: 0 20px 14px; padding: 12px 14px; border: 1px solid #b9d2ff; border-radius: 9px; color: #41516b; background: #f4f8ff; font-size: 13px; }
-.booking-suggestion-panel strong { color: #1d4ed8; }
-.booking-suggestion-panel small { color: #73829a; }
-.booking-suggestion-panel > div { display: flex; gap: 8px; margin-top: 4px; }
+.booking-suggestion-panel { display:grid; grid-template-columns:minmax(230px,.9fr) minmax(280px,1.25fr); gap:18px; margin:0 20px 14px; padding:13px 16px; border:1px solid #8db4ff; border-radius:9px; color:#41516b; background:linear-gradient(100deg,#f7faff,#eef5ff); font-size:12px; }
+.suggestion-intro { display:flex; align-items:flex-start; gap:12px; padding:8px 16px 8px 0; border-right:1px solid #b9d2ff; }
+.suggestion-intro > span:last-child { display:flex; flex-direction:column; gap:5px; }
+.suggestion-intro strong { color:#20304a; font-size:13px; }
+.suggestion-intro small { color:#53647f; line-height:1.45; }
+.suggestion-icon { display:grid; place-items:center; flex:0 0 40px; width:40px; height:40px; border-radius:50%; color:#2563eb; background:#e5efff; }
+.suggestion-slot-card { position:relative; display:flex; flex-direction:column; gap:5px; padding:7px 0; }
+.suggestion-slot-card > b { color:#075fd8; font-size:17px; }
+.suggestion-slot-card > strong { display:flex; align-items:center; gap:5px; color:#2563eb; font-size:12px; }
+.suggestion-slot-card > small { color:#53647f; }
+.suggestion-slot-card > em { color:#6f7f96; font-size:10px; font-style:normal; }
+.suggestion-badge { position:absolute; top:-13px; left:0; padding:3px 7px; border-radius:0 0 5px 5px; color:#fff; background:#2563eb; font-size:9px; font-weight:800; }
+.booking-confirmation-note { display:block; margin:-13px 22px 14px; color:#73829a; text-align:right; }
+@media (max-width:680px) { .booking-suggestion-panel { grid-template-columns:1fr; }.suggestion-intro { border-right:0; border-bottom:1px solid #b9d2ff; padding-right:0; padding-bottom:12px; } }
 .screenshot-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 12px; margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .screenshot-toolbar .date-controls, .screenshot-toolbar .appointment-filters { display: flex; align-items: center; gap: 8px; }
 .screenshot-toolbar .toolbar-date { display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; font-size: 14px; }

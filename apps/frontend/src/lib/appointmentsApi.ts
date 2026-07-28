@@ -4,7 +4,19 @@ export interface ApiEnvelope<T> {
   success: boolean
   data: T
   message?: string
-  error?: { code?: string; message?: string; details?: Record<string, string> }
+  error?: { code?: string; message?: string; details?: Record<string, unknown> }
+}
+
+export class AppointmentApiError extends Error {
+  code?: string
+  details?: Record<string, unknown>
+
+  constructor(message: string, code?: string, details?: Record<string, unknown>) {
+    super(message)
+    this.name = 'AppointmentApiError'
+    this.code = code
+    this.details = details
+  }
 }
 
 export interface ApiPatient {
@@ -96,7 +108,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     await response.text()
   }
   if (!response.ok || !payload?.success) {
-    throw new Error(payload?.error?.message || payload?.message || `Máy chủ không thể xử lý yêu cầu (${response.status})`)
+    throw new AppointmentApiError(payload?.error?.message || payload?.message || `Máy chủ không thể xử lý yêu cầu (${response.status})`, payload?.error?.code, payload?.error?.details)
   }
   return payload.data
 }
@@ -118,7 +130,7 @@ export const appointmentApi = {
   },
   createPatient: (body: { full_name: string; phone: string; dob: string; gender: 'M' | 'F' | 'O'; email?: string; cccd?: string; address?: string; insurance_number?: string }) => request<{ patient: ApiPatient }>('/api/patients/', { method: 'POST', body: JSON.stringify(body) }),
   updatePatient: (id: number, body: { full_name: string; phone: string; email: string; cccd: string; address: string; insurance_number: string }) => request<{ patient: ApiPatient }>(`/api/patients/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
-  create: (body: { patientId: number; doctorId: number; slotId: number; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; deferWalkIn?: boolean; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
+  create: (body: { patientId: number; doctorId: number; slotId?: number; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: number, body: { reason: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
   checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
   cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
