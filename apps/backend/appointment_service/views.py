@@ -1,6 +1,6 @@
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Max, Q, Value, When
@@ -19,6 +19,8 @@ from .models import (
     Appointment,
     DoctorSlot,
     MedicalRecord,
+    DEFAULT_SLOT_CAPACITY,
+    DEFAULT_SLOT_DURATION_MINUTES,
 )
 from .serializers import (
     AppointmentCreateSerializer,
@@ -84,10 +86,102 @@ def _slot_datetimes(slot):
     return start, end
 
 
+def _slot_key(slot):
+    """Stable key for a persisted or lazy (not yet persisted) doctor slot."""
+    if slot.pk:
+        return str(slot.pk)
+    return f"virtual:{slot.doctor_id}:{slot.slot_date.isoformat()}:{slot.start_time.strftime('%H%M')}:{slot.room_id}"
+
+
 def _slot_capacity(slot):
+    if not slot.pk:
+        return 0, slot.capacity
     booked_count = slot.appointments.exclude(status='CANCELLED').count()
     remaining_capacity = max(slot.capacity - booked_count, 0)
     return booked_count, remaining_capacity
+
+
+def _virtual_slots_for_date(doctor, target_date, persisted_slots):
+    """Build display-only slots for times that have not needed a DB row yet."""
+    template = (
+        DoctorSlot.objects.filter(doctor=doctor)
+        .select_related('room')
+        .order_by('-slot_date', 'start_time')
+        .first()
+    )
+    room = template.room if template else Room.objects.order_by('id').first()
+    if not room:
+        return list(persisted_slots)
+
+    slot_hours = tuple(
+        row['start_time'].hour
+        for row in DoctorSlot.objects.filter(doctor=doctor)
+        .values('start_time').distinct().order_by('start_time')
+    ) or tuple(range(6, 17))
+    existing_hours = {slot.start_time.hour for slot in persisted_slots}
+    capacity = template.capacity if template else DEFAULT_SLOT_CAPACITY
+    virtual_slots = [
+        DoctorSlot(
+            doctor=doctor,
+            room=room,
+            slot_date=target_date,
+            start_time=time(hour),
+            end_time=(datetime.combine(target_date, time(hour)) + timedelta(minutes=DEFAULT_SLOT_DURATION_MINUTES)).time(),
+            capacity=capacity,
+            status='OPEN',
+        )
+        for hour in slot_hours
+        if hour not in existing_hours
+    ]
+    return sorted([*persisted_slots, *virtual_slots], key=lambda slot: slot.start_time)
+
+
+def _materialize_slot(slot_key, doctor, target_date=None, persist=True):
+    """Resolve a slot key and create the row only when an appointment needs it."""
+    if not slot_key:
+        return None
+    parts = slot_key.split(':')
+    if len(parts) != 5 or parts[0] != 'virtual':
+        return None
+    try:
+        key_doctor_id = int(parts[1])
+        key_date = datetime.strptime(parts[2], '%Y-%m-%d').date()
+        start_hour = int(parts[3][:2])
+        room_id = int(parts[4])
+    except (TypeError, ValueError):
+        return None
+    if key_doctor_id != doctor.id or (target_date and key_date != target_date) or not 0 <= start_hour <= 23:
+        return None
+    room = Room.objects.filter(pk=room_id).first()
+    if not room:
+        return None
+    template = (
+        DoctorSlot.objects.filter(doctor=doctor)
+        .order_by('-slot_date', 'start_time')
+        .first()
+    )
+    defaults = {
+        'room': room,
+        'end_time': (datetime.combine(key_date, time(start_hour)) + timedelta(minutes=DEFAULT_SLOT_DURATION_MINUTES)).time(),
+        'capacity': template.capacity if template else DEFAULT_SLOT_CAPACITY,
+        'status': 'OPEN',
+    }
+    if not persist:
+        return DoctorSlot(
+            doctor=doctor,
+            room=room,
+            slot_date=key_date,
+            start_time=time(start_hour),
+            **{key: value for key, value in defaults.items() if key != 'room'},
+        )
+    slot, _ = DoctorSlot.objects.select_for_update().get_or_create(
+        doctor=doctor,
+        slot_date=key_date,
+        start_time=time(start_hour),
+        end_time=defaults['end_time'],
+        defaults=defaults,
+    )
+    return slot
 
 
 def _slot_bookability(now, slot, booking_type, remaining_capacity):
@@ -111,6 +205,7 @@ def _slot_payload(slot, booking_type='SCHEDULE'):
     booked_count, remaining_capacity = _slot_capacity(slot)
     return {
         'id': slot.id,
+        'slotKey': _slot_key(slot),
         'doctorId': str(slot.doctor_id),
         'roomId': str(slot.room_id),
         'doctor': {'id': str(slot.doctor_id), 'fullName': slot.doctor.full_name},
@@ -148,12 +243,16 @@ class AppointmentReceptionContextView(APIView):
             .prefetch_related('department_assignments__department')
             .order_by('full_name')
         )
-        slots = list(
+        persisted_slots = list(
             DoctorSlot.objects.select_related('doctor', 'room')
             .prefetch_related('appointments')
             .filter(slot_date=target_date, doctor__in=doctors)
             .order_by('doctor__full_name', 'start_time')
         )
+        slots = []
+        for doctor in doctors:
+            doctor_slots = [slot for slot in persisted_slots if slot.doctor_id == doctor.id]
+            slots.extend(_virtual_slots_for_date(doctor, target_date, doctor_slots))
         slots_by_doctor = {}
         for slot in slots:
             slots_by_doctor.setdefault(slot.doctor_id, []).append(slot)
@@ -304,8 +403,14 @@ class DoctorSlotListView(APIView):
         booking_type = request.query_params.get('bookingType', 'SCHEDULE').upper()
         if booking_type not in dict(Appointment.BOOKING_TYPE_CHOICES):
             return error_response("VALIDATION_ERROR", "bookingType không hợp lệ", status=400)
+        persisted_slots = list(queryset.order_by('start_time'))
+        if doctor_id or _check_role(request, 'DOCTOR'):
+            doctor = User.objects.select_related('role').get(pk=request.user.id if _check_role(request, 'DOCTOR') else doctor_id)
+            slots = _virtual_slots_for_date(doctor, target_date, persisted_slots)
+        else:
+            slots = persisted_slots
         return success_response(
-            {'slots': [_slot_payload(slot, booking_type) for slot in queryset.order_by('start_time')]},
+            {'slots': [_slot_payload(slot, booking_type) for slot in slots]},
             message="Lấy danh sách ca khám thành công",
         )
 
@@ -506,11 +611,16 @@ class AppointmentListView(APIView):
         with transaction.atomic():
             now = timezone.now()
             requested_slot_id = data.get('slotId')
+            requested_slot_key = (data.get('slotKey') or '').strip()
             slot = None
             if requested_slot_id is not None:
                 try:
                     slot = DoctorSlot.objects.select_related('room').select_for_update().get(pk=requested_slot_id)
                 except DoctorSlot.DoesNotExist:
+                    return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+            elif requested_slot_key:
+                slot = _materialize_slot(requested_slot_key, doctor, persist=False)
+                if slot is None:
                     return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
 
             # No selected slot: walk-in may enter the ongoing slot immediately.
@@ -568,6 +678,12 @@ class AppointmentListView(APIView):
                     "Ca khám không còn đủ thời gian tiếp nhận cho loại lịch này",
                     status=400,
                 )
+
+            if not slot.pk:
+                slot = _materialize_slot(requested_slot_key, doctor, slot.slot_date)
+                if slot is None:
+                    return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+                slot = DoctorSlot.objects.select_for_update().select_related('room').get(pk=slot.pk)
 
             requested_time = data.get('appointment_time')
             if requested_time and timezone.localtime(requested_time) != slot_start:

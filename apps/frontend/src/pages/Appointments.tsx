@@ -216,7 +216,7 @@ function mapSlot(slot: ApiSlot): SlotDefinition {
             ? "ongoing"
             : "available";
   return {
-    id: String(slot.id),
+    id: slot.slotKey || String(slot.id),
     start: timeLabel(slot.startTime),
     end: timeLabel(slot.endTime),
     state,
@@ -839,7 +839,9 @@ export default function AppointmentsPage() {
       const response = await appointmentApi.create({
         patientId: Number(draft.patientId),
         doctorId: Number(draft.doctorId),
-        slotId: Number(selectedSlot.id),
+        ...( /^\d+$/.test(selectedSlot.id)
+          ? { slotId: Number(selectedSlot.id) }
+          : { slotKey: selectedSlot.id }),
         departmentId: departmentOption?.id,
         bookingType: actionMode === "IMMEDIATE" ? "WALK_IN" : "SCHEDULE",
         patientType: draft.service === "BHYT" ? "BHYT" : "SERVICE",

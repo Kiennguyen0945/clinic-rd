@@ -72,6 +72,7 @@ class AppointmentCreateSerializer(serializers.Serializer):
     patientId = serializers.IntegerField(write_only=True)
     doctorId = serializers.IntegerField(write_only=True)
     slotId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    slotKey = serializers.CharField(required=False, allow_blank=True, write_only=True)
     departmentId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     appointmentTime = serializers.DateTimeField(source='appointment_time', required=False, allow_null=True)
     bookingType = serializers.ChoiceField(choices=Appointment.BOOKING_TYPE_CHOICES, required=False, default='SCHEDULE')
