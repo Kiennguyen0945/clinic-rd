@@ -1207,9 +1207,7 @@ export default function AppointmentsPage() {
           >
             <ChevronRight size={18} />
           </button>
-          <strong className="toolbar-date">
-            <CalendarDays size={17} /> {dateLabel(selectedDate)}
-          </strong>
+          <QuickDatePicker selectedDate={selectedDate} onSelect={setSelectedDate} />
         </div>
         <div className="appointment-filters">
           <label className="locked-filter">
@@ -1547,9 +1545,7 @@ function AppointmentOverview({
           >
             <ChevronRight size={18} />
           </button>
-          <strong className="toolbar-date">
-            <CalendarDays size={17} /> {dateLabel(selectedDate)}
-          </strong>
+          <QuickDatePicker selectedDate={selectedDate} onSelect={onDateChange} />
         </div>
         <div className="appointment-filters">
           <label>
@@ -1762,6 +1758,116 @@ function AppointmentOverview({
       <div className="mock-api-hint">
         <span className="mock-dot" /> Dữ liệu đồng bộ từ hệ thống
       </div>
+    </div>
+  );
+}
+
+function QuickDatePicker({
+  selectedDate,
+  onSelect,
+}: {
+  selectedDate: string;
+  onSelect: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [monthDate, setMonthDate] = useState(
+    () => new Date(`${selectedDate}T12:00:00`),
+  );
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const days = new Date(year, month + 1, 0).getDate();
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  useEffect(() => {
+    setMonthDate(new Date(`${selectedDate}T12:00:00`));
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [open]);
+
+  const moveMonth = (amount: number) => {
+    setMonthDate(new Date(year, month + amount, 1, 12));
+  };
+  const chooseDate = (day: number) => {
+    const value = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    onSelect(value);
+    setOpen(false);
+  };
+
+  return (
+    <div className="quick-date-picker" ref={pickerRef}>
+      <button
+        type="button"
+        className="toolbar-date"
+        aria-label="Chọn ngày"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <CalendarDays size={17} /> {dateLabel(selectedDate)}
+      </button>
+      {open && (
+        <div className="quick-date-popover" role="dialog" aria-label="Chọn ngày">
+          <div className="quick-date-header">
+            <strong>
+              {new Intl.DateTimeFormat("vi-VN", {
+                month: "long",
+                year: "numeric",
+              }).format(new Date(year, month, 1))}
+            </strong>
+            <div>
+              <button type="button" onClick={() => moveMonth(-1)} aria-label="Tháng trước">
+                <ChevronLeft size={16} />
+              </button>
+              <button type="button" onClick={() => moveMonth(1)} aria-label="Tháng sau">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="quick-date-weekdays">
+            {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
+              <span key={day}>{day}</span>
+            ))}
+          </div>
+          <div className="quick-date-grid">
+            {Array.from({ length: firstDay }).map((_, index) => (
+              <span key={`empty-${index}`} />
+            ))}
+            {Array.from({ length: days }).map((_, index) => {
+              const day = index + 1;
+              const value = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              return (
+                <button
+                  type="button"
+                  key={value}
+                  className={`${value === selectedDate ? "selected" : ""} ${value === todayValue() ? "today" : ""}`}
+                  onClick={() => chooseDate(day)}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className="quick-date-today"
+            onClick={() => onSelect(todayValue())}
+          >
+            Về hôm nay
+          </button>
+        </div>
+      )}
     </div>
   );
 }

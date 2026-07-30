@@ -218,6 +218,24 @@
 .screenshot-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 12px; margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .screenshot-toolbar .date-controls, .screenshot-toolbar .appointment-filters { display: flex; align-items: center; gap: 8px; }
 .screenshot-toolbar .toolbar-date { display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; font-size: 14px; }
+.quick-date-picker { position: relative; z-index: 5; }
+.quick-date-picker .toolbar-date { margin-left: 8px; padding: 8px 10px; border: 0; border-radius: 8px; color: #24324b; background: transparent; font: 700 14px inherit; cursor: pointer; text-transform: capitalize; }
+.quick-date-picker .toolbar-date:hover, .quick-date-picker .toolbar-date[aria-expanded="true"] { background: #f0f5ff; color: #145bd7; }
+.quick-date-popover { position: absolute; top: calc(100% + 9px); left: 0; width: 276px; padding: 14px; border: 1px solid #dce5f1; border-radius: 12px; background: #fff; box-shadow: 0 14px 32px rgba(31, 54, 89, .16); }
+.quick-date-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; color: #26344c; font-size: 13px; }
+.quick-date-header strong { text-transform: capitalize; }
+.quick-date-header > div { display: flex; gap: 4px; }
+.quick-date-header button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #e1e8f1; border-radius: 7px; color: #52617a; background: #fff; cursor: pointer; }
+.quick-date-header button:hover { color: #2563eb; background: #f0f5ff; }
+.quick-date-weekdays, .quick-date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.quick-date-weekdays { margin-bottom: 6px; color: #91a0b5; font-size: 10px; font-weight: 700; }
+.quick-date-grid button, .quick-date-grid span { display: grid; place-items: center; min-height: 31px; border: 0; border-radius: 50%; color: #52617a; background: transparent; font: 500 12px inherit; }
+.quick-date-grid button { cursor: pointer; }
+.quick-date-grid button:hover { background: #edf4ff; color: #145bd7; }
+.quick-date-grid button.today { box-shadow: inset 0 0 0 1px #8db4ff; color: #145bd7; }
+.quick-date-grid button.selected { color: #fff; background: #2563eb; box-shadow: none; }
+.quick-date-today { width: 100%; margin-top: 10px; padding: 8px 0 2px; border: 0; border-top: 1px solid #edf1f6; color: #2563eb; background: transparent; font: 700 11px inherit; cursor: pointer; }
+.quick-date-today:hover { color: #145bd7; }
 .screenshot-toolbar label { display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 1px solid #dde5ef; border-radius: 9px; color: #65758e; background: #fff; }
 .screenshot-toolbar select { min-width: 112px; border: 0; outline: 0; color: #36445d; background: transparent; font: 600 12px inherit; cursor: pointer; }
 .screenshot-toolbar label:first-child select { min-width: 165px; }
