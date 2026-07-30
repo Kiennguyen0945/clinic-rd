@@ -1,7 +1,7 @@
+from django.contrib.auth.hashers import make_password
 from django.test import TestCase
 from rest_framework.test import APIClient
-from django.contrib.auth.hashers import make_password
-from datetime import date
+
 from auth_service.models import Role, User
 from patient_service.models import Patient
 
@@ -102,7 +102,7 @@ class PatientAPITestCase(TestCase):
         self.assertIn('BN-', patient['patient_code'])
 
     def test_create_patient_auto_generates_code(self):
-        """patient_code tự sinh format BN-YYYYMMDD-SEQ."""
+        """patient_code tự sinh theo format mã bệnh nhân toàn cục BN-########."""
         self._auth(self.receptionist)
         data = {
             'full_name': 'Test',
@@ -110,13 +110,10 @@ class PatientAPITestCase(TestCase):
             'gender': 'M',
             'phone': '0900000111',
         }
-        today = date.today()
-        date_str = today.strftime('%Y%m%d')
         resp = self.client.post(self.url, data, format='json')
         self.assertEqual(resp.status_code, 201)
         code = resp.json()['data']['patient']['patient_code']
-        self.assertTrue(code.startswith(f'BN-{date_str}-'))
-        self.assertEqual(len(code), len(f'BN-{date_str}-') + 3)
+        self.assertRegex(code, r'^BN-\d{8}$')
 
     def test_create_patient_duplicate_phone(self):
         """Phone đã tồn tại → 400 DUPLICATE_PHONE."""
@@ -316,6 +313,31 @@ class PatientAPITestCase(TestCase):
         body = resp.json()
         self.assertTrue(body['success'])
         self.assertEqual(len(body['data']['patients']), 2)
+
+    def test_patient_list_is_paginated_by_ten(self):
+        """Danh sách mặc định trả tối đa 10 bệnh nhân và có metadata phân trang."""
+        self._auth(self.receptionist)
+        for index in range(10):
+            Patient.objects.create(
+                patient_code=f'BN-PAGE-{index:03d}',
+                full_name=f'Bệnh nhân {index}',
+                dob='1990-01-01',
+                gender='M',
+                phone=f'091000{index:04d}',
+                address='Địa chỉ test',
+            )
+
+        first_page = self.client.get(self.url).json()['data']
+        second_page = self.client.get(f'{self.url}?page=2').json()['data']
+
+        self.assertEqual(len(first_page['patients']), 10)
+        self.assertEqual(len(second_page['patients']), 2)
+        self.assertEqual(first_page['pagination'], {
+            'page': 1,
+            'pageSize': 10,
+            'totalItems': 12,
+            'totalPages': 2,
+        })
 
     def test_search_no_results(self):
         """Không có kết quả → mảng rỗng."""

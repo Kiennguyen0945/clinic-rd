@@ -1,6 +1,9 @@
-from rest_framework import serializers
-from .models import Role, User
+# ruff: noqa: RUF012
+
 from django.contrib.auth.hashers import make_password
+from rest_framework import serializers
+
+from .models import Role, User
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -24,4 +27,3 @@ class UserSerializer(serializers.ModelSerializer):
         elif 'password_hash' not in validated_data:
             validated_data['password_hash'] = make_password('default123')
         return super().create(validated_data)
-

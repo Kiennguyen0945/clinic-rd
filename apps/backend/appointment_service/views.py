@@ -1,6 +1,9 @@
-from datetime import datetime
+import secrets
+import string
+from datetime import datetime, timedelta
 
-from django.db.models import Count
+from django.db import transaction
+from django.db.models import Case, Count, IntegerField, Max, Q, Value, When
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -8,9 +11,15 @@ from rest_framework.views import APIView
 from auth_service.models import User
 from backend.permissions import IsManager
 from backend.response_utils import error_response, success_response
+from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
 
-from .models import Appointment, MedicalRecord
+from .models import (
+    ONLINE_BOOKING_LEAD_TIME_MINUTES,
+    Appointment,
+    DoctorSlot,
+    MedicalRecord,
+)
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentListSerializer,
@@ -41,9 +50,332 @@ def _parse_date(value):
     if not value:
         return timezone.localdate()
     try:
-        return datetime.strptime(value, '%Y-%m-%d').date()
+        return datetime.strptime(value, '%Y-%m-%d').date()  # noqa: DTZ007
     except ValueError:
         return None
+
+
+def generate_patient_code():
+    """Generate the next global patient code: BN-########."""
+    numeric_codes = Patient.objects.filter(patient_code__startswith='BN-').values_list('patient_code', flat=True)
+    last_sequence = 0
+    for code in numeric_codes:
+        suffix = code[3:]
+        if len(suffix) == 8 and suffix.isdigit():
+            last_sequence = max(last_sequence, int(suffix))
+    return f'BN-{last_sequence + 1:08d}'
+
+
+def generate_appointment_code(appointment_date=None):
+    """Generate a unique appointment code: LHK-YYMMDD + six random characters."""
+    appointment_date = appointment_date or timezone.localdate()
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        random_part = ''.join(secrets.choice(alphabet) for _ in range(6))
+        code = f'LHK-{appointment_date:%y%m%d}{random_part}'
+        if not Appointment.objects.filter(appointment_code=code).exists():
+            return code
+
+
+def _slot_datetimes(slot):
+    timezone_info = timezone.get_current_timezone()
+    start = timezone.make_aware(datetime.combine(slot.slot_date, slot.start_time), timezone_info)
+    end = timezone.make_aware(datetime.combine(slot.slot_date, slot.end_time), timezone_info)
+    return start, end
+
+
+def _slot_capacity(slot):
+    booked_count = slot.appointments.exclude(status='CANCELLED').count()
+    remaining_capacity = max(slot.capacity - booked_count, 0)
+    return booked_count, remaining_capacity
+
+
+def _slot_bookability(now, slot, booking_type, remaining_capacity):
+    start, end = _slot_datetimes(slot)
+    lead_time = 0 if booking_type == 'WALK_IN' else ONLINE_BOOKING_LEAD_TIME_MINUTES
+    target_time = now + timedelta(minutes=lead_time)
+    if booking_type == 'WALK_IN':
+        time_window_available = start <= now < end
+    else:
+        time_window_available = target_time < end
+    return (
+        slot.status == 'OPEN'
+        and remaining_capacity > 0
+        and time_window_available
+    )
+
+
+def _slot_payload(slot, booking_type='SCHEDULE'):
+    now = timezone.now()
+    start, end = _slot_datetimes(slot)
+    booked_count, remaining_capacity = _slot_capacity(slot)
+    return {
+        'id': slot.id,
+        'doctorId': str(slot.doctor_id),
+        'roomId': str(slot.room_id),
+        'doctor': {'id': str(slot.doctor_id), 'fullName': slot.doctor.full_name},
+        'room': {'id': str(slot.room_id), 'roomNumber': slot.room.room_number},
+        'slotDate': slot.slot_date.isoformat(),
+        'startTime': start.isoformat(),
+        'endTime': end.isoformat(),
+        'capacity': slot.capacity,
+        'bookedCount': booked_count,
+        'remainingCapacity': remaining_capacity,
+        'isFull': remaining_capacity == 0,
+        'isBookable': _slot_bookability(now, slot, booking_type, remaining_capacity),
+        'isOngoing': start <= now < end,
+        'isEnded': now >= end,
+        'status': slot.status,
+    }
+
+
+class AppointmentReceptionContextView(APIView):
+    """Data needed by the receptionist appointment board in one request."""
+
+    def get(self, request):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST', 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        target_date = _parse_date(request.query_params.get('date'))
+        if target_date is None:
+            return error_response("VALIDATION_ERROR", "Ngày không hợp lệ", status=400)
+
+        doctors = list(
+            User.objects.filter(role__code='DOCTOR', status='ACTIVE')
+            .prefetch_related('department_assignments__department')
+            .order_by('full_name')
+        )
+        slots = list(
+            DoctorSlot.objects.select_related('doctor', 'room')
+            .prefetch_related('appointments')
+            .filter(slot_date=target_date, doctor__in=doctors)
+            .order_by('doctor__full_name', 'start_time')
+        )
+        slots_by_doctor = {}
+        for slot in slots:
+            slots_by_doctor.setdefault(slot.doctor_id, []).append(slot)
+
+        appointment_queryset = Appointment.objects.filter(
+            slot__slot_date=target_date,
+        ).select_related('doctor')
+        reception_summary = {
+            'waiting': appointment_queryset.filter(status='WAITING').count(),
+            'confirmed': appointment_queryset.filter(status='CONFIRMED').count(),
+            'inProgress': appointment_queryset.filter(status='IN_PROGRESS').count(),
+            'completed': appointment_queryset.filter(status='COMPLETED').count(),
+            'cancelled': appointment_queryset.filter(status='CANCELLED').count(),
+        }
+
+        now = timezone.now()
+        overview = []
+        waiting_doctors = []
+        for doctor in doctors:
+            doctor_slots = slots_by_doctor.get(doctor.id, [])
+            total_capacity = sum(slot.capacity for slot in doctor_slots)
+            booked = sum(_slot_capacity(slot)[0] for slot in doctor_slots)
+            remaining = max(total_capacity - booked, 0)
+            ongoing_slot = next(
+                (slot for slot in doctor_slots if _slot_datetimes(slot)[0] <= now < _slot_datetimes(slot)[1]),
+                next((slot for slot in doctor_slots if _slot_capacity(slot)[1] > 0 and slot.status == 'OPEN'), None),
+            )
+            waiting_count = appointment_queryset.filter(doctor=doctor, status='WAITING').count()
+            if waiting_count:
+                waiting_doctors.append({'doctorId': str(doctor.id), 'doctorName': doctor.full_name, 'waitingCount': waiting_count})
+            departments = [
+                {'id': assignment.department_id, 'name': assignment.department.name}
+                for assignment in doctor.department_assignments.all()
+            ]
+            status = 'FULL' if remaining == 0 and total_capacity else 'NEAR_FULL' if total_capacity and remaining / total_capacity <= .2 else 'OPEN'
+            overview.append({
+                'doctor': {'id': str(doctor.id), 'fullName': doctor.full_name},
+                'departments': departments,
+                'totalSlots': len(doctor_slots),
+                'capacity': total_capacity,
+                'bookedCount': booked,
+                'remainingCapacity': remaining,
+                'ongoingSlot': _slot_payload(ongoing_slot) if ongoing_slot else None,
+                'status': status,
+            })
+
+        return success_response(
+            {
+                'doctors': [
+                    {
+                        'id': str(doctor.id),
+                        'fullName': doctor.full_name,
+                        'departments': [
+                            {'id': assignment.department_id, 'name': assignment.department.name}
+                            for assignment in doctor.department_assignments.all()
+                        ],
+                    }
+                    for doctor in doctors
+                ],
+                'departments': [{'id': department.id, 'name': department.name} for department in Department.objects.order_by('name')],
+                'rooms': [{'id': str(room.id), 'roomNumber': room.room_number} for room in Room.objects.order_by('room_number')],
+                'openSlotAssignments': [
+                    {
+                        'doctorId': str(doctor_id),
+                        'roomId': str(room_id),
+                        'roomNumber': room_number,
+                    }
+                    for doctor_id, room_id, room_number in sorted({
+                        (slot.doctor_id, slot.room_id, slot.room.room_number)
+                        for slot in slots
+                        if slot.status == 'OPEN'
+                    }, key=lambda item: (item[2], item[0]))
+                ],
+                'overview': overview,
+                'receptionSummary': reception_summary,
+                'waitingDoctors': sorted(waiting_doctors, key=lambda item: item['waitingCount'], reverse=True),
+            },
+            message='Lấy dữ liệu tiếp nhận thành công',
+        )
+
+
+def _next_sequence(slot):
+    max_sequence = Appointment.objects.filter(
+        slot__room_id=slot.room_id,
+        slot__slot_date=slot.slot_date,
+    ).aggregate(max_sequence=Max('sequence_number'))['max_sequence'] or 0
+    return max_sequence + 1
+
+
+def _next_available_slot(doctor_id, now, booking_type, exclude_slot_id=None):
+    """Return the nearest open future/current slot with capacity for confirmation."""
+    candidates = DoctorSlot.objects.select_related('doctor', 'room').filter(
+        doctor_id=doctor_id,
+        status='OPEN',
+        slot_date__gte=timezone.localdate(now),
+    ).order_by('slot_date', 'start_time')
+    if booking_type == 'WALK_IN':
+        candidates = candidates.filter(slot_date=timezone.localdate(now))
+    if exclude_slot_id:
+        candidates = candidates.exclude(pk=exclude_slot_id)
+    for candidate in candidates:
+        _, remaining = _slot_capacity(candidate)
+        if remaining <= 0:
+            continue
+        _, end = _slot_datetimes(candidate)
+        if booking_type == 'SCHEDULE':
+            if now + timedelta(minutes=ONLINE_BOOKING_LEAD_TIME_MINUTES) < end:
+                return candidate
+        elif end > now:
+            return candidate
+    return None
+
+
+def _slot_confirmation_required(slot, booking_type, message):
+    return error_response(
+        "SLOT_CONFIRMATION_REQUIRED",
+        message,
+        status=409,
+        details={
+            "bookingType": booking_type,
+            "suggestedSlot": _slot_payload(slot, booking_type),
+        },
+    )
+
+
+class DoctorSlotListView(APIView):
+    def get(self, request):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        target_date = _parse_date(request.query_params.get('date'))
+        if target_date is None:
+            return error_response("VALIDATION_ERROR", "Ngày không hợp lệ", status=400)
+
+        queryset = DoctorSlot.objects.select_related('doctor', 'room').filter(slot_date=target_date)
+        doctor_id = request.query_params.get('doctorId')
+        if _check_role(request, 'DOCTOR'):
+            queryset = queryset.filter(doctor_id=request.user.id)
+        elif doctor_id:
+            parsed_doctor_id = _parse_int(doctor_id)
+            if parsed_doctor_id is None:
+                return error_response("VALIDATION_ERROR", "doctorId không hợp lệ", status=400)
+            queryset = queryset.filter(doctor_id=parsed_doctor_id)
+
+        booking_type = request.query_params.get('bookingType', 'SCHEDULE').upper()
+        if booking_type not in dict(Appointment.BOOKING_TYPE_CHOICES):
+            return error_response("VALIDATION_ERROR", "bookingType không hợp lệ", status=400)
+        return success_response(
+            {'slots': [_slot_payload(slot, booking_type) for slot in queryset.order_by('start_time')]},
+            message="Lấy danh sách ca khám thành công",
+        )
+
+
+class DoctorSlotDetailView(APIView):
+    def get(self, request, pk):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+        try:
+            slot = DoctorSlot.objects.select_related('doctor', 'room').get(pk=pk)
+        except DoctorSlot.DoesNotExist:
+            return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+        if _check_role(request, 'DOCTOR') and slot.doctor_id != request.user.id:
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        appointments = slot.appointments.select_related('patient', 'doctor', 'department').order_by('sequence_number')
+        return success_response(
+            {
+                'slot': _slot_payload(slot, request.query_params.get('bookingType', 'SCHEDULE').upper()),
+                'appointments': AppointmentListSerializer(appointments, many=True).data,
+            },
+            message="Lấy chi tiết ca khám thành công",
+        )
+
+
+class AppointmentQueueView(APIView):
+    def get(self, request):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST', 'DOCTOR', 'MANAGER'):
+            return error_response("FORBIDDEN", "Bạn không có quyền truy cập", status=403)
+
+        target_date = _parse_date(request.query_params.get('date'))
+        if target_date is None:
+            return error_response("VALIDATION_ERROR", "Ngày không hợp lệ", status=400)
+        queryset = Appointment.objects.select_related('patient', 'doctor', 'slot', 'department').filter(
+            slot__slot_date=target_date,
+            status__in=('WAITING', 'CONFIRMED'),
+        )
+        if _check_role(request, 'DOCTOR'):
+            queryset = queryset.filter(doctor_id=request.user.id)
+
+        keyword = (request.query_params.get('keyword') or '').strip()
+        if keyword:
+            query = (
+                Q(patient__full_name__icontains=keyword)
+                | Q(patient__patient_code__icontains=keyword)
+                | Q(patient__phone__icontains=keyword)
+                | Q(appointment_code__icontains=keyword)
+            )
+            parsed_sequence = _parse_int(keyword)
+            if parsed_sequence is not None:
+                query |= Q(sequence_number=parsed_sequence)
+            queryset = queryset.filter(query)
+
+        queryset = queryset.annotate(
+            status_priority=Case(
+                When(status='WAITING', then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_priority', 'sequence_number')
+        return success_response(
+            {'appointments': AppointmentListSerializer(queryset, many=True).data},
+            message="Lấy danh sách chờ thành công",
+        )
 
 
 class AppointmentListView(APIView):
@@ -64,19 +396,20 @@ class AppointmentListView(APIView):
                 details={"date": "Định dạng phải là YYYY-MM-DD"},
             )
 
-        queryset = Appointment.objects.select_related('patient', 'doctor').filter(
+        queryset = Appointment.objects.select_related('patient', 'doctor', 'slot', 'department').filter(
             appointment_time__date=target_date
         )
 
         status_filter = request.query_params.get('status')
         if status_filter:
+            status_filter = status_filter.upper()
             allowed_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES}
             if status_filter not in allowed_statuses:
                 return error_response(
                     "VALIDATION_ERROR",
                     "Trạng thái không hợp lệ",
                     status=400,
-                    details={"status": "Phải là PENDING, CONFIRMED, COMPLETED hoặc CANCELLED"},
+                    details={"status": "Phải là PENDING, CONFIRMED, WAITING, IN_PROGRESS, COMPLETED hoặc CANCELLED"},
                 )
             queryset = queryset.filter(status=status_filter)
 
@@ -117,18 +450,19 @@ class AppointmentListView(APIView):
                 details=serializer.errors,
             )
 
-        appointment_time = serializer.validated_data['appointment_time']
-        if timezone.is_naive(appointment_time):
-            appointment_time = timezone.make_aware(appointment_time, timezone.get_current_timezone())
-        if appointment_time <= timezone.now():
+        data = serializer.validated_data
+        booking_type = data.get('bookingType', 'SCHEDULE')
+        patient_type = data.get('patientType', 'SERVICE')
+        if patient_type == 'BHYT' and not (data.get('bhytNumber') or '').strip():
             return error_response(
-                "PAST_TIME",
-                "Thời gian hẹn phải trong tương lai",
+                "VALIDATION_ERROR",
+                "Dữ liệu không hợp lệ",
                 status=400,
+                details={"bhytNumber": "Bắt buộc với bệnh nhân BHYT"},
             )
 
-        patient_id = serializer.validated_data['patientId']
-        doctor_id = serializer.validated_data['doctorId']
+        patient_id = data['patientId']
+        doctor_id = data['doctorId']
 
         try:
             patient = Patient.objects.get(pk=patient_id)
@@ -155,14 +489,114 @@ class AppointmentListView(APIView):
                 status=404,
             )
 
-        appointment = Appointment.objects.create(
-            patient=patient,
-            doctor=doctor,
-            creator=request.user,
-            appointment_time=appointment_time,
-            reason=serializer.validated_data.get('reason', ''),
-            status='PENDING',
-        )
+        department = None
+        department_id = data.get('departmentId')
+        if department_id is not None:
+            try:
+                department = Department.objects.get(pk=department_id)
+            except Department.DoesNotExist:
+                return error_response("DEPARTMENT_NOT_FOUND", "Không tìm thấy khoa", status=404)
+            if not DoctorDepartment.objects.filter(doctor=doctor, department=department).exists():
+                return error_response(
+                    "DOCTOR_DEPARTMENT_MISMATCH",
+                    "Bác sĩ không thuộc khoa đã chọn",
+                    status=400,
+                )
+
+        with transaction.atomic():
+            now = timezone.now()
+            requested_slot_id = data.get('slotId')
+            slot = None
+            if requested_slot_id is not None:
+                try:
+                    slot = DoctorSlot.objects.select_related('room').select_for_update().get(pk=requested_slot_id)
+                except DoctorSlot.DoesNotExist:
+                    return error_response("SLOT_NOT_FOUND", "Không tìm thấy ca khám", status=404)
+
+            # No selected slot: walk-in may enter the ongoing slot immediately.
+            # Schedule bookings and overflow walk-ins require receptionist confirmation.
+            if slot is None:
+                ongoing_slot = None
+                if booking_type == 'WALK_IN':
+                    for candidate in DoctorSlot.objects.select_related('room').select_for_update().filter(
+                        doctor_id=doctor.id,
+                        slot_date=timezone.localdate(now),
+                        status='OPEN',
+                    ).order_by('start_time'):
+                        start, end = _slot_datetimes(candidate)
+                        if start <= now < end and _slot_capacity(candidate)[1] > 0:
+                            ongoing_slot = candidate
+                            break
+                if ongoing_slot is not None:
+                    slot = ongoing_slot
+                else:
+                    suggested_slot = _next_available_slot(doctor.id, now, booking_type)
+                    if suggested_slot is None:
+                        return error_response("NO_AVAILABLE_SLOT", "Không còn ca khám phù hợp", status=409)
+                    return _slot_confirmation_required(
+                        suggested_slot,
+                        booking_type,
+                        "Vui lòng xác nhận ca khám phù hợp gần nhất",
+                    )
+
+            if slot.doctor_id != doctor.id:
+                return error_response("SLOT_DOCTOR_MISMATCH", "Ca khám không thuộc bác sĩ đã chọn", status=400)
+
+            # Queue numbers are allocated per room/day, so lock that allocation scope.
+            list(DoctorSlot.objects.select_for_update().filter(room_id=slot.room_id, slot_date=slot.slot_date))
+            _, remaining_capacity = _slot_capacity(slot)
+            if slot.status == 'CLOSED':
+                return error_response("SLOT_CLOSED", "Ca khám đã bị khóa", status=400)
+            if remaining_capacity == 0:
+                suggested_slot = _next_available_slot(doctor.id, now, booking_type, slot.id)
+                if suggested_slot is not None:
+                    return _slot_confirmation_required(
+                        suggested_slot,
+                        booking_type,
+                        "Ca khám đã đủ chỗ. Vui lòng xác nhận ca gần nhất còn chỗ",
+                    )
+                return error_response("SLOT_FULL", "Ca khám đã đủ số lượng và không còn ca phù hợp", status=409)
+            slot_start, slot_end = _slot_datetimes(slot)
+            schedule_bookable = (
+                booking_type == 'SCHEDULE'
+                and now + timedelta(minutes=ONLINE_BOOKING_LEAD_TIME_MINUTES) < slot_end
+            )
+            walk_in_bookable = booking_type == 'WALK_IN' and now < slot_end
+            if slot.status != 'OPEN' or not (schedule_bookable or walk_in_bookable):
+                return error_response(
+                    "SLOT_NOT_BOOKABLE",
+                    "Ca khám không còn đủ thời gian tiếp nhận cho loại lịch này",
+                    status=400,
+                )
+
+            requested_time = data.get('appointment_time')
+            if requested_time and timezone.localtime(requested_time) != slot_start:
+                return error_response(
+                    "SLOT_TIME_MISMATCH",
+                    "Thời gian hẹn phải trùng với thời điểm bắt đầu của ca khám",
+                    status=400,
+                )
+
+            sequence_number = _next_sequence(slot)
+            appointment = Appointment.objects.create(
+                slot=slot,
+                patient=patient,
+                doctor=doctor,
+                creator=request.user,
+                appointment_code=generate_appointment_code(slot.slot_date),
+                department=department,
+                sequence_number=sequence_number,
+                booking_type=booking_type,
+                patient_type=patient_type,
+                bhyt_number=(data.get('bhytNumber') or '').strip() or None,
+                appointment_time=slot_start,
+                check_in_at=now if booking_type == 'WALK_IN' else None,
+                reason=data.get('reason', ''),
+                status='CONFIRMED' if booking_type == 'SCHEDULE' else 'WAITING',
+            )
+            if patient_type == 'BHYT':
+                patient.insurance_number = (data.get('bhytNumber') or '').strip() or None
+                patient.save(update_fields=['insurance_number', 'updated_at'])
 
         return success_response(
             {"appointment": AppointmentListSerializer(appointment).data},
@@ -212,10 +646,23 @@ class AppointmentUpdateView(APIView):
 
         validated_data = serializer.validated_data
 
+        if appointment.slot_id and ({'appointment_time', 'doctorId'} & validated_data.keys()):
+            return error_response(
+                "SLOT_APPOINTMENT_IMMUTABLE",
+                "Lịch đã gắn ca khám không được đổi giờ hoặc đổi bác sĩ",
+                status=400,
+            )
+
         if 'appointment_time' in validated_data:
             appointment_time = validated_data['appointment_time']
             if timezone.is_naive(appointment_time):
                 appointment_time = timezone.make_aware(appointment_time, timezone.get_current_timezone())
+            if appointment_time <= timezone.now():
+                return error_response(
+                    "PAST_TIME",
+                    "Thời gian hẹn phải trong tương lai",
+                    status=400,
+                )
             appointment.appointment_time = appointment_time
 
         if 'doctorId' in validated_data:
@@ -253,7 +700,8 @@ class AppointmentCancelView(APIView):
         if auth_err:
             return auth_err
 
-        if not _check_role(request, 'RECEPTIONIST'):
+        role = getattr(getattr(request.user, 'role', None), 'code', None)
+        if role not in ('RECEPTIONIST', 'DOCTOR'):
             return error_response("FORBIDDEN", "Bạn không có quyền thực hiện hành động này", status=403)
 
         try:
@@ -272,12 +720,112 @@ class AppointmentCancelView(APIView):
                 status=400,
             )
 
+        if role == 'DOCTOR':
+            if appointment.doctor_id != request.user.id or appointment.status != 'IN_PROGRESS':
+                return error_response(
+                    "INVALID_STATUS_TRANSITION",
+                    "Bác sĩ chỉ có thể hủy lượt khám đang thực hiện",
+                    status=400,
+                )
+            cancellation_reason = (request.data.get('cancellationReason') or '').strip()
+            if not cancellation_reason:
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Dữ liệu không hợp lệ",
+                    status=400,
+                    details={"cancellationReason": "Bắt buộc khi bác sĩ hủy lượt khám"},
+                )
+            appointment.cancellation_reason = cancellation_reason
+            appointment.cancellation_note = ''
+        elif appointment.status not in ('PENDING', 'CONFIRMED', 'WAITING'):
+            return error_response(
+                "INVALID_STATUS_TRANSITION",
+                "Lễ tân chỉ có thể hủy lịch đã đặt hoặc đang chờ",
+                status=400,
+            )
+        else:
+            cancellation_reason = (request.data.get('cancellationReason') or '').strip()
+            cancellation_note = (request.data.get('cancellationNote') or '').strip()
+            if cancellation_reason not in Appointment.CANCELLATION_REASON_CODES:
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Vui lòng chọn lý do hủy hợp lệ",
+                    status=400,
+                    details={"cancellationReason": "Lý do hủy không hợp lệ"},
+                )
+            if cancellation_reason == 'OTHER' and not cancellation_note:
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Vui lòng nhập chi tiết lý do hủy",
+                    status=400,
+                    details={"cancellationNote": "Bắt buộc khi chọn lý do khác"},
+                )
+            appointment.cancellation_reason = cancellation_reason
+            appointment.cancellation_note = cancellation_note
+
         appointment.status = 'CANCELLED'
-        appointment.save(update_fields=['status', 'updated_at'])
+        appointment.save(update_fields=['status', 'cancellation_reason', 'cancellation_note', 'updated_at'])
 
         return success_response(
             {"appointment": AppointmentListSerializer(appointment).data},
             message="Huỷ lịch hẹn thành công",
+        )
+
+
+class AppointmentCheckInView(APIView):
+    def post(self, request, pk):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'RECEPTIONIST'):
+            return error_response("FORBIDDEN", "Chỉ lễ tân được xác nhận bệnh nhân đã đến", status=403)
+
+        try:
+            appointment = Appointment.objects.select_related('patient', 'doctor', 'slot').get(pk=pk)
+        except Appointment.DoesNotExist:
+            return error_response("APPOINTMENT_NOT_FOUND", "Không tìm thấy lịch hẹn", status=404)
+        if appointment.status != 'CONFIRMED':
+            return error_response(
+                "INVALID_STATUS_TRANSITION",
+                "Chỉ lịch đã xác nhận mới được chuyển sang đang chờ",
+                status=400,
+            )
+
+        appointment.status = 'WAITING'
+        appointment.check_in_at = timezone.now()
+        appointment.save(update_fields=['status', 'check_in_at', 'updated_at'])
+        return success_response(
+            {"appointment": AppointmentListSerializer(appointment).data},
+            message="Bệnh nhân đã được tiếp nhận",
+        )
+
+
+class AppointmentStartView(APIView):
+    def post(self, request, pk):
+        auth_err = _require_auth(request)
+        if auth_err:
+            return auth_err
+        if not _check_role(request, 'DOCTOR'):
+            return error_response("FORBIDDEN", "Chỉ bác sĩ được bắt đầu lượt khám", status=403)
+
+        try:
+            appointment = Appointment.objects.select_related('patient', 'doctor', 'slot').get(pk=pk)
+        except Appointment.DoesNotExist:
+            return error_response("APPOINTMENT_NOT_FOUND", "Không tìm thấy lịch hẹn", status=404)
+        if appointment.doctor_id != request.user.id:
+            return error_response("FORBIDDEN", "Bạn không được xử lý lịch khám của bác sĩ khác", status=403)
+        if appointment.status != 'WAITING':
+            return error_response(
+                "INVALID_STATUS_TRANSITION",
+                "Chỉ bệnh nhân đang chờ mới được bắt đầu khám",
+                status=400,
+            )
+
+        appointment.status = 'IN_PROGRESS'
+        appointment.save(update_fields=['status', 'updated_at'])
+        return success_response(
+            {"appointment": AppointmentListSerializer(appointment).data},
+            message="Bắt đầu lượt khám thành công",
         )
 
 
@@ -310,21 +858,31 @@ class MedicalRecordCreateView(APIView):
                 status=404,
             )
 
-        if MedicalRecord.objects.filter(appointment_id=appointment_id).exists():
+        if appointment.doctor_id != request.user.id:
+            return error_response("FORBIDDEN", "Bạn không được ghi bệnh án cho bác sĩ khác", status=403)
+        if appointment.status != 'IN_PROGRESS':
             return error_response(
-                "RECORD_EXISTS",
-                "Bệnh án cho lịch hẹn này đã tồn tại",
-                status=409,
+                "INVALID_STATUS_TRANSITION",
+                "Chỉ lượt khám đang thực hiện mới được hoàn thành",
+                status=400,
             )
 
-        medical_record = MedicalRecord.objects.create(
-            appointment=appointment,
-            symptoms=serializer.validated_data['symptoms'],
-            diagnosis=serializer.validated_data['diagnosis'],
-            notes=serializer.validated_data.get('notes', ''),
-        )
-        appointment.status = 'COMPLETED'
-        appointment.save(update_fields=['status', 'updated_at'])
+        with transaction.atomic():
+            if MedicalRecord.objects.filter(appointment_id=appointment_id).exists():
+                return error_response(
+                    "RECORD_EXISTS",
+                    "Bệnh án cho lịch hẹn này đã tồn tại",
+                    status=409,
+                )
+
+            medical_record = MedicalRecord.objects.create(
+                appointment=appointment,
+                symptoms=serializer.validated_data['symptoms'],
+                diagnosis=serializer.validated_data['diagnosis'],
+                notes=serializer.validated_data.get('notes', ''),
+            )
+            appointment.status = 'COMPLETED'
+            appointment.save(update_fields=['status', 'updated_at'])
 
         return success_response(
             {"medicalRecord": MedicalRecordSerializer(medical_record).data},
@@ -349,12 +907,15 @@ class DashboardTodayView(APIView):
             queryset = queryset.filter(doctor_id=request.user.id)
 
         pending_count = queryset.filter(status='PENDING').count()
-        confirmed_count = queryset.filter(status='CONFIRMED', appointment_time__gt=now).count()
-        in_progress_count = queryset.filter(status='CONFIRMED', appointment_time__lte=now).count()
+        confirmed_count = queryset.filter(status='CONFIRMED').count()
+        in_progress_count = queryset.filter(status='IN_PROGRESS').count()
         completed_count = queryset.filter(status='COMPLETED').count()
         cancelled_count = queryset.filter(status='CANCELLED').count()
 
-        upcoming_queryset = queryset.filter(appointment_time__gte=now).order_by('appointment_time')[:5]
+        upcoming_queryset = queryset.filter(
+            appointment_time__gte=now,
+            status__in=('CONFIRMED', 'WAITING', 'IN_PROGRESS'),
+        ).order_by('appointment_time')[:5]
         upcoming_appointments = [
             {
                 'id': str(appointment.id),
@@ -384,7 +945,7 @@ class DashboardTodayView(APIView):
 
 
 class AppointmentStatsView(APIView):
-    permission_classes = [IsManager]
+    permission_classes = [IsManager]  # noqa: RUF012
 
     def get(self, request):
         auth_err = _require_auth(request)
@@ -442,11 +1003,7 @@ class AppointmentStatsView(APIView):
             ]
         elif group_by == 'doctor':
             stats = [
-                {
-                    'doctorId': str(row['doctor_id']),
-                    'doctorName': row['doctor__full_name'],
-                    'count': row['count'],
-                }
+                {'doctorId': str(row['doctor_id']), 'doctorName': row['doctor__full_name'], 'count': row['count']}
                 for row in queryset.values('doctor_id', 'doctor__full_name').annotate(count=Count('id')).order_by('doctor__full_name')
             ]
         elif group_by == 'day':

@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Eye, Filter, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import { appointmentApi } from '../lib/appointmentsApi'
+import type { ApiPatient } from '../lib/appointmentsApi'
 
 interface Patient {
   id: string
@@ -10,6 +12,7 @@ interface Patient {
   age: number
   phone: string
   email: string
+  cccd: string
   address: string
   lastVisit: string
   lastReason: string
@@ -24,16 +27,9 @@ interface NewPatientDraft {
   gender: Patient['gender']
   dob: string
   email: string
+  cccd: string
   address: string
 }
-
-const INITIAL_PATIENTS: Patient[] = [
-  { id: 'p-1', code: 'BN-20260701-002', fullName: 'Nguyễn Văn A', gender: 'Nam', dob: '01/01/1992', age: 34, phone: '0901 222 333', email: 'nguyenvana@gmail.com', address: '123 Đường ABC, Quận 1, TP.HCM', lastVisit: '18/07/2026', lastReason: 'Đau đầu, chóng mặt', allergy: 'Penicillin', bloodType: 'O+', history: 'Tăng huyết áp (2 năm)' },
-  { id: 'p-2', code: 'BN-20260712-001', fullName: 'Phạm Thị D', gender: 'Nữ', dob: '12/05/1990', age: 35, phone: '0901 456 789', email: 'phamthid@gmail.com', address: '45 Nguyễn Trãi, Quận 5, TP.HCM', lastVisit: '18/07/2026', lastReason: 'Đau bụng, đầy hơi', allergy: 'Không ghi nhận', bloodType: 'A+', history: 'Viêm dạ dày' },
-  { id: 'p-3', code: 'BN-20260711-003', fullName: 'Lê Văn C', gender: 'Nam', dob: '20/03/1997', age: 28, phone: '0933 111 222', email: 'levanc@gmail.com', address: '18 Lê Lợi, Quận 3, TP.HCM', lastVisit: '18/07/2026', lastReason: 'Sốt nhẹ, ho khan', allergy: 'Chưa cập nhật', bloodType: 'B+', history: 'Không ghi nhận' },
-  { id: 'p-4', code: 'BN-20260709-004', fullName: 'Trần Thị B', gender: 'Nữ', dob: '15/11/1982', age: 42, phone: '0988 444 555', email: 'tranthib@gmail.com', address: '88 Võ Văn Tần, Quận 3, TP.HCM', lastVisit: '15/07/2026', lastReason: 'Khó tiêu, đầy bụng', allergy: 'Không ghi nhận', bloodType: 'O+', history: 'Rối loạn mỡ máu' },
-  { id: 'p-5', code: 'BN-20260705-001', fullName: 'Nguyễn Hoàng E', gender: 'Nam', dob: '02/02/1995', age: 30, phone: '0977 888 999', email: 'nguyenhoange@gmail.com', address: '12 Hoàng Diệu, Quận 4, TP.HCM', lastVisit: '12/07/2026', lastReason: 'Đau họng, viêm mũi', allergy: 'Không ghi nhận', bloodType: 'AB+', history: 'Không ghi nhận' },
-]
 
 const emptyPatientDraft: NewPatientDraft = {
   fullName: '',
@@ -41,6 +37,7 @@ const emptyPatientDraft: NewPatientDraft = {
   gender: 'Nam',
   dob: '',
   email: '',
+  cccd: '',
   address: '',
 }
 
@@ -48,15 +45,33 @@ const formatDob = (value: string) => value ? new Intl.DateTimeFormat('vi-VN').fo
 const calculateAge = (value: string) => {
   if (!value) return 0
   const birthDate = new Date(`${value}T12:00:00`)
-  const today = new Date('2026-07-19T12:00:00')
+  const today = new Date()
   let age = today.getFullYear() - birthDate.getFullYear()
   const hasNotHadBirthday = today.getMonth() < birthDate.getMonth() || (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
   if (hasNotHadBirthday) age -= 1
   return age
 }
 
+const mapApiPatient = (patient: ApiPatient): Patient => ({
+  id: String(patient.id),
+  code: patient.patient_code,
+  fullName: patient.full_name,
+  gender: patient.gender === 'F' ? 'Nữ' : 'Nam',
+  dob: formatDob(patient.dob),
+  age: calculateAge(patient.dob),
+  phone: patient.phone,
+  email: patient.email || 'Chưa cập nhật',
+  cccd: patient.cccd || 'Chưa cập nhật',
+  address: patient.address || 'Chưa cập nhật',
+  lastVisit: 'Chưa có',
+  lastReason: 'Chưa có lịch sử khám',
+  allergy: 'Chưa cập nhật',
+  bloodType: 'Chưa cập nhật',
+  history: 'Chưa cập nhật',
+})
+
 export default function PatientsPage() {
-  const [patients, setPatients] = useState(INITIAL_PATIENTS)
+  const [patients, setPatients] = useState<Patient[]>([])
   const [keyword, setKeyword] = useState('')
   const [gender, setGender] = useState('all')
   const [age, setAge] = useState('all')
@@ -65,40 +80,77 @@ export default function PatientsPage() {
   const [showMenu, setShowMenu] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newPatient, setNewPatient] = useState<NewPatientDraft>(emptyPatientDraft)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [refreshVersion, setRefreshVersion] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await appointmentApi.patients({
+          keyword: keyword.trim(),
+          page,
+          pageSize: 10,
+          gender: gender === 'Nam' ? 'M' : gender === 'Nữ' ? 'F' : undefined,
+          age,
+        })
+        if (!cancelled) {
+          setPatients(response.patients.map(mapApiPatient))
+          setPage(response.pagination.page)
+          setTotalItems(response.pagination.totalItems)
+          setTotalPages(response.pagination.totalPages)
+        }
+      } catch (loadError) {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Không thể tải danh sách bệnh nhân.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [age, gender, keyword, page, refreshVersion])
 
   const filteredPatients = useMemo(() => patients.filter((patient) => {
-    const query = keyword.trim().toLowerCase()
-    const matchesQuery = !query || [patient.fullName, patient.code, patient.phone].some((value) => value.toLowerCase().includes(query))
-    const matchesGender = gender === 'all' || patient.gender === gender
-    const matchesAge = age === 'all' || (age === 'under30' ? patient.age < 30 : age === '30to40' ? patient.age >= 30 && patient.age <= 40 : patient.age > 40)
     const matchesVisit = lastVisit === 'all' || (lastVisit === 'today' ? patient.lastVisit === '18/07/2026' : patient.lastVisit !== '18/07/2026')
-    return matchesQuery && matchesGender && matchesAge && matchesVisit
-  }), [age, gender, keyword, lastVisit, patients])
+    return matchesVisit
+  }), [lastVisit, patients])
 
-  const createPatient = (event: React.FormEvent) => {
+  const createPatient = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!newPatient.fullName.trim() || !newPatient.phone.trim() || !newPatient.dob) return
-
-    const item: Patient = {
-      id: `p-${Date.now()}`,
-      code: `BN-20260719-${String(patients.length + 1).padStart(3, '0')}`,
-      fullName: newPatient.fullName.trim(),
-      gender: newPatient.gender,
-      dob: formatDob(newPatient.dob),
-      age: calculateAge(newPatient.dob),
-      phone: newPatient.phone.trim(),
-      email: newPatient.email.trim() || 'Chưa cập nhật',
-      address: newPatient.address.trim() || 'Chưa cập nhật',
-      lastVisit: 'Chưa có',
-      lastReason: 'Chưa có lịch sử khám',
-      allergy: 'Chưa cập nhật',
-      bloodType: 'Chưa cập nhật',
-      history: 'Chưa cập nhật',
+    if (newPatient.cccd.trim() && !/^\d{9,12}$/.test(newPatient.cccd.trim())) {
+      setError('Số CCCD/CMND phải có từ 9 đến 12 chữ số.')
+      return
     }
-
-    setPatients((current) => [item, ...current])
-    setNewPatient(emptyPatientDraft)
-    setShowCreate(false)
+    setSaving(true)
+    setError('')
+    try {
+      const response = await appointmentApi.createPatient({
+        full_name: newPatient.fullName.trim(),
+        phone: newPatient.phone.replace(/\s/g, ''),
+        dob: newPatient.dob,
+        gender: newPatient.gender === 'Nữ' ? 'F' : 'M',
+        email: newPatient.email.trim(),
+        cccd: newPatient.cccd.trim(),
+        address: newPatient.address.trim(),
+      })
+      if (page === 1) setPatients((current) => [mapApiPatient(response.patient), ...current].slice(0, 10))
+      setTotalItems((current) => current + 1)
+      setNewPatient(emptyPatientDraft)
+      setShowCreate(false)
+      setPage(1)
+      setRefreshVersion((current) => current + 1)
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : 'Không thể tạo hồ sơ bệnh nhân.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return <div className="patients-mock-page">
@@ -115,14 +167,14 @@ export default function PatientsPage() {
     <section className="patient-toolbar">
       <div className="patient-search">
         <Search size={17} />
-        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Tìm theo tên, mã bệnh nhân hoặc số điện thoại..." />
+        <input value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1) }} placeholder="Tìm theo tên, mã bệnh nhân hoặc số điện thoại..." />
       </div>
-      <select value={gender} onChange={(e) => setGender(e.target.value)}>
+      <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1) }}>
         <option value="all">Giới tính: Tất cả</option>
         <option>Nam</option>
         <option>Nữ</option>
       </select>
-      <select value={age} onChange={(e) => setAge(e.target.value)}>
+      <select value={age} onChange={(e) => { setAge(e.target.value); setPage(1) }}>
         <option value="all">Độ tuổi: Tất cả</option>
         <option value="under30">Dưới 30 tuổi</option>
         <option value="30to40">30-40 tuổi</option>
@@ -136,6 +188,7 @@ export default function PatientsPage() {
       <button className="btn btn-secondary filter-button"><Filter size={15} /> Bộ lọc</button>
     </section>
 
+    {error && <div className="form-error">{error}</div>}
     <section className="patient-table-card">
       <div className="patient-table-wrap">
         <table className="patient-table">
@@ -149,7 +202,7 @@ export default function PatientsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredPatients.map((patient) => <tr key={patient.id}>
+            {loading ? <tr><td colSpan={5}>Đang tải dữ liệu bệnh nhân...</td></tr> : filteredPatients.map((patient) => <tr key={patient.id}>
               <td>
                 <div className="patient-cell">
                   <div className={`patient-avatar avatar-${patient.gender === 'Nam' ? 'blue' : 'pink'}`}>{patient.fullName.split(' ').slice(-1)[0][0]}</div>
@@ -199,21 +252,19 @@ export default function PatientsPage() {
       </div>
 
       <div className="patient-table-footer">
-        <span>Hiển thị 1 đến {filteredPatients.length} trong tổng số {patients.length} bệnh nhân</span>
+        <span>Hiển thị {totalItems ? (page - 1) * 10 + 1 : 0} đến {Math.min(page * 10, totalItems)} trong tổng số {totalItems} bệnh nhân</span>
         <div className="pagination">
           <span>Hiển thị:</span>
-          <select defaultValue="10"><option>10</option><option>20</option></select>
-          <button className="icon-button" disabled>‹</button>
-          <button className="page-number active">1</button>
-          <button className="page-number">2</button>
-          <button className="page-number">3</button>
-          <button className="icon-button">›</button>
+          <select value="10" disabled aria-label="Số bệnh nhân mỗi trang"><option>10</option></select>
+          <button className="icon-button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>‹</button>
+          {Array.from({ length: totalPages }, (_, index) => index + 1).filter((value) => value === 1 || value === totalPages || Math.abs(value - page) <= 1).map((value, index, values) => <span key={value} className="pagination-page-item">{index > 0 && value - values[index - 1] > 1 && <i>…</i>}<button className={`page-number ${value === page ? 'active' : ''}`} onClick={() => setPage(value)} disabled={loading}>{value}</button></span>)}
+          <button className="icon-button" disabled={page >= totalPages || loading} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>›</button>
         </div>
       </div>
     </section>
 
     {selectedPatient && <PatientDrawer patient={selectedPatient} onClose={() => setSelectedPatient(null)} />}
-    {showCreate && <CreatePatientModal value={newPatient} setValue={setNewPatient} onClose={() => setShowCreate(false)} onSubmit={createPatient} />}
+    {showCreate && <CreatePatientModal value={newPatient} setValue={setNewPatient} saving={saving} error={error} onClose={() => setShowCreate(false)} onSubmit={createPatient} />}
   </div>
 }
 
@@ -238,6 +289,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
       <dl className="drawer-details">
         <div><dt>Số điện thoại</dt><dd>{patient.phone}</dd></div>
         <div><dt>Email</dt><dd>{patient.email}</dd></div>
+        <div><dt>Số CCCD/CMND</dt><dd>{patient.cccd}</dd></div>
         <div><dt>Ngày sinh</dt><dd>{patient.dob}</dd></div>
         <div><dt>Địa chỉ</dt><dd>{patient.address}</dd></div>
         <div><dt>Nhóm máu</dt><dd>{patient.bloodType}</dd></div>
@@ -258,13 +310,13 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
   </div>
 }
 
-function CreatePatientModal({ value, setValue, onClose, onSubmit }: { value: NewPatientDraft; setValue: React.Dispatch<React.SetStateAction<NewPatientDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) {
+function CreatePatientModal({ value, setValue, saving, error, onClose, onSubmit }: { value: NewPatientDraft; setValue: React.Dispatch<React.SetStateAction<NewPatientDraft>>; saving: boolean; error: string; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) {
   return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
     <form className="patient-create-modal" onSubmit={onSubmit}>
       <div className="modal-header">
         <div>
           <h2>Thêm bệnh nhân</h2>
-          <p>Nhập thông tin hành chính để tạo hồ sơ bệnh nhân mock.</p>
+          <p>Nhập thông tin hành chính để tạo hồ sơ bệnh nhân.</p>
         </div>
         <button type="button" className="icon-button" onClick={onClose}><X size={18} /></button>
       </div>
@@ -294,15 +346,20 @@ function CreatePatientModal({ value, setValue, onClose, onSubmit }: { value: New
           Email
           <input type="email" value={value.email} onChange={(e) => setValue((v) => ({ ...v, email: e.target.value }))} placeholder="email@example.com" />
         </label>
+        <label>
+          Số CCCD/CMND
+          <input inputMode="numeric" maxLength={12} value={value.cccd} onChange={(e) => setValue((v) => ({ ...v, cccd: e.target.value.replace(/\D/g, '') }))} placeholder="Nhập 9–12 chữ số" />
+        </label>
         <label className="span-two">
           Địa chỉ
           <textarea rows={3} value={value.address} onChange={(e) => setValue((v) => ({ ...v, address: e.target.value }))} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
         </label>
       </div>
 
+      {error && <div className="form-error">{error}</div>}
       <div className="modal-footer">
         <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
-        <button className="btn btn-primary" type="submit">Tạo hồ sơ</button>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Đang tạo...' : 'Tạo hồ sơ'}</button>
       </div>
     </form>
   </div>

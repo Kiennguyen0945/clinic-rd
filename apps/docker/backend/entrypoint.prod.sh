@@ -7,6 +7,9 @@ echo "Running database migrations..."
 echo "Creating superuser (if not exists)..."
 /opt/venv/bin/python manage.py createsuperuser --no-input || true
 
+echo "Starting cron scheduler..."
+/usr/sbin/crond
+
 echo "Starting Gunicorn server..."
 exec /opt/venv/bin/gunicorn backend.wsgi:application \
     --bind 0.0.0.0:8000 \
