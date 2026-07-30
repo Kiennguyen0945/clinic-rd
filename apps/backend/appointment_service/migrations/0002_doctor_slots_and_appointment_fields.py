@@ -1,5 +1,7 @@
-from django.db import migrations, models
+# ruff: noqa: RUF012
+
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

@@ -61,7 +61,9 @@ class ScheduledJobsTests(TestCase):
         tomorrow = self.make_appointment(1, 'CONFIRMED')
 
         self.assertEqual(cancel_confirmed_no_shows(today=self.today), 2)
-        past.refresh_from_db(); today.refresh_from_db(); tomorrow.refresh_from_db()
+        past.refresh_from_db()
+        today.refresh_from_db()
+        tomorrow.refresh_from_db()
         self.assertEqual(past.cancellation_reason, 'NO_SHOW')
         self.assertEqual(today.cancellation_reason, 'NO_SHOW')
         self.assertEqual(tomorrow.status, 'CONFIRMED')
@@ -72,7 +74,9 @@ class ScheduledJobsTests(TestCase):
         tomorrow = self.make_appointment(1, 'WAITING')
 
         self.assertEqual(cancel_expired_waiting(today=self.today), 2)
-        past.refresh_from_db(); today.refresh_from_db(); tomorrow.refresh_from_db()
+        past.refresh_from_db()
+        today.refresh_from_db()
+        tomorrow.refresh_from_db()
         self.assertEqual(past.cancellation_reason, 'EXPIRED')
         self.assertEqual(today.cancellation_reason, 'EXPIRED')
         self.assertEqual(tomorrow.status, 'WAITING')

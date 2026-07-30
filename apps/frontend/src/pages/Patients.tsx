@@ -116,10 +116,6 @@ export default function PatientsPage() {
     return () => { cancelled = true; window.clearTimeout(timer) }
   }, [age, gender, keyword, page, refreshVersion])
 
-  useEffect(() => {
-    setPage(1)
-  }, [age, gender, keyword])
-
   const filteredPatients = useMemo(() => patients.filter((patient) => {
     const matchesVisit = lastVisit === 'all' || (lastVisit === 'today' ? patient.lastVisit === '18/07/2026' : patient.lastVisit !== '18/07/2026')
     return matchesVisit
@@ -171,14 +167,14 @@ export default function PatientsPage() {
     <section className="patient-toolbar">
       <div className="patient-search">
         <Search size={17} />
-        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Tìm theo tên, mã bệnh nhân hoặc số điện thoại..." />
+        <input value={keyword} onChange={(e) => { setKeyword(e.target.value); setPage(1) }} placeholder="Tìm theo tên, mã bệnh nhân hoặc số điện thoại..." />
       </div>
-      <select value={gender} onChange={(e) => setGender(e.target.value)}>
+      <select value={gender} onChange={(e) => { setGender(e.target.value); setPage(1) }}>
         <option value="all">Giới tính: Tất cả</option>
         <option>Nam</option>
         <option>Nữ</option>
       </select>
-      <select value={age} onChange={(e) => setAge(e.target.value)}>
+      <select value={age} onChange={(e) => { setAge(e.target.value); setPage(1) }}>
         <option value="all">Độ tuổi: Tất cả</option>
         <option value="under30">Dưới 30 tuổi</option>
         <option value="30to40">30-40 tuổi</option>
