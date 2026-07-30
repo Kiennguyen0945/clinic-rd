@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
 import secrets
 import string
+from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Max, Q, Value, When
@@ -11,8 +11,8 @@ from rest_framework.views import APIView
 from auth_service.models import User
 from backend.permissions import IsManager
 from backend.response_utils import error_response, success_response
-from patient_service.models import Patient
 from organization_service.models import Department, DoctorDepartment, Room
+from patient_service.models import Patient
 
 from .models import (
     ONLINE_BOOKING_LEAD_TIME_MINUTES,
@@ -50,7 +50,7 @@ def _parse_date(value):
     if not value:
         return timezone.localdate()
     try:
-        return datetime.strptime(value, '%Y-%m-%d').date()
+        return datetime.strptime(value, '%Y-%m-%d').date()  # noqa: DTZ007
     except ValueError:
         return None
 
@@ -258,7 +258,7 @@ def _next_available_slot(doctor_id, now, booking_type, exclude_slot_id=None):
         _, remaining = _slot_capacity(candidate)
         if remaining <= 0:
             continue
-        start, end = _slot_datetimes(candidate)
+        _, end = _slot_datetimes(candidate)
         if booking_type == 'SCHEDULE':
             if now + timedelta(minutes=ONLINE_BOOKING_LEAD_TIME_MINUTES) < end:
                 return candidate
@@ -945,7 +945,7 @@ class DashboardTodayView(APIView):
 
 
 class AppointmentStatsView(APIView):
-    permission_classes = [IsManager]
+    permission_classes = [IsManager]  # noqa: RUF012
 
     def get(self, request):
         auth_err = _require_auth(request)

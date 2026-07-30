@@ -1,15 +1,18 @@
+import re
+from datetime import date
+
+from django.core.paginator import EmptyPage, Paginator
+from django.db.models import Q
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
-from django.db.models import Q
-from django.core.paginator import EmptyPage, Paginator
-from datetime import date
-import re
+
+from appointment_service.models import MedicalRecord
+from appointment_service.serializers import MedicalRecordListSerializer
+from appointment_service.views import generate_patient_code
+from backend.response_utils import error_response, success_response
+
 from .models import Patient
 from .serializers import PatientSerializer
-from backend.response_utils import success_response, error_response
-from appointment_service.models import MedicalRecord
-from appointment_service.views import generate_patient_code
-from appointment_service.serializers import MedicalRecordListSerializer
 
 
 def _require_auth(request):
@@ -86,7 +89,7 @@ def patient_list(request):
             patients = patients.filter(gender=gender)
 
         def years_ago(years):
-            today = date.today()
+            today = date.today()  # noqa: DTZ011
             try:
                 return today.replace(year=today.year - years)
             except ValueError:

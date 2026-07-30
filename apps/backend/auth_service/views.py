@@ -1,18 +1,21 @@
+# ruff: noqa: RUF012
+
 import secrets
 import string
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-
-from .models import User, Role
-from .serializers import RoleSerializer, UserSerializer
-from django.contrib.auth.hashers import check_password, make_password
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from backend.permissions import IsManager
-from backend.response_utils import success_response, error_response
+from backend.response_utils import error_response, success_response
+
+from .models import Role, User
+from .serializers import RoleSerializer, UserSerializer
 
 
 @api_view(['GET', 'POST'])

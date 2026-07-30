@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models
+
 from auth_service.models import User
 from organization_service.models import Department, Room
 from patient_service.models import Patient
-
 
 DEFAULT_SLOT_DURATION_MINUTES = 60
 DEFAULT_SLOT_CAPACITY = 4

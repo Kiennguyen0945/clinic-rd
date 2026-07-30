@@ -1,9 +1,9 @@
 from datetime import datetime, time, timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
-from unittest.mock import patch
 
 from appointment_service.models import Appointment, DoctorSlot
 from appointment_service.scheduled_jobs import (
@@ -14,9 +14,6 @@ from appointment_service.scheduled_jobs import (
 from auth_service.models import Role, User
 from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
-
-
-
 
 
 class ScheduledJobsTests(TestCase):

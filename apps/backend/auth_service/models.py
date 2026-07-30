@@ -1,4 +1,7 @@
+# ruff: noqa: RUF012
+
 from django.db import models
+
 
 class Role(models.Model):
     code = models.CharField(max_length=50, unique=True)

@@ -1,4 +1,7 @@
+# ruff: noqa: RUF012
+
 from rest_framework import serializers
+
 from .models import Patient
 
 

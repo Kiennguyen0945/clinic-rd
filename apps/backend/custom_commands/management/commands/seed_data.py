@@ -108,7 +108,7 @@ class Command(BaseCommand):
                 patient_code=code,
                 defaults={
                     'full_name': full_name,
-                    'dob': datetime.strptime(dob, '%Y-%m-%d').date(),
+                    'dob': datetime.strptime(dob, '%Y-%m-%d').date(),  # noqa: DTZ007
                     'gender': gender,
                     'phone': phone,
                     'address': 'Quận 1, TP.HCM',

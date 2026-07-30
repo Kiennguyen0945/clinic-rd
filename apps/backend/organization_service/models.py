@@ -1,4 +1,7 @@
+# ruff: noqa: RUF012
+
 from django.db import models
+
 from auth_service.models import User
 
 
