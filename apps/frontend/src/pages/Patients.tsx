@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Eye, Filter, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import CreatePatientModal from '../components/CreatePatientModal'
 import { appointmentApi } from '../lib/appointmentsApi'
 import type { ApiPatient } from '../lib/appointmentsApi'
 
@@ -19,26 +20,6 @@ interface Patient {
   allergy: string
   bloodType: string
   history: string
-}
-
-interface NewPatientDraft {
-  fullName: string
-  phone: string
-  gender: Patient['gender']
-  dob: string
-  email: string
-  cccd: string
-  address: string
-}
-
-const emptyPatientDraft: NewPatientDraft = {
-  fullName: '',
-  phone: '',
-  gender: 'Nam',
-  dob: '',
-  email: '',
-  cccd: '',
-  address: '',
 }
 
 const formatDob = (value: string) => value ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T12:00:00`)) : 'Chưa cập nhật'
@@ -79,9 +60,7 @@ export default function PatientsPage() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [showMenu, setShowMenu] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [newPatient, setNewPatient] = useState<NewPatientDraft>(emptyPatientDraft)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const [totalItems, setTotalItems] = useState(0)
@@ -120,38 +99,6 @@ export default function PatientsPage() {
     const matchesVisit = lastVisit === 'all' || (lastVisit === 'today' ? patient.lastVisit === '18/07/2026' : patient.lastVisit !== '18/07/2026')
     return matchesVisit
   }), [lastVisit, patients])
-
-  const createPatient = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!newPatient.fullName.trim() || !newPatient.phone.trim() || !newPatient.dob) return
-    if (newPatient.cccd.trim() && !/^\d{9,12}$/.test(newPatient.cccd.trim())) {
-      setError('Số CCCD/CMND phải có từ 9 đến 12 chữ số.')
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      const response = await appointmentApi.createPatient({
-        full_name: newPatient.fullName.trim(),
-        phone: newPatient.phone.replace(/\s/g, ''),
-        dob: newPatient.dob,
-        gender: newPatient.gender === 'Nữ' ? 'F' : 'M',
-        email: newPatient.email.trim(),
-        cccd: newPatient.cccd.trim(),
-        address: newPatient.address.trim(),
-      })
-      if (page === 1) setPatients((current) => [mapApiPatient(response.patient), ...current].slice(0, 10))
-      setTotalItems((current) => current + 1)
-      setNewPatient(emptyPatientDraft)
-      setShowCreate(false)
-      setPage(1)
-      setRefreshVersion((current) => current + 1)
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Không thể tạo hồ sơ bệnh nhân.')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return <div className="patients-mock-page">
     <div className="page-header patient-page-heading">
@@ -264,7 +211,16 @@ export default function PatientsPage() {
     </section>
 
     {selectedPatient && <PatientDrawer patient={selectedPatient} onClose={() => setSelectedPatient(null)} />}
-    {showCreate && <CreatePatientModal value={newPatient} setValue={setNewPatient} saving={saving} error={error} onClose={() => setShowCreate(false)} onSubmit={createPatient} />}
+    {showCreate && <CreatePatientModal
+      onClose={() => setShowCreate(false)}
+      onCreated={(patient) => {
+        if (page === 1) setPatients((current) => [mapApiPatient(patient), ...current].slice(0, 10))
+        setTotalItems((current) => current + 1)
+        setShowCreate(false)
+        setPage(1)
+        setRefreshVersion((current) => current + 1)
+      }}
+    />}
   </div>
 }
 
@@ -307,60 +263,5 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
         <button className="btn btn-primary" onClick={onClose}>Đóng</button>
       </div>
     </aside>
-  </div>
-}
-
-function CreatePatientModal({ value, setValue, saving, error, onClose, onSubmit }: { value: NewPatientDraft; setValue: React.Dispatch<React.SetStateAction<NewPatientDraft>>; saving: boolean; error: string; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) {
-  return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <form className="patient-create-modal" onSubmit={onSubmit}>
-      <div className="modal-header">
-        <div>
-          <h2>Thêm bệnh nhân</h2>
-          <p>Nhập thông tin hành chính để tạo hồ sơ bệnh nhân.</p>
-        </div>
-        <button type="button" className="icon-button" onClick={onClose}><X size={18} /></button>
-      </div>
-
-      <div className="patient-modal-fields">
-        <label className="span-two">
-          Họ và tên *
-          <input autoFocus value={value.fullName} onChange={(e) => setValue((v) => ({ ...v, fullName: e.target.value }))} placeholder="Nguyễn Văn A" required />
-        </label>
-        <label>
-          Ngày sinh *
-          <input type="date" value={value.dob} onChange={(e) => setValue((v) => ({ ...v, dob: e.target.value }))} required />
-        </label>
-        <label>
-          Giới tính *
-          <select value={value.gender} onChange={(e) => setValue((v) => ({ ...v, gender: e.target.value as Patient['gender'] }))} required>
-            <option>Nam</option>
-            <option>Nữ</option>
-          </select>
-        </label>
-        <label>
-          Số điện thoại *
-          <input value={value.phone} onChange={(e) => setValue((v) => ({ ...v, phone: e.target.value }))} placeholder="0901234567" required />
-          <span className="field-hint">SĐT nên có 10-11 chữ số.</span>
-        </label>
-        <label>
-          Email
-          <input type="email" value={value.email} onChange={(e) => setValue((v) => ({ ...v, email: e.target.value }))} placeholder="email@example.com" />
-        </label>
-        <label>
-          Số CCCD/CMND
-          <input inputMode="numeric" maxLength={12} value={value.cccd} onChange={(e) => setValue((v) => ({ ...v, cccd: e.target.value.replace(/\D/g, '') }))} placeholder="Nhập 9–12 chữ số" />
-        </label>
-        <label className="span-two">
-          Địa chỉ
-          <textarea rows={3} value={value.address} onChange={(e) => setValue((v) => ({ ...v, address: e.target.value }))} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" />
-        </label>
-      </div>
-
-      {error && <div className="form-error">{error}</div>}
-      <div className="modal-footer">
-        <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
-        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Đang tạo...' : 'Tạo hồ sơ'}</button>
-      </div>
-    </form>
   </div>
 }

@@ -20,6 +20,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import CreatePatientModal from "../components/CreatePatientModal";
 import { useAuthStore } from "../store";
 import { appointmentApi } from "../lib/appointmentsApi";
 import type {
@@ -337,6 +338,7 @@ export default function AppointmentsPage() {
     useState<Appointment | null>(null);
   const [appointmentEditTarget, setAppointmentEditTarget] =
     useState<Appointment | null>(null);
+  const [showCreatePatient, setShowCreatePatient] = useState(false);
   const [draft, setDraft] = useState<AppointmentDraft>({
     patientId: "",
     patientName: "",
@@ -957,10 +959,26 @@ export default function AppointmentsPage() {
     void createAppointment(bookingSuggestion.slot, bookingSuggestion.mode);
   };
 
-  const addPatient = () =>
-    setFormError(
-      "Vui lòng tạo hồ sơ bệnh nhân ở trang Bệnh nhân trước khi đặt lịch.",
-    );
+  const addPatient = () => {
+    setFormError("");
+    setShowCreatePatient(true);
+  };
+
+  const selectCreatedPatient = (patient: ApiPatient) => {
+    const createdPatient = mapPatient(patient);
+    setPatientDirectory((current) => [
+      createdPatient,
+      ...current.filter((item) => item.id !== createdPatient.id),
+    ]);
+    setDraft((current) => ({
+      ...current,
+      patientId: createdPatient.id,
+      patientName: createdPatient.fullName,
+      insuranceNumber: createdPatient.insuranceNumber || "",
+    }));
+    setShowCreatePatient(false);
+    setFormError("");
+  };
 
   const updateStatus = async (next: AppointmentStatus) => {
     if (!selectedId) return;
@@ -1089,6 +1107,12 @@ export default function AppointmentsPage() {
             onSubmit={handleCreate}
             error={formError}
             saving={saving}
+          />
+        )}
+        {showCreatePatient && (
+          <CreatePatientModal
+            onClose={() => setShowCreatePatient(false)}
+            onCreated={selectCreatedPatient}
           />
         )}
         {cancelTarget && (
@@ -1361,6 +1385,12 @@ export default function AppointmentsPage() {
           onSubmit={handleCreate}
           error={formError}
           saving={saving}
+        />
+      )}
+      {showCreatePatient && (
+        <CreatePatientModal
+          onClose={() => setShowCreatePatient(false)}
+          onCreated={selectCreatedPatient}
         />
       )}
       {cancelTarget && (
