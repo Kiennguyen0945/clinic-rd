@@ -214,6 +214,8 @@
 .suggestion-slot-card > em { color:#6f7f96; font-size:10px; font-style:normal; }
 .suggestion-badge { position:absolute; top:-13px; left:0; padding:3px 7px; border-radius:0 0 5px 5px; color:#fff; background:#2563eb; font-size:9px; font-weight:800; }
 .booking-confirmation-note { display:block; margin:-13px 22px 14px; color:#73829a; text-align:right; }
+.booking-modal .suggestion-action, .appointment-booking-modal .suggestion-action { color:#fff; background:#2563eb; border-color:#2563eb; box-shadow:0 4px 12px rgba(37,99,235,.2); }
+.appointment-booking-modal .suggestion-action:hover:not(:disabled) { color:#fff; background:#1d4ed8; border-color:#1d4ed8; }
 @media (max-width:680px) { .booking-suggestion-panel { grid-template-columns:1fr; }.suggestion-intro { border-right:0; border-bottom:1px solid #b9d2ff; padding-right:0; padding-bottom:12px; } }
 .screenshot-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 12px; margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .screenshot-toolbar .date-controls, .screenshot-toolbar .appointment-filters { display: flex; align-items: center; gap: 8px; }

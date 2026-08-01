@@ -933,9 +933,12 @@ export default function AppointmentsPage() {
         setFormError("Không còn slot tiếp nhận phù hợp.");
         return;
       }
+      // Keep the suggestion separate from the user's selected slot. This lets
+      // the other action re-run its own rules instead of silently booking the
+      // suggested slot.
       setDraft((current) => ({
         ...current,
-        slotId: candidate.id,
+        slotId: "",
         room: candidate.room,
       }));
       setBookingSlot(candidate);
@@ -3016,8 +3019,9 @@ function CreateAppointmentModal({
               <span>
                 <strong>Khung giờ được đề xuất</strong>
                 <small>
-                  Bạn chưa chọn khung giờ phù hợp. Hệ thống đã đề xuất khung gần
-                  nhất còn chỗ và đủ thời gian đặt trước (30 phút).
+                  {suggestedSlot.mode === "IMMEDIATE"
+                    ? "Khung hiện tại còn chỗ và có thể tiếp nhận bệnh nhân ngay."
+                    : "Khung bạn chọn không còn đủ thời gian đặt trước. Hệ thống đã đề xuất khung gần nhất còn chỗ và đủ thời gian (30 phút)."}
                 </small>
               </span>
             </div>
@@ -3037,7 +3041,9 @@ function CreateAppointmentModal({
                 {suggestedSlot.slot.room}
               </small>
               <em>
-                Khung {slot.start}–{slot.end} không còn đủ thời gian đặt trước.
+                {suggestedSlot.mode === "IMMEDIATE"
+                  ? "Đây là khung đang diễn ra, bệnh nhân sẽ được đưa vào hàng đợi ngay."
+                  : `Khung ${slot.start}–${slot.end} không còn đủ thời gian đặt trước.`}
               </em>
             </div>
           </div>
@@ -3079,27 +3085,46 @@ function CreateAppointmentModal({
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Hủy
           </button>
-          <button type="submit" className="btn btn-secondary" disabled={saving}>
+          <button
+            type={suggestedSlot?.mode === "IMMEDIATE" ? "button" : "submit"}
+            className={`btn btn-secondary ${suggestedSlot?.mode === "IMMEDIATE" ? "suggestion-action" : ""}`}
+            disabled={saving}
+            onClick={
+              suggestedSlot?.mode === "IMMEDIATE"
+                ? onConfirmSuggestion
+                : undefined
+            }
+          >
             <Clock3 size={16} />{" "}
-            Khám ngay
+            {saving
+              ? "Đang lưu..."
+              : suggestedSlot?.mode === "IMMEDIATE"
+                ? `Xác nhận khám ngay ${suggestedSlot.slot.start}–${suggestedSlot.slot.end}`
+                : "Khám ngay"}
           </button>
           <button
-            type={suggestedSlot ? "button" : "submit"}
+            type={suggestedSlot?.mode === "SCHEDULED" ? "button" : "submit"}
             className="btn btn-primary"
             disabled={saving}
-            onClick={suggestedSlot ? onConfirmSuggestion : undefined}
+            onClick={
+              suggestedSlot?.mode === "SCHEDULED"
+                ? onConfirmSuggestion
+                : undefined
+            }
           >
             <CalendarDays size={16} />{" "}
             {saving
               ? "Đang lưu..."
-              : suggestedSlot
+              : suggestedSlot?.mode === "SCHEDULED"
                 ? `Xác nhận tạo lịch ${suggestedSlot.slot.start}–${suggestedSlot.slot.end}`
                 : "Tạo lịch"}
           </button>
         </div>
         {suggestedSlot && (
           <small className="booking-confirmation-note">
-            Lịch sẽ được tạo sau khi bạn xác nhận.
+            {suggestedSlot.mode === "IMMEDIATE"
+              ? "Bệnh nhân sẽ được tiếp nhận ngay sau khi bạn xác nhận."
+              : "Lịch sẽ được tạo sau khi bạn xác nhận."}
           </small>
         )}
       </form>
