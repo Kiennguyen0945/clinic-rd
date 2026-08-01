@@ -1,6 +1,8 @@
 from datetime import datetime, time, timedelta
+from io import StringIO
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -79,6 +81,47 @@ class ScheduledJobsTests(TestCase):
         self.assertEqual(tomorrow.status, 'WAITING')
 
 
+class SeedCleanupTests(TestCase):
+    def setUp(self):
+        doctor_role = Role.objects.create(code='DOCTOR', name='Doctor')
+        receptionist_role = Role.objects.create(code='RECEPTIONIST', name='Receptionist')
+        self.doctor = User.objects.create(
+            role=doctor_role, username='doctor1', password_hash='x',
+            full_name='Seed Doctor', phone='0900000200',
+        )
+        self.receptionist = User.objects.create(
+            role=receptionist_role, username='receptionist', password_hash='x',
+            full_name='Seed Receptionist', phone='0900000201',
+        )
+        self.room = Room.objects.create(room_number='Phòng 1')
+        self.patient = Patient.objects.create(
+            patient_code='BN-00000001', full_name='Seed Patient', dob='1990-01-01',
+            gender='M', phone='0900000202', address='Address',
+        )
+        self.slot = DoctorSlot.objects.create(
+            doctor=self.doctor, room=self.room, slot_date=timezone.localdate(),
+            start_time=time(8), end_time=time(9),
+        )
+        Appointment.objects.create(
+            slot=self.slot, patient=self.patient, doctor=self.doctor,
+            creator=self.receptionist, appointment_code='LHK-260801A1B2C3',
+            appointment_time=_slot_start(self.slot), status='CONFIRMED',
+        )
+
+    def test_cleanup_is_dry_run_by_default(self):
+        call_command('seed_data', cleanup=True, stdout=StringIO())
+        self.assertEqual(Appointment.objects.count(), 1)
+        self.assertEqual(DoctorSlot.objects.count(), 1)
+        self.assertEqual(Patient.objects.count(), 1)
+
+    def test_cleanup_execute_removes_seed_graph_in_dependency_order(self):
+        call_command('seed_data', cleanup=True, execute=True, stdout=StringIO())
+        self.assertFalse(Appointment.objects.exists())
+        self.assertFalse(DoctorSlot.objects.exists())
+        self.assertFalse(Patient.objects.exists())
+        self.assertTrue(User.objects.filter(username='doctor1').exists())
+
+
 class ReceptionistBookingFlowTests(TestCase):
     def setUp(self):
         doctor_role = Role.objects.create(code='DOCTOR', name='Doctor')
@@ -127,6 +170,11 @@ class ReceptionistBookingFlowTests(TestCase):
             data['slotId'] = slot_id
         return data
 
+    def virtual_payload(self, booking_type, slot_key):
+        data = self.payload(booking_type)
+        data['slotKey'] = slot_key
+        return data
+
     def fill_slot(self, slot):
         for sequence in range(1, slot.capacity + 1):
             Appointment.objects.create(
@@ -163,6 +211,50 @@ class ReceptionistBookingFlowTests(TestCase):
         appointment = Appointment.objects.get()
         self.assertEqual(appointment.status, 'CONFIRMED')
         self.assertIsNone(appointment.check_in_at)
+
+    @patch('appointment_service.views.timezone.now')
+    def test_listing_virtual_slots_does_not_write_to_database(self, mocked_now):
+        mocked_now.return_value = self.now
+        future_date = timezone.localdate() + timedelta(days=90)
+        DoctorSlot.objects.all().delete()
+
+        response = self.client.get(
+            '/api/doctor-slots/',
+            {'date': future_date.isoformat(), 'doctorId': self.doctor.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        slots = response.json()['data']['slots']
+        self.assertEqual(len(slots), 11)
+        self.assertTrue(all(slot['id'] is None for slot in slots))
+        self.assertTrue(all(slot['slotKey'].startswith('virtual:') for slot in slots))
+        self.assertFalse(DoctorSlot.objects.exists())
+
+    @patch('appointment_service.views.timezone.now')
+    def test_booking_virtual_slot_materializes_only_selected_slot(self, mocked_now):
+        mocked_now.return_value = self.now
+        future_date = timezone.localdate() + timedelta(days=90)
+        DoctorSlot.objects.all().delete()
+        list_response = self.client.get(
+            '/api/doctor-slots/',
+            {'date': future_date.isoformat(), 'doctorId': self.doctor.id},
+        )
+        selected = list_response.json()['data']['slots'][2]
+
+        response = self.client.post(
+            self.url,
+            self.virtual_payload('SCHEDULE', selected['slotKey']),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(DoctorSlot.objects.count(), 1)
+        slot = DoctorSlot.objects.get()
+        appointment = Appointment.objects.get()
+        self.assertEqual(slot.slot_date, future_date)
+        self.assertEqual(slot.start_time.strftime('%H:%M'), '08:00')
+        self.assertEqual(appointment.slot, slot)
+        self.assertEqual(appointment.status, 'CONFIRMED')
 
     @patch('appointment_service.views.timezone.now')
     def test_selected_future_walk_in_stays_waiting(self, mocked_now):

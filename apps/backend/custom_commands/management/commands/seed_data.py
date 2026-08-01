@@ -2,6 +2,8 @@ from datetime import datetime, time, timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from appointment_service.models import Appointment, DoctorSlot, MedicalRecord
@@ -13,7 +15,30 @@ from patient_service.models import Patient
 class Command(BaseCommand):
     help = 'Tạo dữ liệu mẫu tiếp nhận/lịch hẹn cho ngày hiện tại và ngày mai.'
 
+    SEED_DOCTOR_USERNAMES = ('doctor1', 'doctor2', 'doctor3')
+    SEED_PATIENT_CODES = tuple(f'BN-{number:08d}' for number in range(1, 13))
+    SEED_APPOINTMENT_SUFFIXES = (
+        'A1B2C3', 'D4E5F6', 'G7H8J9', 'K1L2M3', 'N4P5Q6', 'R7S8T9',
+        'U1V2W3', 'X4Y5Z6', 'B7C8D9', 'E1F2G3', 'H4J5K6', 'L7M8N9',
+    )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--cleanup',
+            action='store_true',
+            help='Kiểm tra dữ liệu do seed_data/cron tạo để dọn dẹp.',
+        )
+        parser.add_argument(
+            '--execute',
+            action='store_true',
+            help='Thực sự xóa dữ liệu; nếu thiếu cờ này chỉ hiển thị dry-run.',
+        )
+
     def handle(self, *args, **options):
+        if options['cleanup']:
+            self._cleanup(execute=options['execute'])
+            return
+
         today = timezone.localdate()
         tomorrow = today + timedelta(days=1)
         self.stdout.write('=== Seed dữ liệu lịch hẹn lễ tân ===')
@@ -30,6 +55,59 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Đã seed xong dữ liệu test.'))
         self.stdout.write('Đăng nhập lễ tân: receptionist / Recep@123')
         self.stdout.write(f'Ngày dữ liệu chính: {today.isoformat()} (có thêm slot cho {tomorrow.isoformat()}).')
+
+    def _cleanup(self, execute=False):
+        appointment_query = Q()
+        for suffix in self.SEED_APPOINTMENT_SUFFIXES:
+            appointment_query |= Q(appointment_code__endswith=suffix)
+
+        seeded_appointments = Appointment.objects.filter(
+            appointment_query,
+            doctor__username__in=self.SEED_DOCTOR_USERNAMES,
+            creator__username='receptionist',
+            patient__patient_code__in=self.SEED_PATIENT_CODES,
+        )
+        removable_slots = DoctorSlot.objects.filter(
+            doctor__username__in=self.SEED_DOCTOR_USERNAMES,
+            appointments__isnull=True,
+        )
+        removable_patients = Patient.objects.filter(
+            patient_code__in=self.SEED_PATIENT_CODES,
+            appointments__isnull=True,
+        )
+
+        self.stdout.write('=== Dọn dữ liệu do seed_data tạo ===')
+        self.stdout.write(f'Lịch hẹn mẫu: {seeded_appointments.count()}')
+        self.stdout.write(f'Slot trống của bác sĩ mẫu: {removable_slots.count()}')
+        self.stdout.write(f'Bệnh nhân mẫu chưa có lịch khác: {removable_patients.count()}')
+        if not execute:
+            self.stdout.write(self.style.WARNING('Dry-run: chưa xóa dữ liệu. Thêm --execute để xác nhận.'))
+            return
+
+        with transaction.atomic():
+            appointment_count = seeded_appointments.count()
+            seeded_appointments.delete()
+
+            # Re-query after deleting sample appointments so their slots and
+            # patients become eligible, while records used by real appointments stay protected.
+            slots = DoctorSlot.objects.filter(
+                doctor__username__in=self.SEED_DOCTOR_USERNAMES,
+                appointments__isnull=True,
+            )
+            slot_count = slots.count()
+            slots.delete()
+
+            patients = Patient.objects.filter(
+                patient_code__in=self.SEED_PATIENT_CODES,
+                appointments__isnull=True,
+            )
+            patient_count = patients.count()
+            patients.delete()
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Đã xóa {appointment_count} lịch mẫu, {slot_count} slot trống và '
+            f'{patient_count} bệnh nhân mẫu không còn được tham chiếu.'
+        ))
 
     def _seed_roles(self):
         data = [

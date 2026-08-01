@@ -109,7 +109,8 @@ def _virtual_slots_for_date(doctor, target_date, persisted_slots):
         .order_by('-slot_date', 'start_time')
         .first()
     )
-    room = template.room if template else Room.objects.order_by('id').first()
+    rooms = list(Room.objects.order_by('id'))
+    room = template.room if template else (rooms[(doctor.id - 1) % len(rooms)] if rooms else None)
     if not room:
         return list(persisted_slots)
 
