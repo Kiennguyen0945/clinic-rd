@@ -712,7 +712,6 @@ export default function AppointmentsPage() {
     nextDoctorId: string,
     preferredDepartment = draft.department,
   ) => {
-    if (requestedDoctorId && nextDoctorId !== requestedDoctorId) return;
     const currentContext = bookingContext || context;
     const doctor = currentContext?.doctors.find(
       (item) => item.id === nextDoctorId,
@@ -1369,7 +1368,8 @@ export default function AppointmentsPage() {
           departments={(bookingContext || context)?.departments || []}
           rooms={(bookingContext || context)?.rooms || []}
           assignments={(bookingContext || context)?.openSlotAssignments || []}
-          doctorLocked={true}
+          doctorLocked={false}
+          showAllDoctors
           draft={draft}
           setDraft={setDraft}
           slots={slotDefinitions}
@@ -2642,6 +2642,7 @@ function CreateAppointmentModal({
   rooms,
   assignments,
   doctorLocked,
+  showAllDoctors = false,
   draft,
   setDraft,
   slots,
@@ -2667,6 +2668,7 @@ function CreateAppointmentModal({
   rooms: ReceptionContext["rooms"];
   assignments: ReceptionContext["openSlotAssignments"];
   doctorLocked: boolean;
+  showAllDoctors?: boolean;
   draft: AppointmentDraft;
   setDraft: Dispatch<SetStateAction<AppointmentDraft>>;
   slots: SlotDefinition[];
@@ -2711,7 +2713,7 @@ function CreateAppointmentModal({
     .filter((doctor) =>
       doctorLocked
         ? doctor.id === draft.doctorId
-        : doctorsWithOpenSlots.has(doctor.id) &&
+        : (showAllDoctors || doctorsWithOpenSlots.has(doctor.id)) &&
           (Boolean(draft.doctorId) ||
             !draft.department ||
             doctor.departments.some((item) => item.name === draft.department)),
@@ -2722,13 +2724,15 @@ function CreateAppointmentModal({
   const departmentOptions = (
     selectedDoctor?.departments.length
       ? selectedDoctor.departments
-      : departments.filter((department) =>
-          doctors.some(
-            (doctor) =>
-              availableDoctorIds.has(doctor.id) &&
-              doctor.departments.some((item) => item.id === department.id),
-          ),
-        )
+      : showAllDoctors
+        ? departments
+        : departments.filter((department) =>
+            doctors.some(
+              (doctor) =>
+                availableDoctorIds.has(doctor.id) &&
+                doctor.departments.some((item) => item.id === department.id),
+            ),
+          )
   ).map((item) => ({ value: item.name, label: item.name }));
   const assignmentRooms = [
     ...new Set(
