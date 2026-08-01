@@ -60,7 +60,6 @@ class DoctorSlot(models.Model):
             models.CheckConstraint(condition=models.Q(capacity__gt=0), name="doctor_slot_positive_capacity"),
         ]
 
-
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ("PENDING", "Pending"), ("CONFIRMED", "Confirmed"),
@@ -94,15 +93,3 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"Appointment #{self.id}"
-
-
-class MedicalRecord(models.Model):
-    appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE, related_name="medical_record")
-    symptoms = models.TextField()
-    diagnosis = models.TextField()
-    notes = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Medical Record #{self.id}"

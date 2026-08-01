@@ -21,8 +21,8 @@ from .models import (
     ONLINE_BOOKING_LEAD_TIME_MINUTES,
     Appointment,
     DoctorSlot,
-    MedicalRecord,
 )
+from medical_records.models import MedicalRecord
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentListSerializer,
@@ -1195,9 +1195,12 @@ class MedicalRecordCreateView(APIView):
 
             medical_record = MedicalRecord.objects.create(
                 appointment=appointment,
-                symptoms=serializer.validated_data['symptoms'],
+                illness_history=serializer.validated_data['symptoms'],
                 diagnosis=serializer.validated_data['diagnosis'],
-                notes=serializer.validated_data.get('notes', ''),
+                examination_note=serializer.validated_data.get('notes', '') or '',
+                status='SIGNED',
+                signed_by=request.user,
+                signed_at=timezone.now(),
             )
             appointment.status = 'COMPLETED'
             appointment.save(update_fields=['status', 'updated_at'])

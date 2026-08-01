@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import Appointment, MedicalRecord
+from .models import Appointment
+from medical_records.models import MedicalRecord
 
 
 @admin.register(Appointment)
@@ -12,5 +13,5 @@ class AppointmentAdmin(admin.ModelAdmin):
 
 @admin.register(MedicalRecord)
 class MedicalRecordAdmin(admin.ModelAdmin):
-    list_display = ('id', 'appointment', 'symptoms', 'diagnosis', 'created_at')
-    search_fields = ('symptoms', 'diagnosis', 'notes')
+    list_display = ('id', 'appointment', 'illness_history', 'diagnosis', 'status', 'created_at')
+    search_fields = ('illness_history', 'diagnosis', 'examination_note')

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'auth_service',
     'patient_service',
     'appointment_service',
+    'medical_records',
     'organization_service',
     'custom_commands',
     'rest_framework',

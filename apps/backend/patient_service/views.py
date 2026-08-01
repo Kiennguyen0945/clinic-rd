@@ -6,8 +6,8 @@ from django.db.models import Q
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 
-from appointment_service.models import MedicalRecord
-from appointment_service.serializers import MedicalRecordListSerializer
+from medical_records.models import MedicalRecord
+from medical_records.serializers import MedicalRecordListSerializer
 from appointment_service.views import generate_patient_code
 from backend.response_utils import error_response, success_response
 

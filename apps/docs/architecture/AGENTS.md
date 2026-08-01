@@ -13,7 +13,6 @@ Tài liệu này mô tả ngắn gọn kiến trúc của Clinic RD để dùng 
 - `apps/backend/` chứa Django backend.
 - `apps/frontend/` chứa frontend React + Vite.
 - `docker/` chứa Dockerfile và cấu hình Nginx cho dev/prod.
-- `docs/` chứa tài liệu API, use case và sơ đồ kiến trúc.
 
 ## Backend
 

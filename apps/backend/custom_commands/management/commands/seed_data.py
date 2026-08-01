@@ -6,10 +6,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from appointment_service.models import Appointment, DoctorSlot, MedicalRecord
+from appointment_service.models import Appointment, DoctorSlot
 from auth_service.models import Role, User
 from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
+from medical_records.models import MedicalRecord
 
 
 class Command(BaseCommand):
@@ -254,4 +255,11 @@ class Command(BaseCommand):
                 cancellation_reason='Bệnh nhân đổi lịch' if status == 'CANCELLED' else '',
             )
             if status == 'COMPLETED':
-                MedicalRecord.objects.create(appointment=appointment, symptoms='Đau nhẹ', diagnosis='Viêm tai ngoài', notes='Tái khám sau 7 ngày')
+                MedicalRecord.objects.create(
+                    appointment=appointment,
+                    illness_history='Đau nhẹ',
+                    diagnosis='Viêm tai ngoài',
+                    examination_note='Tái khám sau 7 ngày',
+                    status='SIGNED',
+                    signed_by=appointment.doctor,
+                )
