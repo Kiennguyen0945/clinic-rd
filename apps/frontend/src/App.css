@@ -321,6 +321,11 @@
 .appointment-booking-modal .booking-mode-switch { display: none; }
 @media (max-width: 1050px) { .overview-layout { grid-template-columns: 1fr; }.overview-side { display: grid; grid-template-columns: repeat(3, 1fr); }.mini-calendar { grid-column: span 3; } }
 @media (max-width: 680px) { .overview-side { display: flex; }.mini-calendar { grid-column: auto; }.overview-info-banner { align-items: flex-start; }.appointment-overview-page .appointment-tabs button { margin-right: 15px; } }
+.mini-calendar-header { align-items: center; }
+.mini-calendar-header strong { text-transform: capitalize; }
+.mini-calendar-navigation { display: flex; gap: 3px; }
+.mini-calendar-navigation button { display: grid; place-items: center; width: 25px; height: 25px; padding: 0; border: 1px solid #e1e8f1; border-radius: 6px; color: #8190a7; background: #fff; cursor: pointer; }
+.mini-calendar-navigation button:hover { color: #2563eb; background: #edf4ff; }
 
 /* Receptionist appointment booking and thermal ticket */
 .appointment-booking-modal { width: min(760px, 100%); max-height: min(92vh, 850px); overflow-y: auto; }

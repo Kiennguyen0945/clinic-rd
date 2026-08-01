@@ -1879,10 +1879,22 @@ function MiniCalendar({
   selectedDate: string;
   onSelect: (date: string) => void;
 }) {
-  const year = Number(selectedDate.slice(0, 4));
-  const month = Number(selectedDate.slice(5, 7)) - 1;
+  const [monthDate, setMonthDate] = useState(
+    () => new Date(`${selectedDate}T12:00:00`),
+  );
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
   const days = new Date(year, month + 1, 0).getDate();
   const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  useEffect(() => {
+    setMonthDate(new Date(`${selectedDate}T12:00:00`));
+  }, [selectedDate]);
+
+  const moveMonth = (amount: number) => {
+    setMonthDate(new Date(year, month + amount, 1, 12));
+  };
+
   return (
     <section className="mini-calendar">
       <div className="mini-calendar-header">
@@ -1892,7 +1904,14 @@ function MiniCalendar({
             year: "numeric",
           }).format(new Date(year, month, 1))}
         </strong>
-        <span>‹ &nbsp; ›</span>
+        <div className="mini-calendar-navigation">
+          <button type="button" onClick={() => moveMonth(-1)} aria-label="Tháng trước">
+            <ChevronLeft size={14} />
+          </button>
+          <button type="button" onClick={() => moveMonth(1)} aria-label="Tháng sau">
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
       <div className="mini-calendar-week">
         {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
