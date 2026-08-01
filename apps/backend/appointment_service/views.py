@@ -17,6 +17,7 @@ from patient_service.models import Patient
 from .models import (
     DEFAULT_SLOT_CAPACITY,
     DEFAULT_SLOT_DURATION_MINUTES,
+    DEFAULT_SLOT_HOURS,
     ONLINE_BOOKING_LEAD_TIME_MINUTES,
     Appointment,
     DoctorSlot,
@@ -114,11 +115,6 @@ def _virtual_slots_for_date(doctor, target_date, persisted_slots):
     if not room:
         return list(persisted_slots)
 
-    slot_hours = tuple(
-        row['start_time'].hour
-        for row in DoctorSlot.objects.filter(doctor=doctor)
-        .values('start_time').distinct().order_by('start_time')
-    ) or tuple(range(6, 17))
     existing_hours = {slot.start_time.hour for slot in persisted_slots}
     capacity = template.capacity if template else DEFAULT_SLOT_CAPACITY
     virtual_slots = [
@@ -131,7 +127,7 @@ def _virtual_slots_for_date(doctor, target_date, persisted_slots):
             capacity=capacity,
             status='OPEN',
         )
-        for hour in slot_hours
+        for hour in DEFAULT_SLOT_HOURS
         if hour not in existing_hours
     ]
     return sorted([*persisted_slots, *virtual_slots], key=lambda slot: slot.start_time)

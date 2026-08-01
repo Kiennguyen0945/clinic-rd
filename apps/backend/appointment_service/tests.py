@@ -256,6 +256,18 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(appointment.slot, slot)
         self.assertEqual(appointment.status, 'CONFIRMED')
 
+        reloaded_response = self.client.get(
+            '/api/doctor-slots/',
+            {'date': future_date.isoformat(), 'doctorId': self.doctor.id},
+        )
+        reloaded_slots = reloaded_response.json()['data']['slots']
+        self.assertEqual(len(reloaded_slots), 11)
+        self.assertEqual(sum(item['id'] is not None for item in reloaded_slots), 1)
+        self.assertEqual(
+            [item['startTime'][11:16] for item in reloaded_slots],
+            [f'{hour:02d}:00' for hour in range(6, 17)],
+        )
+
     @patch('appointment_service.views.timezone.now')
     def test_selected_future_walk_in_stays_waiting(self, mocked_now):
         mocked_now.return_value = self.now

@@ -5,12 +5,11 @@ from datetime import datetime, time, timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from appointment_service.models import Appointment, DoctorSlot
+from appointment_service.models import Appointment, DEFAULT_SLOT_HOURS, DoctorSlot
 from auth_service.models import User
 from organization_service.models import Room
 
 
-DEFAULT_SLOT_HOURS = tuple(range(6, 17))
 SLOT_HORIZON_DAYS = 60
 
 
@@ -33,11 +32,6 @@ def generate_doctor_slots(today=None, horizon_days=SLOT_HORIZON_DAYS):
                 .first()
             )
             room = template.room if template else rooms[doctor_index % len(rooms)]
-            slot_hours = tuple(
-                row['start_time'].hour
-                for row in DoctorSlot.objects.filter(doctor=doctor)
-                .values('start_time').distinct().order_by('start_time')
-            ) or DEFAULT_SLOT_HOURS
             existing = set(DoctorSlot.objects.filter(
                 doctor=doctor, slot_date__range=(today, end_date)
             ).values_list('slot_date', 'start_time'))
@@ -53,7 +47,7 @@ def generate_doctor_slots(today=None, horizon_days=SLOT_HORIZON_DAYS):
                 )
                 for day_offset in range(horizon_days)
                 for slot_date in [today + timedelta(days=day_offset)]
-                for hour in slot_hours
+                for hour in DEFAULT_SLOT_HOURS
                 if (slot_date, time(hour)) not in existing
             ]
             DoctorSlot.objects.bulk_create(slots, ignore_conflicts=True)

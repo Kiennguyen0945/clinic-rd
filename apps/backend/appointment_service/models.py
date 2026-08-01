@@ -11,6 +11,7 @@ from patient_service.models import Patient
 
 DEFAULT_SLOT_DURATION_MINUTES = 60
 DEFAULT_SLOT_CAPACITY = 4
+DEFAULT_SLOT_HOURS = tuple(range(6, 17))
 ONLINE_BOOKING_LEAD_TIME_MINUTES = 30
 
 
