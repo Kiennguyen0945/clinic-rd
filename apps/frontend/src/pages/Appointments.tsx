@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import CreatePatientModal from "../components/CreatePatientModal";
 import { useAuthStore } from "../store";
-import { appointmentApi } from "../lib/appointmentsApi";
+import { AppointmentApiError, appointmentApi } from "../lib/appointmentsApi";
 import type {
   ApiAppointment,
   ApiDoctor,
@@ -338,6 +338,11 @@ export default function AppointmentsPage() {
     useState<Appointment | null>(null);
   const [appointmentEditTarget, setAppointmentEditTarget] =
     useState<Appointment | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] =
+    useState<Appointment | null>(null);
+  const [rescheduleSuggestion, setRescheduleSuggestion] =
+    useState<BookingSuggestion | null>(null);
+  const [toastMessage, setToastMessage] = useState("");
   const [showCreatePatient, setShowCreatePatient] = useState(false);
   const [draft, setDraft] = useState<AppointmentDraft>({
     patientId: "",
@@ -659,7 +664,7 @@ export default function AppointmentsPage() {
     }
   };
 
-  const changeBookingDate = async (date: string) => {
+  const changeBookingDate = async (date: string, preserveRescheduleModal = false) => {
     if (date < todayValue()) {
       setFormError("Không thể đặt lịch trong quá khứ.");
       return;
@@ -670,7 +675,7 @@ export default function AppointmentsPage() {
       setBookingContext(nextContext);
       if (!draft.doctorId) {
         setSlotDefinitions([]);
-        setBookingSlot(emptyBookingSlot());
+        if (!preserveRescheduleModal) setBookingSlot(emptyBookingSlot());
         return;
       }
       const doctorRooms = [
@@ -693,7 +698,7 @@ export default function AppointmentsPage() {
       );
       const nextSlots = response.slots.map(mapSlot);
       setSlotDefinitions(nextSlots);
-      setBookingSlot(emptyBookingSlot());
+      if (!preserveRescheduleModal) setBookingSlot(emptyBookingSlot());
       setDraft((current) => ({
         ...current,
         slotId: "",
@@ -711,6 +716,8 @@ export default function AppointmentsPage() {
   const changeBookingDoctor = async (
     nextDoctorId: string,
     preferredDepartment = draft.department,
+    allowMultipleRooms = false,
+    preserveRescheduleModal = false,
   ) => {
     const currentContext = bookingContext || context;
     const doctor = currentContext?.doctors.find(
@@ -740,13 +747,13 @@ export default function AppointmentsPage() {
       slotId: "",
     }));
     setBookingSuggestion(null);
-    setBookingSlot(emptyBookingSlot());
+    if (!preserveRescheduleModal) setBookingSlot(emptyBookingSlot());
     setFormError("");
     if (!nextDoctorId) {
       setSlotDefinitions([]);
       return;
     }
-    if (doctorRooms.length > 1) {
+    if (doctorRooms.length > 1 && !allowMultipleRooms) {
       setSlotDefinitions([]);
       setFormError(
         "Ngoài phạm vi MVP: bác sĩ đổi phòng nhiều lần trong ngày. Vui lòng chọn theo bác sĩ sau khi điều chỉnh DoctorSlot.",
@@ -1066,6 +1073,105 @@ export default function AppointmentsPage() {
     }
   };
 
+  const openReschedule = (appointment: Appointment) => {
+    setBookingContext(context);
+    setBookingMode("SCHEDULED");
+    setBookingSuggestion(null);
+    setDraft({
+      patientId: appointment.patient.id,
+      patientName: appointment.patient.fullName,
+      doctorId: appointment.doctor.id,
+      department: appointment.doctor.department,
+      room: appointment.room,
+      date: appointment.startTime.slice(0, 10),
+      slotId: appointment.slotId,
+      service: appointment.insuranceNumber ? "BHYT" : "Dịch vụ",
+      insuranceNumber: appointment.insuranceNumber || "",
+      reason: appointment.reason,
+      note: "",
+    });
+    setFormError("");
+    setRescheduleTarget(appointment);
+    setRescheduleSuggestion(null);
+    if (appointment.slotId && !slotDefinitions.some((item) => item.id === appointment.slotId)) {
+      void appointmentApi.slots(appointment.startTime.slice(0, 10), appointment.doctor.id, "SCHEDULE")
+        .then((response) => setSlotDefinitions(response.slots.map(mapSlot)))
+        .catch((error) => setFormError(error instanceof Error ? error.message : "Không thể tải khung giờ"));
+    }
+  };
+
+  const saveReschedule = async (event: FormEvent) => {
+    event.preventDefault();
+    const targetSlotId = rescheduleSuggestion?.slot.id || draft.slotId;
+    if (!rescheduleTarget || !draft.reason.trim() || !targetSlotId) {
+      setFormError("Vui lòng chọn khung giờ và nhập lý do khám.");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
+    try {
+      const body = {
+        reason: draft.reason.trim(),
+        doctorId: Number(draft.doctorId),
+        departmentId: context?.doctors
+          .find((doctor) => doctor.id === draft.doctorId)
+          ?.departments.find((department) => department.name === draft.department)?.id,
+        ...( /^\d+$/.test(targetSlotId)
+          ? { slotId: Number(targetSlotId) }
+          : { slotKey: targetSlotId }),
+      };
+      const response = await appointmentApi.update(Number(rescheduleTarget.id), body);
+      const updated = mapAppointment(response.appointment, patientDirectory, slotDefinitions);
+      setAppointments((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setSelectedId(updated.id);
+      setRescheduleTarget(null);
+      setRescheduleSuggestion(null);
+      setRefreshVersion((value) => value + 1);
+    } catch (error) {
+      if (
+        error instanceof AppointmentApiError &&
+        (error.code === "INVALID_STATUS_FOR_UPDATE" ||
+          error.code === "RESCHEDULE_NOT_ALLOWED")
+      ) {
+        setRescheduleTarget(null);
+        setToastMessage("Lịch hẹn đã được cập nhật ở nơi khác, vui lòng tải lại");
+        setRefreshVersion((value) => value + 1);
+      } else if (
+        error instanceof AppointmentApiError &&
+        (error.code === "SLOT_NOT_AVAILABLE" ||
+          error.code === "SLOT_RESCHEDULE_CONFLICT")
+      ) {
+        const suggested = error.details?.suggestedSlot as ApiSlot | undefined;
+        if (suggested) {
+          const mappedSuggestion = mapSlot(suggested);
+          setRescheduleSuggestion({
+            mode: "SCHEDULED",
+            slot: mappedSuggestion,
+            deferWalkIn: false,
+          });
+          setSlotDefinitions((current) => [
+            ...current.filter((slot) => slot.id !== mappedSuggestion.id),
+            mappedSuggestion,
+          ].sort(
+            (first, second) =>
+              `${first.date}T${first.start}`.localeCompare(
+                `${second.date}T${second.start}`,
+              ),
+          ));
+        }
+        setFormError(error.message);
+      } else {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "Không thể cập nhật lịch hẹn",
+        );
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!requestedDoctorId) {
     return (
       <>
@@ -1349,7 +1455,7 @@ export default function AppointmentsPage() {
             }
             onEditAppointment={() =>
               selectedAppointment &&
-              setAppointmentEditTarget(selectedAppointment)
+              openReschedule(selectedAppointment)
             }
             onStatusChange={updateStatus}
           />
@@ -1438,6 +1544,46 @@ export default function AppointmentsPage() {
           onClose={() => setAppointmentEditTarget(null)}
           onSave={saveAppointmentReason}
         />
+      )}
+      {rescheduleTarget && (
+        <RescheduleAppointmentModal
+          appointment={rescheduleTarget}
+          draft={draft}
+          setDraft={setDraft}
+          doctors={(bookingContext || context)?.doctors || []}
+          departments={(bookingContext || context)?.departments || []}
+          rooms={(bookingContext || context)?.rooms || []}
+          assignments={(bookingContext || context)?.openSlotAssignments || []}
+          slots={slotDefinitions}
+          suggestedSlot={rescheduleSuggestion}
+          onDoctorChange={(doctorId) => {
+            setRescheduleSuggestion(null);
+            void changeBookingDoctor(doctorId, draft.department, true, true);
+          }}
+          onDepartmentChange={changeBookingDepartment}
+          onDateChange={(date) => {
+            setRescheduleSuggestion(null);
+            void changeBookingDate(date, true);
+          }}
+          onSlotChange={(slotId) => {
+            if (rescheduleSuggestion && slotId !== rescheduleSuggestion.slot.id) {
+              setRescheduleSuggestion(null);
+            }
+            changeSelectedBookingSlot(slotId);
+          }}
+          onClose={() => setRescheduleTarget(null)}
+          onSubmit={saveReschedule}
+          error={formError}
+          saving={saving}
+        />
+      )}
+      {toastMessage && (
+        <div className="doctor-toast" role="status">
+          {toastMessage}
+          <button type="button" className="icon-button" onClick={() => setToastMessage("")} aria-label="Đóng thông báo">
+            <X size={14} />
+          </button>
+        </div>
       )}
       {drawerAppointment && (
         <ReceptionistPatientDrawer
@@ -2546,6 +2692,174 @@ function AppointmentQuickEditModal({
   );
 }
 
+function RescheduleAppointmentModal({
+  appointment,
+  draft,
+  setDraft,
+  doctors,
+  departments,
+  rooms,
+  assignments,
+  slots,
+  suggestedSlot,
+  onDoctorChange,
+  onDepartmentChange,
+  onDateChange,
+  onSlotChange,
+  onClose,
+  onSubmit,
+  error,
+  saving,
+}: {
+  appointment: Appointment;
+  draft: AppointmentDraft;
+  setDraft: Dispatch<SetStateAction<AppointmentDraft>>;
+  doctors: ApiDoctor[];
+  departments: ReceptionContext["departments"];
+  rooms: ReceptionContext["rooms"];
+  assignments: ReceptionContext["openSlotAssignments"];
+  slots: SlotDefinition[];
+  suggestedSlot: BookingSuggestion | null;
+  onDoctorChange: (doctorId: string) => void;
+  onDepartmentChange: (department: string) => void;
+  onDateChange: (date: string) => void;
+  onSlotChange: (slotId: string) => void;
+  onClose: () => void;
+  onSubmit: (event: FormEvent) => void;
+  error: string;
+  saving: boolean;
+}) {
+  const doctor = doctors.find((item) => item.id === draft.doctorId);
+  const doctorAssignments = assignments.filter((item) => item.doctorId === draft.doctorId);
+  const doctorOptions = doctors.map((item) => ({ value: item.id, label: item.fullName }));
+  const departmentOptions = (doctor?.departments.length ? doctor.departments : departments)
+    .map((item) => ({ value: item.name, label: item.name }));
+  const roomOptions = rooms
+    .filter((item) => doctorAssignments.some((assignment) => assignment.roomNumber === item.roomNumber))
+    .map((item) => ({ value: item.roomNumber, label: item.roomNumber }));
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <form className="appointment-modal appointment-booking-modal reschedule-modal" onSubmit={onSubmit}>
+        <div className="modal-header">
+          <div>
+            <h2>Cập nhật lịch hẹn</h2>
+            <p>{appointment.patient.fullName} · {appointment.appointmentCode}</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Đóng">
+            <X size={18} />
+          </button>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div className="booking-form-grid">
+          <label className="booking-field">
+            Bác sĩ
+            <SearchableSelect
+              value={draft.doctorId}
+              options={doctorOptions}
+              onChange={onDoctorChange}
+            />
+          </label>
+          <label className="booking-field">
+            Khoa
+            <SearchableSelect
+              value={draft.department}
+              options={departmentOptions}
+              onChange={onDepartmentChange}
+            />
+          </label>
+          <label className="booking-field">
+            Số phòng
+            <SearchableSelect
+              value={draft.room}
+              options={roomOptions}
+              onChange={(value) => setDraft((current) => ({ ...current, room: value, slotId: "" }))}
+            />
+            {doctorAssignments.length > 1 && <small className="field-error">Phòng được xác định theo khung giờ.</small>}
+          </label>
+          <label className="booking-field">
+            Ngày khám *
+            <input type="date" min={todayValue()} value={draft.date} onChange={(event) => onDateChange(event.target.value)} />
+          </label>
+        </div>
+        <div className="slot-picker">
+          <strong>Chọn khung giờ *</strong>
+          <div className="slot-picker-group">
+            <span>Ca sáng</span>
+            <div>
+              {slots.slice(0, 6).map((item) => (
+                <SlotChoice
+                  key={item.id}
+                  item={item}
+                  selectedId={draft.slotId}
+                  onSelect={onSlotChange}
+                  mode="SCHEDULED"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="slot-picker-group">
+            <span>Ca chiều</span>
+            <div>
+              {slots.slice(6).map((item) => (
+                <SlotChoice
+                  key={item.id}
+                  item={item}
+                  selectedId={draft.slotId}
+                  onSelect={onSlotChange}
+                  mode="SCHEDULED"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="booking-form-grid">
+          <label className="booking-field booking-span-two">
+            Lý do khám *
+            <input value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} />
+          </label>
+          <label className="booking-field booking-span-two">
+            Ghi chú
+            <textarea
+              rows={2}
+              value={draft.note}
+              onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))}
+              placeholder="Thông tin bổ sung (không bắt buộc)"
+            />
+          </label>
+        </div>
+        <BookingSuggestionPanel
+          suggestion={suggestedSlot}
+          sourceSlot={null}
+          doctorName={doctor?.fullName || appointment.doctor.fullName}
+          variant="reschedule"
+        />
+        {appointment.status === "WAITING" && draft.date !== appointment.startTime.slice(0, 10) && (
+          <div className="reschedule-warning">⚠ Đổi sang ngày khác sẽ đưa bệnh nhân ra khỏi hàng chờ hôm nay. Bệnh nhân cần check-in lại vào ngày mới.</div>
+        )}
+        {appointment.status === "WAITING" &&
+          draft.date === appointment.startTime.slice(0, 10) &&
+          draft.room && draft.room !== appointment.room && (
+            <div className="reschedule-warning">⚠ Bệnh nhân đang chờ tại {appointment.room} (số {String(appointment.sequenceNumber).padStart(2, "0")}). Lưu thay đổi sẽ chuyển sang hàng chờ {draft.room} với số thứ tự mới.</div>
+          )}
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            <CalendarDays size={16} /> {saving
+              ? "Đang lưu..."
+              : suggestedSlot
+                ? `Xác nhận cập nhật thành ${suggestedSlot.slot.start}-${suggestedSlot.slot.end}`
+                : "Lưu thay đổi"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function CancellationModal({
   appointment,
   saving,
@@ -2631,6 +2945,52 @@ function CancellationModal({
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function BookingSuggestionPanel({
+  suggestion,
+  sourceSlot,
+  doctorName,
+  variant,
+}: {
+  suggestion: BookingSuggestion | null;
+  sourceSlot: SlotDefinition | null;
+  doctorName: string;
+  variant: "create" | "reschedule";
+}) {
+  if (!suggestion) return null;
+  const slot = suggestion.slot;
+  const isReschedule = variant === "reschedule";
+  return (
+    <div className={`booking-suggestion-panel ${isReschedule ? "reschedule-suggestion-panel" : ""}`}>
+      <div className="suggestion-intro">
+        <span className="suggestion-icon"><CalendarDays size={21} /></span>
+        <span>
+          <strong>{isReschedule ? "⚠ Khung bạn chọn không còn hợp lệ." : "Khung giờ được đề xuất"}</strong>
+          <small>
+            {isReschedule
+              ? "Hệ thống đã đề xuất khung gần nhất còn chỗ. Không tự động lưu ngầm slot đề xuất."
+              : suggestion.mode === "IMMEDIATE"
+                ? "Khung hiện tại còn chỗ và có thể tiếp nhận bệnh nhân ngay."
+                : "Khung bạn chọn không còn đủ thời gian đặt trước. Hệ thống đã đề xuất khung gần nhất còn chỗ và đủ thời gian (30 phút)."}
+          </small>
+        </span>
+      </div>
+      <div className="suggestion-slot-card">
+        <span className="suggestion-badge">★ Đề xuất</span>
+        <strong><CalendarDays size={13} /> {relativeSlotDateLabel(slot.date)}</strong>
+        <b>{slot.start} – {slot.end}</b>
+        <small>Còn {slot.capacity - slot.booked}/{slot.capacity} chỗ · {doctorName} · {slot.room}</small>
+        <em>
+          {isReschedule
+            ? "Lễ tân phải chọn slot đề xuất hoặc tự chọn khung khác trước khi lưu thay đổi."
+            : suggestion.mode === "IMMEDIATE"
+              ? "Đây là khung đang diễn ra, bệnh nhân sẽ được đưa vào hàng đợi ngay."
+              : `Khung ${sourceSlot?.start || "đã chọn"}–${sourceSlot?.end || ""} không còn đủ thời gian đặt trước.`}
+        </em>
+      </div>
     </div>
   );
 }
@@ -3014,44 +3374,12 @@ function CreateAppointmentModal({
             </div>
           </div>
         </div>
-        {suggestedSlot && (
-          <div className="booking-suggestion-panel">
-            <div className="suggestion-intro">
-              <span className="suggestion-icon">
-                <CalendarDays size={21} />
-              </span>
-              <span>
-                <strong>Khung giờ được đề xuất</strong>
-                <small>
-                  {suggestedSlot.mode === "IMMEDIATE"
-                    ? "Khung hiện tại còn chỗ và có thể tiếp nhận bệnh nhân ngay."
-                    : "Khung bạn chọn không còn đủ thời gian đặt trước. Hệ thống đã đề xuất khung gần nhất còn chỗ và đủ thời gian (30 phút)."}
-                </small>
-              </span>
-            </div>
-            <div className="suggestion-slot-card">
-              <span className="suggestion-badge">★ Đề xuất</span>
-              <strong>
-                <CalendarDays size={13} />
-                {relativeSlotDateLabel(suggestedSlot.slot.date)}
-              </strong>
-              <b>
-                {suggestedSlot.slot.start} – {suggestedSlot.slot.end}
-              </b>
-              <small>
-                Còn {suggestedSlot.slot.capacity - suggestedSlot.slot.booked}/
-                {suggestedSlot.slot.capacity} chỗ ·{" "}
-                {selectedDoctor?.fullName || "Bác sĩ"} ·{" "}
-                {suggestedSlot.slot.room}
-              </small>
-              <em>
-                {suggestedSlot.mode === "IMMEDIATE"
-                  ? "Đây là khung đang diễn ra, bệnh nhân sẽ được đưa vào hàng đợi ngay."
-                  : `Khung ${slot.start}–${slot.end} không còn đủ thời gian đặt trước.`}
-              </em>
-            </div>
-          </div>
-        )}
+        <BookingSuggestionPanel
+          suggestion={suggestedSlot}
+          sourceSlot={slot}
+          doctorName={selectedDoctor?.fullName || "Bác sĩ"}
+          variant="create"
+        />
         <div className="booking-form-grid">
           <label className="booking-field booking-span-two">
             Lý do khám *

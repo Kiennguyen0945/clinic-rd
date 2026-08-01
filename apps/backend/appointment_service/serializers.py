@@ -87,6 +87,7 @@ class AppointmentCreateSerializer(serializers.Serializer):
 class AppointmentUpdateSerializer(serializers.Serializer):
     appointmentTime = serializers.DateTimeField(source='appointment_time', required=False)
     doctorId = serializers.IntegerField(required=False)
+    departmentId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     slotId = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     slotKey = serializers.CharField(required=False, allow_blank=True, write_only=True)
     reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)

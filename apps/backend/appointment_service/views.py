@@ -396,15 +396,15 @@ def _reschedule_suggestions(doctor_id, now, appointment_status, exclude_slot_id=
     return suggestions
 
 
-def _reschedule_conflict_response(appointment, now, exclude_slot_id=None):
+def _reschedule_conflict_response(appointment, now, exclude_slot_id=None, doctor_id=None):
     suggestions = _reschedule_suggestions(
-        appointment.doctor_id,
+        doctor_id or appointment.doctor_id,
         now,
         appointment.status,
         exclude_slot_id=exclude_slot_id,
     )
     return error_response(
-        'SLOT_RESCHEDULE_CONFLICT',
+        'SLOT_NOT_AVAILABLE',
         'Khung giờ mới không còn hợp lệ',
         status=409,
         details={
@@ -785,7 +785,7 @@ class AppointmentUpdateView(APIView):
 
         with transaction.atomic():
             try:
-                appointment = Appointment.objects.select_for_update().select_related(
+                appointment = Appointment.objects.select_for_update(of=('self',)).select_related(
                     'patient', 'doctor', 'slot',
                 ).get(pk=pk)
             except Appointment.DoesNotExist:
@@ -797,7 +797,7 @@ class AppointmentUpdateView(APIView):
 
             if appointment.status not in ('CONFIRMED', 'WAITING'):
                 return error_response(
-                    'RESCHEDULE_NOT_ALLOWED',
+                    'INVALID_STATUS_FOR_UPDATE',
                     'Không thể đổi lịch ở trạng thái hiện tại',
                     status=409,
                 )
@@ -812,6 +812,49 @@ class AppointmentUpdateView(APIView):
                 )
 
             validated_data = serializer.validated_data
+
+            target_doctor = appointment.doctor
+            if 'doctorId' in validated_data:
+                try:
+                    target_doctor = User.objects.select_related('role').get(
+                        pk=validated_data['doctorId'],
+                    )
+                except User.DoesNotExist:
+                    return error_response(
+                        'DOCTOR_NOT_FOUND',
+                        'Không tìm thấy bác sĩ',
+                        status=404,
+                    )
+                if getattr(getattr(target_doctor, 'role', None), 'code', None) != 'DOCTOR':
+                    return error_response(
+                        'DOCTOR_NOT_FOUND',
+                        'Không tìm thấy bác sĩ',
+                        status=404,
+                    )
+
+            department = appointment.department
+            if 'departmentId' in validated_data:
+                department_id = validated_data['departmentId']
+                if department_id is None:
+                    department = None
+                else:
+                    try:
+                        department = Department.objects.get(pk=department_id)
+                    except Department.DoesNotExist:
+                        return error_response(
+                            'DEPARTMENT_NOT_FOUND',
+                            'Không tìm thấy khoa',
+                            status=404,
+                        )
+                    if not DoctorDepartment.objects.filter(
+                        doctor=target_doctor,
+                        department=department,
+                    ).exists():
+                        return error_response(
+                            'DOCTOR_DEPARTMENT_MISMATCH',
+                            'Bác sĩ không thuộc khoa đã chọn',
+                            status=400,
+                        )
 
             requested_slot = 'slotId' in validated_data or 'slotKey' in validated_data
             if requested_slot:
@@ -830,16 +873,20 @@ class AppointmentUpdateView(APIView):
                 elif requested_slot_key:
                     new_slot = _materialize_slot(
                         requested_slot_key,
-                        appointment.doctor,
+                        target_doctor,
                         persist=False,
                     )
                 if new_slot is None:
-                    return _reschedule_conflict_response(appointment, timezone.now())
+                    return _reschedule_conflict_response(
+                        appointment,
+                        timezone.now(),
+                        doctor_id=target_doctor.id,
+                    )
 
-                if new_slot.doctor_id != appointment.doctor_id:
+                if new_slot.doctor_id != target_doctor.id:
                     return error_response(
                         'SLOT_DOCTOR_MISMATCH',
-                        'Ca khám không thuộc bác sĩ của lịch hẹn',
+                        'Ca khám không thuộc bác sĩ đã chọn',
                         status=400,
                     )
 
@@ -861,7 +908,7 @@ class AppointmentUpdateView(APIView):
                 else:
                     new_slot = _materialize_slot(
                         requested_slot_key,
-                        appointment.doctor,
+                        target_doctor,
                         persist=True,
                     )
                     if new_slot is not None:
@@ -869,7 +916,11 @@ class AppointmentUpdateView(APIView):
                             'doctor', 'room',
                         ).get(pk=new_slot.pk)
                 if new_slot is None:
-                    return _reschedule_conflict_response(appointment, timezone.now())
+                    return _reschedule_conflict_response(
+                        appointment,
+                        timezone.now(),
+                        doctor_id=target_doctor.id,
+                    )
 
                 if new_slot.pk != old_slot.pk:
                     # Slot rows are the lock used by appointment creation too.
@@ -890,7 +941,7 @@ class AppointmentUpdateView(APIView):
                         response = _reschedule_conflict_response(
                             appointment,
                             now,
-                            exclude_slot_id=old_slot.pk,
+                            doctor_id=target_doctor.id,
                         )
                         # A virtual slot may have been materialized while
                         # resolving the request; an invalid request must not
@@ -927,6 +978,9 @@ class AppointmentUpdateView(APIView):
                         appointment.status = 'CONFIRMED'
                         appointment.check_in_at = None
 
+                appointment.doctor = target_doctor
+                appointment.department = department
+
             elif appointment.slot_id and ({'appointment_time', 'doctorId'} & validated_data.keys()):
                 return error_response(
                     "SLOT_APPOINTMENT_IMMUTABLE",
@@ -947,22 +1001,8 @@ class AppointmentUpdateView(APIView):
                 appointment.appointment_time = appointment_time
 
             if 'doctorId' in validated_data and not requested_slot:
-                doctor_id = validated_data['doctorId']
-                try:
-                    doctor = User.objects.select_related('role').get(pk=doctor_id)
-                except User.DoesNotExist:
-                    return error_response(
-                        "DOCTOR_NOT_FOUND",
-                        "Không tìm thấy bác sĩ",
-                        status=404,
-                    )
-                if getattr(getattr(doctor, 'role', None), 'code', None) != 'DOCTOR':
-                    return error_response(
-                        "DOCTOR_NOT_FOUND",
-                        "Không tìm thấy bác sĩ",
-                        status=404,
-                    )
-                appointment.doctor = doctor
+                appointment.doctor = target_doctor
+                appointment.department = department
 
             if 'reason' in validated_data:
                 appointment.reason = validated_data['reason']
