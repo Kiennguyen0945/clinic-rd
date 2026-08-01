@@ -20,7 +20,7 @@ export class AppointmentApiError extends Error {
 }
 
 export interface ApiPatient {
-  id: number
+  id: number | null
   patient_code: string
   full_name: string
   dob: string
@@ -34,7 +34,8 @@ export interface ApiPatient {
 
 export interface ApiDoctor { id: string; fullName: string; departments: Array<{ id: number; name: string }> }
 export interface ApiSlot {
-  id: number
+  id: number | null
+  slotKey?: string
   doctorId: string
   roomId: string
   doctor: { id: string; fullName: string }
@@ -130,8 +131,8 @@ export const appointmentApi = {
   },
   createPatient: (body: { full_name: string; phone: string; dob: string; gender: 'M' | 'F' | 'O'; email?: string; cccd?: string; address?: string; insurance_number?: string }) => request<{ patient: ApiPatient }>('/api/patients/', { method: 'POST', body: JSON.stringify(body) }),
   updatePatient: (id: number, body: { full_name: string; phone: string; email: string; cccd: string; address: string; insurance_number: string }) => request<{ patient: ApiPatient }>(`/api/patients/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
-  create: (body: { patientId: number; doctorId: number; slotId?: number; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
-  update: (id: number, body: { reason: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
+  create: (body: { patientId: number; doctorId: number; slotId?: number; slotKey?: string; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: number, body: { reason: string; slotId?: number; slotKey?: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
   checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
   cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
 }
