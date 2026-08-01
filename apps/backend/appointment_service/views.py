@@ -366,6 +366,54 @@ def _next_available_slot(doctor_id, now, booking_type, exclude_slot_id=None):
     return None
 
 
+def _reschedule_suggestions(doctor_id, now, appointment_status, exclude_slot_id=None):
+    """Return nearby valid slots for a failed reschedule attempt."""
+    candidates = DoctorSlot.objects.select_related('doctor', 'room').filter(
+        doctor_id=doctor_id,
+        status='OPEN',
+        slot_date__gte=timezone.localdate(now),
+    ).order_by('slot_date', 'start_time')
+    if exclude_slot_id:
+        candidates = candidates.exclude(pk=exclude_slot_id)
+
+    suggestions = []
+    lead_time = ONLINE_BOOKING_LEAD_TIME_MINUTES if appointment_status == 'CONFIRMED' else 0
+    target_time = now + timedelta(minutes=lead_time)
+    for candidate in candidates:
+        if _slot_capacity(candidate)[1] <= 0:
+            continue
+        _, end = _slot_datetimes(candidate)
+        if end <= target_time:
+            continue
+        suggestions.append(
+            _slot_payload(
+                candidate,
+                'SCHEDULE' if appointment_status == 'CONFIRMED' else 'WALK_IN',
+            )
+        )
+        if len(suggestions) == 5:
+            break
+    return suggestions
+
+
+def _reschedule_conflict_response(appointment, now, exclude_slot_id=None):
+    suggestions = _reschedule_suggestions(
+        appointment.doctor_id,
+        now,
+        appointment.status,
+        exclude_slot_id=exclude_slot_id,
+    )
+    return error_response(
+        'SLOT_RESCHEDULE_CONFLICT',
+        'Khung giờ mới không còn hợp lệ',
+        status=409,
+        details={
+            'suggestedSlots': suggestions,
+            'suggestedSlot': suggestions[0] if suggestions else None,
+        },
+    )
+
+
 def _slot_confirmation_required(slot, booking_type, message):
     return error_response(
         "SLOT_CONFIRMATION_REQUIRED",
@@ -735,74 +783,191 @@ class AppointmentUpdateView(APIView):
         if not _check_role(request, 'RECEPTIONIST'):
             return error_response("FORBIDDEN", "Bạn không có quyền thực hiện hành động này", status=403)
 
-        try:
-            appointment = Appointment.objects.select_related('patient', 'doctor').get(pk=pk)
-        except Appointment.DoesNotExist:
-            return error_response(
-                "APPOINTMENT_NOT_FOUND",
-                "Không tìm thấy lịch hẹn",
-                status=404,
-            )
-
-        if appointment.status == 'COMPLETED':
-            return error_response(
-                "ALREADY_COMPLETED",
-                "Không thể sửa lịch hẹn đã hoàn thành",
-                status=400,
-            )
-
-        serializer = AppointmentUpdateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(
-                "VALIDATION_ERROR",
-                "Dữ liệu không hợp lệ",
-                status=400,
-                details=serializer.errors,
-            )
-
-        validated_data = serializer.validated_data
-
-        if appointment.slot_id and ({'appointment_time', 'doctorId'} & validated_data.keys()):
-            return error_response(
-                "SLOT_APPOINTMENT_IMMUTABLE",
-                "Lịch đã gắn ca khám không được đổi giờ hoặc đổi bác sĩ",
-                status=400,
-            )
-
-        if 'appointment_time' in validated_data:
-            appointment_time = validated_data['appointment_time']
-            if timezone.is_naive(appointment_time):
-                appointment_time = timezone.make_aware(appointment_time, timezone.get_current_timezone())
-            if appointment_time <= timezone.now():
+        with transaction.atomic():
+            try:
+                appointment = Appointment.objects.select_for_update().select_related(
+                    'patient', 'doctor', 'slot',
+                ).get(pk=pk)
+            except Appointment.DoesNotExist:
                 return error_response(
-                    "PAST_TIME",
-                    "Thời gian hẹn phải trong tương lai",
+                    "APPOINTMENT_NOT_FOUND",
+                    "Không tìm thấy lịch hẹn",
+                    status=404,
+                )
+
+            if appointment.status not in ('CONFIRMED', 'WAITING'):
+                return error_response(
+                    'RESCHEDULE_NOT_ALLOWED',
+                    'Không thể đổi lịch ở trạng thái hiện tại',
+                    status=409,
+                )
+
+            serializer = AppointmentUpdateSerializer(data=request.data)
+            if not serializer.is_valid():
+                return error_response(
+                    "VALIDATION_ERROR",
+                    "Dữ liệu không hợp lệ",
+                    status=400,
+                    details=serializer.errors,
+                )
+
+            validated_data = serializer.validated_data
+
+            requested_slot = 'slotId' in validated_data or 'slotKey' in validated_data
+            if requested_slot:
+                if not appointment.slot_id:
+                    return error_response(
+                        'SLOT_APPOINTMENT_REQUIRED',
+                        'Lịch hẹn hiện chưa gắn ca khám',
+                        status=400,
+                    )
+
+                requested_slot_id = validated_data.get('slotId')
+                requested_slot_key = (validated_data.get('slotKey') or '').strip()
+                new_slot = None
+                if requested_slot_id is not None:
+                    new_slot = DoctorSlot.objects.filter(pk=requested_slot_id).first()
+                elif requested_slot_key:
+                    new_slot = _materialize_slot(
+                        requested_slot_key,
+                        appointment.doctor,
+                        persist=False,
+                    )
+                if new_slot is None:
+                    return _reschedule_conflict_response(appointment, timezone.now())
+
+                if new_slot.doctor_id != appointment.doctor_id:
+                    return error_response(
+                        'SLOT_DOCTOR_MISMATCH',
+                        'Ca khám không thuộc bác sĩ của lịch hẹn',
+                        status=400,
+                    )
+
+                old_slot_id = appointment.slot_id
+                target_slot_id = new_slot.pk
+                slot_ids = sorted({old_slot_id, target_slot_id} - {None})
+                locked_slots = {
+                    slot.id: slot
+                    for slot in DoctorSlot.objects.select_for_update()
+                    .select_related('doctor', 'room')
+                    .filter(pk__in=slot_ids)
+                }
+                old_slot = locked_slots.get(old_slot_id)
+                if old_slot is None:
+                    return error_response('SLOT_NOT_FOUND', 'Không tìm thấy ca khám cũ', status=404)
+
+                if new_slot.pk:
+                    new_slot = locked_slots.get(new_slot.pk)
+                else:
+                    new_slot = _materialize_slot(
+                        requested_slot_key,
+                        appointment.doctor,
+                        persist=True,
+                    )
+                    if new_slot is not None:
+                        new_slot = DoctorSlot.objects.select_for_update().select_related(
+                            'doctor', 'room',
+                        ).get(pk=new_slot.pk)
+                if new_slot is None:
+                    return _reschedule_conflict_response(appointment, timezone.now())
+
+                if new_slot.pk != old_slot.pk:
+                    # Slot rows are the lock used by appointment creation too.
+                    # Re-read capacity only after both rows are locked.
+                    remaining_capacity = _slot_capacity(new_slot)[1]
+                    now = timezone.now()
+                    _, new_end = _slot_datetimes(new_slot)
+                    lead_time = (
+                        ONLINE_BOOKING_LEAD_TIME_MINUTES
+                        if appointment.status == 'CONFIRMED' else 0
+                    )
+                    valid_time = now + timedelta(minutes=lead_time) < new_end
+                    if (
+                        new_slot.status != 'OPEN'
+                        or remaining_capacity <= 0
+                        or not valid_time
+                    ):
+                        response = _reschedule_conflict_response(
+                            appointment,
+                            now,
+                            exclude_slot_id=old_slot.pk,
+                        )
+                        # A virtual slot may have been materialized while
+                        # resolving the request; an invalid request must not
+                        # leave that row behind.
+                        transaction.set_rollback(True)
+                        return response
+
+                    sequence_changed = (
+                        old_slot.room_id != new_slot.room_id
+                        or old_slot.slot_date != new_slot.slot_date
+                    )
+                    if sequence_changed:
+                        # Lock every slot in each room/day allocation scope
+                        # before taking Max(sequence_number), matching create.
+                        scopes = {
+                            (old_slot.room_id, old_slot.slot_date),
+                            (new_slot.room_id, new_slot.slot_date),
+                        }
+                        for room_id, slot_date in scopes:
+                            list(
+                                DoctorSlot.objects.select_for_update().filter(
+                                    room_id=room_id,
+                                    slot_date=slot_date,
+                                )
+                            )
+                        appointment.sequence_number = _next_sequence(new_slot)
+
+                    appointment.slot = new_slot
+                    appointment.appointment_time = _slot_datetimes(new_slot)[0]
+                    if (
+                        appointment.status == 'WAITING'
+                        and old_slot.slot_date != new_slot.slot_date
+                    ):
+                        appointment.status = 'CONFIRMED'
+                        appointment.check_in_at = None
+
+            elif appointment.slot_id and ({'appointment_time', 'doctorId'} & validated_data.keys()):
+                return error_response(
+                    "SLOT_APPOINTMENT_IMMUTABLE",
+                    "Lịch đã gắn ca khám không được đổi giờ hoặc đổi bác sĩ",
                     status=400,
                 )
-            appointment.appointment_time = appointment_time
 
-        if 'doctorId' in validated_data:
-            doctor_id = validated_data['doctorId']
-            try:
-                doctor = User.objects.select_related('role').get(pk=doctor_id)
-            except User.DoesNotExist:
-                return error_response(
-                    "DOCTOR_NOT_FOUND",
-                    "Không tìm thấy bác sĩ",
-                    status=404,
-                )
-            if getattr(getattr(doctor, 'role', None), 'code', None) != 'DOCTOR':
-                return error_response(
-                    "DOCTOR_NOT_FOUND",
-                    "Không tìm thấy bác sĩ",
-                    status=404,
-                )
-            appointment.doctor = doctor
+            if 'appointment_time' in validated_data and not requested_slot:
+                appointment_time = validated_data['appointment_time']
+                if timezone.is_naive(appointment_time):
+                    appointment_time = timezone.make_aware(appointment_time, timezone.get_current_timezone())
+                if appointment_time <= timezone.now():
+                    return error_response(
+                        "PAST_TIME",
+                        "Thời gian hẹn phải trong tương lai",
+                        status=400,
+                    )
+                appointment.appointment_time = appointment_time
 
-        if 'reason' in validated_data:
-            appointment.reason = validated_data['reason']
+            if 'doctorId' in validated_data and not requested_slot:
+                doctor_id = validated_data['doctorId']
+                try:
+                    doctor = User.objects.select_related('role').get(pk=doctor_id)
+                except User.DoesNotExist:
+                    return error_response(
+                        "DOCTOR_NOT_FOUND",
+                        "Không tìm thấy bác sĩ",
+                        status=404,
+                    )
+                if getattr(getattr(doctor, 'role', None), 'code', None) != 'DOCTOR':
+                    return error_response(
+                        "DOCTOR_NOT_FOUND",
+                        "Không tìm thấy bác sĩ",
+                        status=404,
+                    )
+                appointment.doctor = doctor
 
-        appointment.save()
+            if 'reason' in validated_data:
+                appointment.reason = validated_data['reason']
+
+            appointment.save()
 
         return success_response(
             {"appointment": AppointmentListSerializer(appointment).data},
