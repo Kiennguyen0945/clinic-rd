@@ -1,6 +1,6 @@
 import secrets
 import string
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Max, Q, Value, When
@@ -15,12 +15,12 @@ from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
 
 from .models import (
+    DEFAULT_SLOT_CAPACITY,
+    DEFAULT_SLOT_DURATION_MINUTES,
     ONLINE_BOOKING_LEAD_TIME_MINUTES,
     Appointment,
     DoctorSlot,
     MedicalRecord,
-    DEFAULT_SLOT_CAPACITY,
-    DEFAULT_SLOT_DURATION_MINUTES,
 )
 from .serializers import (
     AppointmentCreateSerializer,
@@ -145,7 +145,7 @@ def _materialize_slot(slot_key, doctor, target_date=None, persist=True):
         return None
     try:
         key_doctor_id = int(parts[1])
-        key_date = datetime.strptime(parts[2], '%Y-%m-%d').date()
+        key_date = date.fromisoformat(parts[2])
         start_hour = int(parts[3][:2])
         room_id = int(parts[4])
     except (TypeError, ValueError):
