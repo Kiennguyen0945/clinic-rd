@@ -45,9 +45,23 @@ class PatientMedicalHistoryView(APIView):
                 status=404,
             )
 
-        records = MedicalRecord.objects.select_related('appointment', 'appointment__doctor').filter(
-            appointment__patient_id=patientId
-        ).order_by('-appointment__appointment_time')
+        records = (
+            MedicalRecord.objects
+            .select_related(
+                'appointment',
+                'appointment__doctor',
+                'appointment__department',
+                'appointment__slot',
+                'prescription',
+            )
+            .prefetch_related('prescription__items')
+            .filter(
+                appointment__patient_id=patientId,
+                status='SIGNED',
+                appointment__status='COMPLETED',
+            )
+            .order_by('-appointment__appointment_time')
+        )
 
         serializer = MedicalRecordListSerializer(records, many=True)
         return success_response(

@@ -17,22 +17,71 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
 
 class MedicalRecordListSerializer(serializers.ModelSerializer):
     appointmentId = serializers.IntegerField(source='appointment.id', read_only=True)
+    appointmentCode = serializers.CharField(source='appointment.appointment_code', read_only=True, allow_null=True)
+    sequenceNumber = serializers.IntegerField(source='appointment.sequence_number', read_only=True, allow_null=True)
     visitDate = serializers.DateTimeField(source='appointment.appointment_time', read_only=True, format='%Y-%m-%d %H:%M')
-    doctorName = serializers.CharField(source='appointment.doctor.full_name', read_only=True)
+    doctorName = serializers.SerializerMethodField()
+    departmentName = serializers.CharField(source='appointment.department.name', read_only=True, allow_null=True)
+    reason = serializers.CharField(source='appointment.reason', read_only=True)
+    appointmentStatus = serializers.CharField(source='appointment.status', read_only=True)
+    bookingType = serializers.CharField(source='appointment.booking_type', read_only=True)
+    startTime = serializers.SerializerMethodField()
+    endTime = serializers.SerializerMethodField()
     symptoms = serializers.CharField(source='illness_history', read_only=True)
     notes = serializers.CharField(source='examination_note', read_only=True)
+    vitalSigns = serializers.CharField(source='vital_signs', read_only=True)
+    signedAt = serializers.DateTimeField(source='signed_at', read_only=True, allow_null=True)
+    prescription = serializers.SerializerMethodField()
 
     class Meta:
         model = MedicalRecord
         fields = [
             'id',
             'appointmentId',
+            'appointmentCode',
+            'sequenceNumber',
             'visitDate',
             'doctorName',
+            'departmentName',
+            'reason',
+            'appointmentStatus',
+            'bookingType',
+            'startTime',
+            'endTime',
             'symptoms',
             'diagnosis',
             'notes',
+            'vitalSigns',
+            'status',
+            'signedAt',
+            'prescription',
         ]
+
+    def get_startTime(self, obj):
+        if obj.appointment.slot_id:
+            return obj.appointment.slot.start_time.strftime('%H:%M')
+        return obj.appointment.appointment_time.strftime('%H:%M')
+
+    def get_doctorName(self, obj):
+        return (obj.appointment.doctor.full_name or '').removeprefix('BS. ')
+
+    def get_endTime(self, obj):
+        if obj.appointment.slot_id:
+            return obj.appointment.slot.end_time.strftime('%H:%M')
+        return obj.appointment.appointment_time.strftime('%H:%M')
+
+    def get_prescription(self, obj):
+        try:
+            prescription = obj.prescription
+        except Prescription.DoesNotExist:
+            return None
+        return {
+            'id': prescription.id,
+            'medicalRecordId': prescription.medical_record_id,
+            'prescribedBy': prescription.prescribed_by_id,
+            'createdAt': prescription.created_at,
+            'items': PrescriptionItemSerializer(prescription.items.all(), many=True).data,
+        }
 
 
 class MedicalRecordCreateSerializer(serializers.Serializer):
