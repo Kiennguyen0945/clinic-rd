@@ -73,6 +73,7 @@ export function CreateAppointmentModal({
   rooms,
   assignments,
   doctorLocked,
+  patientLocked = false,
   showAllDoctors = false,
   draft,
   setDraft,
@@ -99,6 +100,7 @@ export function CreateAppointmentModal({
   rooms: ReceptionContext["rooms"];
   assignments: ReceptionContext["openSlotAssignments"];
   doctorLocked: boolean;
+  patientLocked?: boolean;
   showAllDoctors?: boolean;
   draft: AppointmentDraft;
   setDraft: Dispatch<SetStateAction<AppointmentDraft>>;
@@ -279,6 +281,7 @@ export function CreateAppointmentModal({
             Bệnh nhân *
             <div className="input-with-action">
               <input
+                disabled={patientLocked}
                 aria-invalid={Boolean(fieldErrors.patient)}
                 value={draft.patientName}
                 onChange={(event) =>
@@ -294,11 +297,12 @@ export function CreateAppointmentModal({
                 type="button"
                 onClick={onAddPatient}
                 aria-label="Tạo bệnh nhân mới"
+                disabled={patientLocked}
               >
                 <Plus size={16} />
               </button>
             </div>
-            {draft.patientName && !selectedPatient && (
+            {!patientLocked && draft.patientName && !selectedPatient && (
               <div className="suggestion-list">
                 {suggestions.map((patient) => (
                   <button
