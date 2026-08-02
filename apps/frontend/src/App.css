@@ -425,3 +425,218 @@
   .queue-main-button small { font-size: 12px; }
   .detail-list dt, .detail-list dd { font-size: 13px; }
 }
+
+/* Doctor landing page: final overrides for shared schedule components. */
+.doctor-summary-grid.doctor-summary-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.appointments-grid.doctor-schedule-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr);
+  gap: 16px;
+}
+
+.doctor-slot-panel {
+  min-width: 0;
+}
+
+.doctor-slot-panel > .slot-list {
+  max-height: 650px;
+  padding: 12px 16px;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.doctor-slot-panel .slot-row-card {
+  min-height: 64px;
+  overflow: hidden;
+}
+
+.doctor-slot-panel .slot-row-card .slot-row {
+  grid-template-columns: minmax(160px, 1fr) minmax(90px, .55fr) 132px;
+  min-height: 62px;
+  padding: 10px 16px;
+  gap: 14px;
+}
+
+.doctor-slot-panel .slot-time,
+.doctor-slot-panel .slot-capacity {
+  justify-content: center;
+}
+
+.doctor-slot-panel .slot-row-card .slot-action {
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  margin: 0;
+}
+
+.doctor-slot-panel .slot-row-card .slot-action .btn {
+  width: 114px;
+  min-width: 114px;
+  height: 36px;
+  min-height: 36px;
+  padding: 7px 12px;
+  line-height: 1;
+}
+
+.doctor-appointments-side {
+  gap: 16px;
+}
+
+.doctor-appointments-side .queue-panel {
+  max-height: 390px;
+}
+
+.doctor-appointments-side .queue-group {
+  max-height: 230px;
+  padding-bottom: 10px;
+  overflow-y: auto;
+}
+
+.doctor-queue-tabs {
+  gap: 30px;
+}
+
+.doctor-visit-detail .detail-patient {
+  margin-top: 2px;
+}
+
+.doctor-visit-detail .detail-list dd {
+  max-width: 65%;
+}
+
+.doctor-visit-detail .detail-actions {
+  justify-content: flex-end;
+}
+
+.doctor-start-button {
+  min-width: 128px;
+  justify-content: center;
+}
+
+.doctor-dashboard > .form-error {
+  margin: 0;
+}
+
+/* Receptionist detail schedule: keep panel controls visible while slots scroll. */
+.appointments-redesign .reception-slot-panel > .slot-list {
+  max-height: 650px;
+  padding: 12px 16px;
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.appointments-redesign .reception-slot-panel .slot-row-card {
+  min-height: 72px;
+  overflow: hidden;
+}
+
+.appointments-redesign .reception-slot-panel .slot-row-card .slot-row {
+  grid-template-columns: minmax(170px, 1fr) minmax(90px, .5fr) 248px;
+  min-height: 70px;
+  padding: 10px 16px;
+  gap: 14px;
+}
+
+.appointments-redesign .reception-slot-panel .slot-time,
+.appointments-redesign .reception-slot-panel .slot-capacity {
+  justify-content: center;
+}
+
+.appointments-redesign .reception-slot-panel .slot-row-card .slot-action {
+  display: grid;
+  grid-template-columns: 114px 120px;
+  align-items: center;
+  justify-content: end;
+  align-self: stretch;
+  gap: 8px;
+  margin: 0;
+  min-width: 248px;
+}
+
+.appointments-redesign .reception-slot-panel .slot-row-card .slot-action .btn {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  min-height: 38px;
+  padding: 7px 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.appointments-redesign .reception-slot-panel > .slot-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.appointments-redesign .reception-slot-panel > .slot-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: padding-box;
+}
+
+.appointments-redesign .reception-slot-panel > .slot-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 1100px) {
+  .doctor-summary-grid.doctor-summary-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .appointments-grid.doctor-schedule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-appointments-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .doctor-summary-grid.doctor-summary-three {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-appointments-side {
+    display: flex;
+  }
+
+  .doctor-slot-panel .slot-refresh span {
+    display: none;
+  }
+
+  .doctor-slot-panel .slot-row-card .slot-row {
+    grid-template-columns: minmax(0, 1fr) 116px;
+    min-height: 62px;
+  }
+
+  .doctor-slot-panel .slot-capacity {
+    display: none;
+  }
+
+  .doctor-slot-panel .slot-row-card .slot-action {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .appointments-redesign .reception-slot-panel .slot-row-card .slot-row {
+    grid-template-columns: minmax(0, 1fr) 126px;
+    min-height: 112px;
+  }
+
+  .appointments-redesign .reception-slot-panel .slot-capacity {
+    display: none;
+  }
+
+  .appointments-redesign .reception-slot-panel .slot-row-card .slot-action {
+    grid-column: 2;
+    grid-row: 1;
+    grid-template-columns: 1fr;
+    min-width: 120px;
+  }
+}

@@ -1,39 +1,30 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle, ArrowLeft, Check, CheckCircle2, ClipboardList, Clock3,
-  FileClock, FileText, FlaskConical, History, MoreHorizontal,
-  Plus, Save, Search, Stethoscope, Trash2, UserRound, X,
+  FileClock, FileText, FlaskConical, History, LockKeyhole, MoreHorizontal,
+  Plus, RefreshCw, Save, Search, Stethoscope, Trash2, UserRound, X,
 } from 'lucide-react'
+import { appointmentApi } from '../lib/appointmentsApi'
 import { useAuthStore } from '../store'
+import { QueueGroup, SlotRow } from './appointments/SchedulePanels'
+import {
+  mapAppointment,
+  mapPatient,
+  mapSlot,
+  statusConfig,
+  timeLabel,
+  todayValue,
+} from './appointments/model'
+import type { Appointment, SlotDefinition } from './appointments/model'
 
 type AppointmentStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED'
 type OrderType = 'LAB_TEST' | 'IMAGING' | 'PROCEDURE' | 'OTHER'
 interface Patient { id: string; code: string; fullName: string; gender: string; dob?: string; age: number; phone: string; address: string; allergy: string; bloodType: string; history: string; chronic: string; note: string }
 interface WaitingAppointment { id: string; patient: Patient; time: string; reason: string; status: AppointmentStatus; appointmentCode: string }
-type ScheduleStatus = 'COMPLETED' | 'WAITING' | 'NOT_ARRIVED'
-interface ScheduleItem { id: string; patient: Patient; time: string; timeRange: string; status: ScheduleStatus }
 interface Prescription { id: string; medicationName: string; dosage: string; quantity: number; unit: string; instructions: string }
 interface MedicalOrder { id: string; orderType: OrderType; name: string; purpose: string; instructions: string }
 
-const MOCK_PATIENTS: Patient[] = [
-  { id: 'patient-1', code: 'BN001', fullName: 'Nguyễn Văn A', gender: 'Nam', age: 34, phone: '090 123 4567', address: '123 Đường ABC, Quận 1, TP.HCM', allergy: 'Penicillin', bloodType: 'O+', history: 'Tăng huyết áp (2 năm)', chronic: 'Không', note: 'Theo dõi huyết áp định kỳ' },
-  { id: 'patient-2', code: 'BN002', fullName: 'Lê Thị B', gender: 'Nữ', age: 29, phone: '091 222 3344', address: '45 Nguyễn Trãi, Quận 5, TP.HCM', allergy: 'Không ghi nhận', bloodType: 'A+', history: 'Viêm dạ dày', chronic: 'Không', note: '-' },
-  { id: 'patient-3', code: 'BN003', fullName: 'Trần Minh C', gender: 'Nam', age: 46, phone: '093 555 6677', address: '18 Lê Lợi, Quận 3, TP.HCM', allergy: 'Chưa cập nhật', bloodType: 'B+', history: 'Rối loạn mỡ máu', chronic: 'Đái tháo đường type 2', note: '-' },
-]
-const INITIAL_WAITING: WaitingAppointment[] = [
-  { id: 'visit-1', patient: MOCK_PATIENTS[0], time: '10:30', reason: 'Đau đầu 3 ngày, chóng mặt nhẹ', status: 'WAITING', appointmentCode: 'LH20260718001' },
-  { id: 'visit-2', patient: MOCK_PATIENTS[1], time: '11:00', reason: 'Đau dạ dày, đầy hơi', status: 'WAITING', appointmentCode: 'LH20260718002' },
-  { id: 'visit-3', patient: MOCK_PATIENTS[2], time: '11:30', reason: 'Tái khám và kiểm tra đường huyết', status: 'WAITING', appointmentCode: 'LH20260718003' },
-]
-const TODAY_SCHEDULE: ScheduleItem[] = [
-  { id: 'schedule-1', patient: MOCK_PATIENTS[0], time: '08:00', timeRange: '08:00 – 08:30', status: 'COMPLETED' },
-  { id: 'schedule-2', patient: MOCK_PATIENTS[1], time: '09:00', timeRange: '09:00 – 09:30', status: 'WAITING' },
-  { id: 'schedule-3', patient: MOCK_PATIENTS[2], time: '10:30', timeRange: '10:30 – 11:00', status: 'WAITING' },
-  { id: 'schedule-4', patient: { ...MOCK_PATIENTS[0], id: 'patient-4', fullName: 'Nguyễn Hoàng E', code: 'BN004' }, time: '11:00', timeRange: '11:00 – 11:30', status: 'NOT_ARRIVED' },
-  { id: 'schedule-5', patient: { ...MOCK_PATIENTS[1], id: 'patient-5', fullName: 'Lê Minh F', code: 'BN005' }, time: '13:30', timeRange: '13:30 – 14:00', status: 'NOT_ARRIVED' },
-]
-const scheduleStatusLabels: Record<ScheduleStatus, string> = { COMPLETED: 'Đã khám', WAITING: 'Đang chờ', NOT_ARRIVED: 'Chưa đến' }
 const orderTypeLabels: Record<OrderType, string> = { LAB_TEST: 'Xét nghiệm', IMAGING: 'Chẩn đoán hình ảnh', PROCEDURE: 'Thủ thuật', OTHER: 'Khác' }
 
 interface Draft { symptoms: string; diagnosis: string; icdCode: string; treatmentPlan: string; notes: string; pulse: string; systolic: string; diastolic: string; temperature: string; spo2: string; weight: string; height: string; prescriptions: Prescription[]; orders: MedicalOrder[] }
@@ -41,11 +32,43 @@ type MedicationDraft = { medicationName: string; dosage: string; quantity: strin
 type OrderDraft = { orderType: OrderType; name: string; purpose: string; instructions: string }
 const EMPTY_DRAFT: Draft = { symptoms: '', diagnosis: '', icdCode: '', treatmentPlan: '', notes: '', pulse: '78', systolic: '120', diastolic: '80', temperature: '36.7', spo2: '98', weight: '', height: '', prescriptions: [], orders: [] }
 
+function appointmentToVisit(appointment: Appointment): WaitingAppointment {
+  return {
+    id: appointment.id,
+    patient: {
+      id: appointment.patient.id,
+      code: appointment.patient.code,
+      fullName: appointment.patient.fullName,
+      gender: appointment.patient.gender,
+      dob: appointment.patient.dob,
+      age: appointment.patient.age,
+      phone: appointment.patient.phone,
+      address: appointment.patient.address,
+      allergy: 'Chưa cập nhật',
+      bloodType: 'Chưa cập nhật',
+      history: 'Chưa cập nhật',
+      chronic: 'Chưa cập nhật',
+      note: '—',
+    },
+    time: timeLabel(appointment.startTime),
+    reason: appointment.reason,
+    status: appointment.status as AppointmentStatus,
+    appointmentCode: appointment.appointmentCode,
+  }
+}
+
 export default function MedicalRecordsPage() {
   const user = useAuthStore((s) => s.user)
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<'today' | 'schedule' | 'history'>(searchParams.get('tab') === 'history' ? 'history' : searchParams.get('tab') === 'schedule' ? 'schedule' : 'today')
-  const [waiting, setWaiting] = useState(INITIAL_WAITING)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [slots, setSlots] = useState<SlotDefinition[]>([])
+  const [selectedId, setSelectedId] = useState('')
+  const [expandedSlotId, setExpandedSlotId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [pageError, setPageError] = useState('')
+  const [startingId, setStartingId] = useState('')
+  const [refreshVersion, setRefreshVersion] = useState(0)
   const [activeVisit, setActiveVisit] = useState<WaitingAppointment | null>(null)
   const [draft, setDraft] = useState<Draft>({ ...EMPTY_DRAFT })
   const [savedAt, setSavedAt] = useState('Chưa lưu nháp')
@@ -58,14 +81,69 @@ export default function MedicalRecordsPage() {
   const [isPatientDrawerOpen, setIsPatientDrawerOpen] = useState(false)
 
   const currentDoctor = user?.fullName || 'Nguyễn Minh Đức'
-  const openVisit = (visit: WaitingAppointment) => {
-    setActiveVisit({ ...visit, status: 'IN_PROGRESS' }); setWaiting((items) => items.map((item) => item.id === visit.id ? { ...item, status: 'IN_PROGRESS' } : item)); setDraft({ ...EMPTY_DRAFT }); setErrors({}); setSavedAt('Chưa lưu nháp')
+
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setPageError('')
+      try {
+        const date = todayValue()
+        const [slotResponse, appointmentResponse, patientResponse] = await Promise.all([
+          appointmentApi.slots(date, user.id),
+          appointmentApi.appointments(date, user.id),
+          appointmentApi.patients({ pageSize: 100 }),
+        ])
+        if (cancelled) return
+        const mappedSlots = slotResponse.slots.map(mapSlot)
+        const mappedPatients = patientResponse.patients.map(mapPatient)
+        const mappedAppointments = appointmentResponse.appointments.map((item) =>
+          mapAppointment(item, mappedPatients, mappedSlots),
+        )
+        setSlots(mappedSlots)
+        setAppointments(mappedAppointments)
+        setSelectedId((current) => mappedAppointments.some((item) => item.id === current)
+          ? current
+          : mappedAppointments.find((item) => item.status === 'IN_PROGRESS')?.id
+            || mappedAppointments.find((item) => item.status === 'WAITING')?.id
+            || mappedAppointments[0]?.id
+            || '')
+      } catch (error) {
+        if (!cancelled) setPageError(error instanceof Error ? error.message : 'Không thể tải lịch khám hôm nay')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [user?.id, refreshVersion])
+
+  const openVisit = async (appointment: Appointment) => {
+    setStartingId(appointment.id)
+    setPageError('')
+    try {
+      let current = appointment
+      if (appointment.status === 'WAITING') {
+        const response = await appointmentApi.start(Number(appointment.id))
+        current = mapAppointment(response.appointment, appointments.map((item) => item.patient), slots)
+        setAppointments((items) => items.map((item) => item.id === current.id ? current : item))
+      }
+      setActiveVisit(appointmentToVisit(current))
+      setDraft({ ...EMPTY_DRAFT })
+      setErrors({})
+      setSavedAt('Chưa lưu nháp')
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : 'Không thể bắt đầu lượt khám')
+    } finally {
+      setStartingId('')
+    }
   }
   const backToDashboard = () => { setActiveVisit(null); setShowComplete(false) }
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveDraft = () => { setSavedAt(`Đã lưu lúc ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`); setToast('Đã lưu bản nháp bệnh án') }
   const requestComplete = () => { const next: typeof errors = {}; if (!draft.symptoms.trim()) next.symptoms = 'Triệu chứng là bắt buộc'; if (!draft.diagnosis.trim()) next.diagnosis = 'Chẩn đoán là bắt buộc'; setErrors(next); if (Object.keys(next).length === 0) setShowComplete(true) }
-  const completeVisit = () => { if (!activeVisit) return; setWaiting((items) => items.map((item) => item.id === activeVisit.id ? { ...item, status: 'COMPLETED' } : item)); setShowComplete(false); setActiveVisit(null); setToast('Đã hoàn thành ca khám'); setActiveTab('today') }
+  const completeVisit = () => { if (!activeVisit) return; setAppointments((items) => items.map((item) => item.id === activeVisit.id ? { ...item, status: 'COMPLETED' } : item)); setShowComplete(false); setActiveVisit(null); setToast('Đã hoàn thành ca khám'); setActiveTab('today') }
   const addMedication = (event: React.FormEvent) => { event.preventDefault(); if (!medication.medicationName.trim() || !medication.instructions.trim()) return; updateDraft('prescriptions', [...draft.prescriptions, { ...medication, id: `med-${Date.now()}`, quantity: Number(medication.quantity) || 1 }]); setMedication({ medicationName: '', dosage: '', quantity: '1', unit: 'viên', instructions: '' }); setModal(null) }
   const addOrder = (event: React.FormEvent) => { event.preventDefault(); if (!order.name.trim()) return; updateDraft('orders', [...draft.orders, { ...order, id: `order-${Date.now()}` }]); setOrder({ orderType: 'LAB_TEST', name: '', purpose: '', instructions: '' }); setModal(null) }
   const setTab = (tab: 'today' | 'schedule' | 'history') => { setActiveTab(tab); setSearchParams(tab === 'history' ? { tab: 'history' } : tab === 'schedule' ? { tab: 'schedule' } : {}) }
@@ -79,8 +157,12 @@ export default function MedicalRecordsPage() {
   </>
   return <>
     <div className="page-header doctor-page-heading"><div><div className="page-title">Khám bệnh</div><div className="page-subtitle">Tiếp nhận và ghi nhận thông tin khám bệnh hôm nay.</div></div><div className="doctor-header-status"><span className="live-dot" /> Phòng khám đang hoạt động</div></div>
-    <div className="doctor-tabs"><button className={activeTab === 'today' ? 'active' : ''} onClick={() => setTab('today')}><Stethoscope size={17} /> Khám hôm nay <span>{waiting.filter((item) => item.status === 'WAITING').length}</span></button><button className={activeTab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}><Clock3 size={17} /> Lịch hôm nay</button><button className={activeTab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><History size={17} /> Lịch sử khám</button></div>
-    {activeTab === 'history' ? <HistoryPanel visits={waiting.filter((item) => item.status === 'COMPLETED')} /> : activeTab === 'schedule' ? <SchedulePanel /> : <DoctorDashboard waiting={waiting} onStart={openVisit} activeVisit={waiting.find((item) => item.status === 'IN_PROGRESS') || null} onViewSchedule={() => setTab('schedule')} />}
+    <div className="doctor-tabs"><button className={activeTab === 'today' ? 'active' : ''} onClick={() => setTab('today')}><Stethoscope size={17} /> Khám hôm nay <span>{appointments.filter((item) => item.status === 'WAITING').length}</span></button><button className={activeTab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}><Clock3 size={17} /> Lịch hôm nay</button><button className={activeTab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><History size={17} /> Lịch sử khám</button></div>
+    {activeTab === 'history'
+      ? <HistoryPanel visits={appointments.filter((item) => item.status === 'COMPLETED').map(appointmentToVisit)} />
+      : activeTab === 'schedule'
+        ? <DoctorSlotPanel doctorName={currentDoctor} slots={slots} appointments={appointments} expandedSlotId={expandedSlotId} selectedId={selectedId} onToggleSlot={setExpandedSlotId} onSelect={setSelectedId} onRefresh={() => setRefreshVersion((value) => value + 1)} loading={loading} />
+        : <DoctorDashboard appointments={appointments} slots={slots} doctorName={currentDoctor} selectedId={selectedId} expandedSlotId={expandedSlotId} loading={loading} error={pageError} startingId={startingId} onSelect={setSelectedId} onToggleSlot={setExpandedSlotId} onStart={openVisit} onRefresh={() => setRefreshVersion((value) => value + 1)} />}
     {toast && <div className="doctor-toast"><CheckCircle2 size={16} /> {toast}</div>}
     {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
     {modal === 'medication' && <MedicationModal value={medication} setValue={setMedication} onClose={() => setModal(null)} onSubmit={addMedication} />}
@@ -88,15 +170,33 @@ export default function MedicalRecordsPage() {
   </>
 }
 
-function DoctorDashboard({ waiting, onStart, activeVisit, onViewSchedule }: { waiting: WaitingAppointment[]; onStart: (visit: WaitingAppointment) => void; activeVisit: WaitingAppointment | null; onViewSchedule: () => void }) { const waitingItems = useMemo(() => waiting.filter((item) => item.status === 'WAITING'), [waiting]); return <div className="doctor-dashboard"><div className="doctor-summary-grid"><div className="doctor-stat-card"><span className="doctor-stat-icon blue"><ClipboardList size={19} /></span><strong>{waitingItems.length}</strong><span>Đang chờ khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon green"><Stethoscope size={19} /></span><strong>{activeVisit ? 1 : 0}</strong><span>Đang khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon gray"><CheckCircle2 size={19} /></span><strong>{waiting.filter((item) => item.status === 'COMPLETED').length}</strong><span>Đã hoàn tất hôm nay</span></div><ScheduleStatCard onViewSchedule={onViewSchedule} /></div>{activeVisit && <div className="active-consultation-banner"><div><span className="active-label"><span className="live-dot" /> ĐANG KHÁM</span><strong>{activeVisit.patient.fullName}</strong><span>{activeVisit.patient.code} · {activeVisit.reason}</span></div><button className="btn btn-success btn-sm" onClick={() => onStart(activeVisit)}>Tiếp tục khám <span>→</span></button></div>}<div className="doctor-main-grid"><section className="doctor-queue-card"><div className="doctor-section-heading"><div><h3>Danh sách chờ khám</h3><p>Bệnh nhân đã được lễ tân xác nhận và đang chờ bác sĩ.</p></div><span className="queue-count">{waitingItems.length} bệnh nhân</span></div>{waitingItems.length === 0 ? <div className="doctor-empty"><span className="empty-party">🎉</span><strong>Không còn bệnh nhân chờ khám</strong><span>Bạn đã hoàn thành tất cả ca khám hôm nay.</span></div> : <div className="doctor-queue-list">{waitingItems.map((visit, index) => <div className="doctor-queue-row" key={visit.id}><span className="doctor-queue-number">{String(index + 1).padStart(2, '0')}</span><div className="doctor-queue-avatar">{visit.patient.fullName.split(' ').slice(-1)[0][0]}</div><div className="doctor-queue-patient"><strong>{visit.patient.fullName}</strong><span>{visit.patient.code} · {visit.patient.age} tuổi</span></div><div className="doctor-queue-reason"><small>Lý do khám</small><span>{visit.reason}</span></div><div className="doctor-queue-time"><Clock3 size={15} />{visit.time}</div><span className="waiting-duration">Chờ {index === 0 ? 15 : 5} phút</span><button className="btn btn-primary btn-sm" onClick={() => onStart(visit)} disabled={Boolean(activeVisit)} title={activeVisit ? 'Bạn đang có một ca khám chưa hoàn thành.' : undefined}>Bắt đầu khám</button><button className="icon-button" aria-label="Thêm thao tác"><MoreHorizontal size={17} /></button></div>)}</div>}</section><SchedulePreview onViewSchedule={onViewSchedule} /></div></div> }
+function DoctorDashboard({ appointments, slots, doctorName, selectedId, expandedSlotId, loading, error, startingId, onSelect, onToggleSlot, onStart, onRefresh }: { appointments: Appointment[]; slots: SlotDefinition[]; doctorName: string; selectedId: string; expandedSlotId: string; loading: boolean; error: string; startingId: string; onSelect: (id: string) => void; onToggleSlot: (id: string) => void; onStart: (appointment: Appointment) => void; onRefresh: () => void }) {
+  const waiting = appointments.filter((item) => item.status === 'WAITING')
+  const inProgress = appointments.filter((item) => item.status === 'IN_PROGRESS')
+  return <div className="doctor-dashboard">
+    <div className="doctor-summary-grid doctor-summary-three"><div className="doctor-stat-card"><span className="doctor-stat-icon blue"><ClipboardList size={19} /></span><strong>{waiting.length}</strong><span>Đang chờ khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon green"><Stethoscope size={19} /></span><strong>{inProgress.length}</strong><span>Đang khám</span></div><div className="doctor-stat-card"><span className="doctor-stat-icon gray"><CheckCircle2 size={19} /></span><strong>{appointments.filter((item) => item.status === 'COMPLETED').length}</strong><span>Đã hoàn tất hôm nay</span></div></div>
+    {error && <div className="form-error">{error}</div>}
+    <div className="appointments-grid doctor-schedule-grid">
+      <DoctorSlotPanel doctorName={doctorName} slots={slots} appointments={appointments} expandedSlotId={expandedSlotId} selectedId={selectedId} onToggleSlot={onToggleSlot} onSelect={onSelect} onRefresh={onRefresh} loading={loading} />
+      <DoctorQueuePanel appointments={appointments} selectedId={selectedId} startingId={startingId} onSelect={onSelect} onStart={onStart} />
+    </div>
+  </div>
+}
 
-function ScheduleStatCard({ onViewSchedule }: { onViewSchedule: () => void }) { return <div className="schedule-stat-card"><div className="schedule-stat-head"><strong>Lịch khám hôm nay</strong><button onClick={onViewSchedule}>Xem lịch</button></div><div className="schedule-stat-lines"><span>08:00 <b>Nguyễn Văn A</b></span><span>09:00 <b>Trần Thị B</b></span><span>10:30 <b>Phạm Thị D</b></span></div></div> }
+function DoctorSlotPanel({ doctorName, slots, appointments, expandedSlotId, selectedId, onToggleSlot, onSelect, onRefresh, loading }: { doctorName: string; slots: SlotDefinition[]; appointments: Appointment[]; expandedSlotId: string; selectedId: string; onToggleSlot: (id: string) => void; onSelect: (id: string) => void; onRefresh: () => void; loading: boolean }) {
+  return <section className="slot-panel doctor-slot-panel"><div className="slot-panel-header"><div><h2>{doctorName}</h2><p>Lịch khám hôm nay · {new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</p></div><div className="slot-refresh"><span><Clock3 size={15} /> Cập nhật theo dữ liệu hệ thống</span><button className="icon-button" onClick={onRefresh} aria-label="Làm mới lịch"><RefreshCw size={16} /></button></div></div><div className="slot-legend"><span><i className="legend-dot available" /> Còn chỗ</span><span><i className="legend-dot full" /> Đã đầy</span><span><i className="legend-dot ended" /> Đã qua</span><span><LockKeyhole size={13} /> Đã khóa</span></div><div className="slot-table-head"><span>Khung giờ</span><span>Số suất</span><span>Thao tác</span></div><div className="slot-list">{loading ? <div className="empty-context">Đang tải lịch khám...</div> : slots.length === 0 ? <div className="empty-context">Chưa có khung giờ khám trong hôm nay.</div> : slots.map((slot) => <SlotRow key={slot.id} slot={slot} appointments={appointments.filter((item) => item.slotId === slot.id)} expanded={expandedSlotId === slot.id} selectedId={selectedId} onToggle={() => onToggleSlot(expandedSlotId === slot.id ? '' : slot.id)} onSelectAppointment={onSelect} onCreate={() => undefined} receptionClosed showCreateAction={false} />)}</div></section>
+}
 
-function SchedulePreview({ onViewSchedule }: { onViewSchedule: () => void }) { return <section className="schedule-preview-card"><div className="schedule-preview-header"><h3>Lịch khám hôm nay</h3><button onClick={onViewSchedule}>Xem lịch</button></div><div className="schedule-timeline">{TODAY_SCHEDULE.map((item) => <div className="schedule-timeline-item" key={item.id}><div className="schedule-time">{item.time}</div><div className={`schedule-dot ${item.status.toLowerCase()}`} /><div className="schedule-patient"><strong>{item.patient.fullName}</strong><span>{item.timeRange}</span></div><span className={`schedule-status ${item.status.toLowerCase()}`}>{scheduleStatusLabels[item.status]}</span></div>)}</div></section> }
+function DoctorQueuePanel({ appointments, selectedId, startingId, onSelect, onStart }: { appointments: Appointment[]; selectedId: string; startingId: string; onSelect: (id: string) => void; onStart: (appointment: Appointment) => void }) {
+  const [queueTab, setQueueTab] = useState<'IN_PROGRESS' | 'WAITING'>('IN_PROGRESS')
+  const [query, setQuery] = useState('')
+  const queue = useMemo(() => appointments.filter((item) => (item.status === 'IN_PROGRESS' || item.status === 'WAITING') && `${item.patient.fullName} ${item.patient.phone} ${item.patient.code} ${item.sequenceNumber}`.toLowerCase().includes(query.toLowerCase())), [appointments, query])
+  const selected = appointments.find((item) => item.id === selectedId) || null
+  const hasActiveVisit = appointments.some((item) => item.status === 'IN_PROGRESS')
+  return <aside className="appointments-side doctor-appointments-side"><section className="queue-panel"><div className="side-panel-title"><h2>Danh sách chờ</h2><span className="queue-count">{queue.length} bệnh nhân</span></div><label className="queue-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên, SĐT, mã BN hoặc số khám..." /></label><div className="queue-tabs doctor-queue-tabs"><button className={queueTab === 'IN_PROGRESS' ? 'active' : ''} onClick={() => setQueueTab('IN_PROGRESS')}>Đang khám ({queue.filter((item) => item.status === 'IN_PROGRESS').length})</button><button className={queueTab === 'WAITING' ? 'active' : ''} onClick={() => setQueueTab('WAITING')}>Đang chờ ({queue.filter((item) => item.status === 'WAITING').length})</button></div><QueueGroup items={queue.filter((item) => item.status === queueTab)} selectedId={selectedId} onSelect={onSelect} /></section><section className="detail-panel doctor-visit-detail"><div className="side-panel-title"><h2>Thông tin lượt khám</h2></div>{!selected ? <div className="empty-context">Chọn bệnh nhân để xem thông tin.</div> : <><div className="detail-patient"><div className="detail-avatar"><UserRound size={21} /></div><div><strong>{selected.patient.fullName}</strong><span>{selected.patient.code} · Số khám {String(selected.sequenceNumber).padStart(2, '0')}</span><span>{timeLabel(selected.startTime)} - {timeLabel(selected.endTime)}</span></div></div><span className={`status-badge ${statusConfig[selected.status].className}`}>{statusConfig[selected.status].label}</span><dl className="detail-list"><div><dt>Lý do khám</dt><dd>{selected.reason || 'Chưa cập nhật'}</dd></div><div><dt>Phòng khám</dt><dd>{selected.room}</dd></div><div><dt>Mã lịch hẹn</dt><dd>{selected.appointmentCode}</dd></div></dl>{(selected.status === 'WAITING' || selected.status === 'IN_PROGRESS') && <div className="detail-actions"><button className="btn btn-primary btn-sm doctor-start-button" disabled={Boolean(startingId) || (selected.status === 'WAITING' && hasActiveVisit)} onClick={() => onStart(selected)}>{startingId === selected.id ? 'Đang xử lý...' : selected.status === 'IN_PROGRESS' ? 'Tiếp tục khám' : 'Bắt đầu khám'}</button></div>}</>}</section></aside>
+}
 
-function SchedulePanel() { return <section className="doctor-queue-card schedule-full-panel"><div className="doctor-section-heading"><div><h3>Lịch khám hôm nay</h3><p>Lịch dự kiến của bác sĩ trong ngày.</p></div><span className="queue-count">{TODAY_SCHEDULE.length} lịch hẹn</span></div><div className="schedule-full-list">{TODAY_SCHEDULE.map((item) => <div className="schedule-full-row" key={item.id}><span className="schedule-full-time">{item.timeRange}</span><div className="doctor-queue-avatar">{item.patient.fullName.split(' ').slice(-1)[0][0]}</div><div><strong>{item.patient.fullName}</strong><span>{item.patient.code} · {item.patient.age} tuổi</span></div><span className={`schedule-status ${item.status.toLowerCase()}`}>{scheduleStatusLabels[item.status]}</span></div>)}</div></section> }
-
-function HistoryPanel({ visits }: { visits: WaitingAppointment[] }) { return <section className="doctor-queue-card history-panel"><div className="doctor-section-heading"><div><h3>Lịch sử khám</h3><p>Các ca khám đã hoàn tất trong phiên mock hiện tại.</p></div><div className="history-search-box"><Search size={15} /><input placeholder="Tìm bệnh nhân" /></div></div>{visits.length === 0 ? <div className="doctor-empty"><FileClock size={38} /><strong>Chưa có ca khám hoàn tất</strong></div> : visits.map((visit) => <div className="history-row" key={visit.id}><span>{visit.time}</span><strong>{visit.patient.fullName}</strong><span>{visit.patient.code}</span><span>{visit.reason}</span><span className="status-pill completed">Đã hoàn tất</span></div>)}</section> }
+function HistoryPanel({ visits }: { visits: WaitingAppointment[] }) { return <section className="doctor-queue-card history-panel"><div className="doctor-section-heading"><div><h3>Lịch sử khám</h3><p>Các ca khám đã hoàn tất trong hôm nay.</p></div><div className="history-search-box"><Search size={15} /><input placeholder="Tìm bệnh nhân" /></div></div>{visits.length === 0 ? <div className="doctor-empty"><FileClock size={38} /><strong>Chưa có ca khám hoàn tất</strong></div> : visits.map((visit) => <div className="history-row" key={visit.id}><span>{visit.time}</span><strong>{visit.patient.fullName}</strong><span>{visit.patient.code}</span><span>{visit.reason}</span><span className="status-pill completed">Đã hoàn tất</span></div>)}</section> }
 
 function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, savedAt, onBack, onSave, onComplete, onRemoveMedication, onRemoveOrder, onAddMedication, onAddOrder, onOpenPatientDrawer }: { visit: WaitingAppointment; doctorName: string; draft: Draft; updateDraft: <K extends keyof Draft>(key: K, value: Draft[K]) => void; errors: { symptoms?: string; diagnosis?: string }; savedAt: string; onBack: () => void; onSave: () => void; onComplete: () => void; onRemoveMedication: (id: string) => void; onRemoveOrder: (id: string) => void; onAddMedication: () => void; onAddOrder: () => void; onOpenPatientDrawer: () => void }) { const patient = visit.patient; return <div className="consultation-page"><div className="consultation-topbar"><button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Quay lại Khám bệnh</button><div className="consultation-top-actions"><button className="btn btn-secondary btn-sm" onClick={onOpenPatientDrawer}><UserRound size={15} /> Xem hồ sơ bệnh nhân</button><button className="icon-button"><MoreHorizontal size={17} /></button></div></div><section className="patient-header-card"><div className="patient-header-main"><div className="patient-large-avatar">NA</div><div><h1>{patient.fullName}</h1><p>{patient.gender} · {patient.age} tuổi</p><div className="patient-quick-info"><span>Mã BN: <b>{patient.code}</b></span><span>{patient.phone}</span><span>{patient.address}</span></div></div></div><div className="patient-appointment-meta"><div><span>Mã lịch hẹn</span><strong>{visit.appointmentCode}</strong></div><div><span>Thời gian hẹn</span><strong>18/07/2026 {visit.time}</strong></div><div><span>Trạng thái</span><b className="status-pill in-progress">ĐANG KHÁM</b></div><div><span>Bác sĩ</span><strong>BS. {doctorName}</strong></div></div></section><div className="clinical-warning"><AlertTriangle size={17} /><span><strong>Dị ứng:</strong> {patient.allergy}</span></div><div className="consultation-tabs"><button className="active">Thông tin khám</button><button>Tiền sử bệnh</button><button>Lịch sử khám</button><button>Ghi chú</button></div><div className="consultation-grid"><aside className="clinical-sidebar"><ClinicalSummary patient={patient} onOpenDrawer={onOpenPatientDrawer} /><div className="visit-reason-card"><h3>Lý do khám</h3><p>{visit.reason}</p></div></aside><main className="consultation-form"><section className="consultation-section"><SectionTitle icon={<Stethoscope size={17} />} title="Nội dung khám" /><label className="clinical-label">Triệu chứng *<textarea className={errors.symptoms ? 'has-error' : ''} rows={4} value={draft.symptoms} onChange={(e) => updateDraft('symptoms', e.target.value)} placeholder="Mô tả triệu chứng, diễn biến bệnh..." />{errors.symptoms && <small className="field-error">{errors.symptoms}</small>}</label><div className="vitals-block"><div className="subsection-title"><span>Dấu hiệu sinh tồn</span><small>Tùy chọn</small></div><div className="vitals-grid">{([['pulse', 'Mạch', 'lần/phút'], ['systolic', 'HA tâm thu', 'mmHg'], ['diastolic', 'HA tâm trương', 'mmHg'], ['temperature', 'Nhiệt độ', '°C'], ['spo2', 'SpO2', '%'], ['weight', 'Cân nặng', 'kg'], ['height', 'Chiều cao', 'cm']] as const).map(([key, label, unit]) => <label key={key}>{label}<div className="input-with-unit"><input type="number" value={draft[key]} onChange={(e) => updateDraft(key, e.target.value)} /><span>{unit}</span></div></label>)}</div></div><div className="diagnosis-grid"><label className="clinical-label">Chẩn đoán *<input className={errors.diagnosis ? 'has-error' : ''} value={draft.diagnosis} onChange={(e) => updateDraft('diagnosis', e.target.value)} placeholder="Nhập chẩn đoán" />{errors.diagnosis && <small className="field-error">{errors.diagnosis}</small>}</label><label className="clinical-label">Mã ICD<input value={draft.icdCode} onChange={(e) => updateDraft('icdCode', e.target.value)} placeholder="Ví dụ: F43.9" /></label></div><label className="clinical-label">Hướng điều trị / Kế hoạch<textarea rows={3} value={draft.treatmentPlan} onChange={(e) => updateDraft('treatmentPlan', e.target.value)} placeholder="Nhập kế hoạch điều trị..." /></label></section><PrescriptionSection items={draft.prescriptions} onAdd={onAddMedication} onRemove={onRemoveMedication} /><OrdersSection items={draft.orders} onAdd={onAddOrder} onRemove={onRemoveOrder} /><section className="consultation-section"><label className="clinical-label">Ghi chú thêm<textarea rows={3} value={draft.notes} onChange={(e) => updateDraft('notes', e.target.value)} placeholder="Ghi chú nội bộ cho ca khám" /></label></section></main></div><div className="consultation-actionbar"><div className="save-state"><button className="btn btn-secondary" onClick={onSave}><Save size={16} /> Lưu nháp</button><span><Check size={14} /> {savedAt}</span></div><button className="btn btn-primary btn-lg" onClick={onComplete}>Hoàn thành ca khám</button></div></div> }
 
