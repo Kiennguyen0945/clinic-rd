@@ -3,11 +3,6 @@
 from rest_framework import serializers
 
 from .models import Appointment
-from medical_records.serializers import (
-    MedicalRecordCreateSerializer,
-    MedicalRecordListSerializer,
-    MedicalRecordSerializer,
-)
 
 
 class AppointmentListSerializer(serializers.ModelSerializer):

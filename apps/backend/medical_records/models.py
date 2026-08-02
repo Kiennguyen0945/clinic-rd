@@ -5,7 +5,7 @@ from auth_service.models import User
 
 
 class MedicalRecord(models.Model):
-    STATUS_CHOICES = [('DRAFT', 'Draft'), ('SIGNED', 'Signed')]
+    STATUS_CHOICES = (('DRAFT', 'Draft'), ('SIGNED', 'Signed'))
 
     appointment = models.OneToOneField(
         Appointment,

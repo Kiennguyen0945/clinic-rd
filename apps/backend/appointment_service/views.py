@@ -11,6 +11,11 @@ from rest_framework.views import APIView
 from auth_service.models import User
 from backend.permissions import IsManager
 from backend.response_utils import error_response, success_response
+from medical_records.models import MedicalRecord
+from medical_records.serializers import (
+    MedicalRecordCreateSerializer,
+    MedicalRecordSerializer,
+)
 from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
 
@@ -22,13 +27,10 @@ from .models import (
     Appointment,
     DoctorSlot,
 )
-from medical_records.models import MedicalRecord
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentListSerializer,
     AppointmentUpdateSerializer,
-    MedicalRecordCreateSerializer,
-    MedicalRecordSerializer,
 )
 
 

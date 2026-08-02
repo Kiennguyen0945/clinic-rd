@@ -8,9 +8,9 @@ from django.utils import timezone
 
 from appointment_service.models import Appointment, DoctorSlot
 from auth_service.models import Role, User
+from medical_records.models import MedicalRecord
 from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
-from medical_records.models import MedicalRecord
 
 
 class Command(BaseCommand):

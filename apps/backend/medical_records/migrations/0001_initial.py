@@ -1,8 +1,8 @@
 # Generated manually for the medical records service.
 # ruff: noqa: RUF012
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 def migrate_existing_medical_records(apps, schema_editor):

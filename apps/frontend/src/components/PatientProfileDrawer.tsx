@@ -38,21 +38,19 @@ export default function PatientProfileDrawer({ patient, onClose, showMedicalHist
   const [historyOpen, setHistoryOpen] = useState(true)
   const [history, setHistory] = useState<ApiMedicalRecordHistoryItem[]>([])
   const canLoadHistory = showMedicalHistory && Boolean(patient.id && !patient.id.startsWith('mock-'))
-  const [historyLoading, setHistoryLoading] = useState(canLoadHistory)
+  const [loadedPatientId, setLoadedPatientId] = useState(canLoadHistory ? '' : patient.id)
   const [historyError, setHistoryError] = useState('')
 
   useEffect(() => {
     if (!canLoadHistory) return
     let cancelled = false
-    setHistoryLoading(true)
-    setHistoryError('')
     medicalRecordsApi.historyByPatient(Number(patient.id))
-      .then((records) => { if (!cancelled) setHistory(records) })
-      .catch((error: unknown) => { if (!cancelled) setHistoryError(error instanceof Error ? error.message : 'Không thể tải lịch sử khám') })
-      .finally(() => { if (!cancelled) setHistoryLoading(false) })
+      .then((records) => { if (!cancelled) { setHistory(records); setHistoryError(''); setLoadedPatientId(patient.id) } })
+      .catch((error: unknown) => { if (!cancelled) { setHistoryError(error instanceof Error ? error.message : 'Không thể tải lịch sử khám'); setLoadedPatientId(patient.id) } })
     return () => { cancelled = true }
   }, [canLoadHistory, patient.id])
 
+  const historyLoading = canLoadHistory && loadedPatientId !== patient.id
   const latestVisit = history[0]?.visitDate.slice(0, 10)
   return <div className="consultation-drawer-layer" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <aside className="consultation-drawer patient-profile-drawer" aria-label="Hồ sơ bệnh nhân">
