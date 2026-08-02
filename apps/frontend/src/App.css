@@ -496,7 +496,13 @@
 }
 
 .doctor-queue-tabs {
-  gap: 30px;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.doctor-queue-tabs button {
+  flex: 0 0 auto;
 }
 
 .doctor-visit-detail .detail-patient {
@@ -538,6 +544,11 @@
 
 .doctor-start-button {
   min-width: 128px;
+  justify-content: center;
+}
+
+.completed-visit-actions .btn:last-child {
+  min-width: 142px;
   justify-content: center;
 }
 
@@ -769,6 +780,23 @@
   background: #1260e8;
 }
 
+.consultation-record-error,
+.consultation-signed-notice {
+  margin: 10px 14px 0;
+  padding: 9px 11px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 11px;
+}
+
+.consultation-signed-notice {
+  border-color: #b9ead7;
+  color: #087f68;
+  background: #f0fdf8;
+}
+
 .clinical-accordion {
   margin: 10px 14px 0;
   overflow: hidden;
@@ -822,6 +850,39 @@
   background: #fff;
   font: 700 11px inherit;
   cursor: pointer;
+}
+
+.prescription-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.clinical-clear-medicine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #f3aeb5;
+  border-radius: 7px;
+  color: #d51f31;
+  background: #fff;
+  font: 700 11px inherit;
+  cursor: pointer;
+}
+
+.clinical-add-medicine:disabled,
+.clinical-clear-medicine:disabled,
+.prescription-row-actions button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.clinical-accordion-body textarea:disabled,
+.consultation-vitals-grid input:disabled {
+  color: #52617a;
+  background: #f5f7fa;
+  cursor: not-allowed;
 }
 
 .clinical-accordion-body {
