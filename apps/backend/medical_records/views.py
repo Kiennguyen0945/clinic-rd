@@ -8,7 +8,6 @@ from backend.response_utils import error_response, success_response
 from .models import MedicalRecord, Prescription, PrescriptionItem
 from .serializers import MedicalRecordDetailSerializer
 
-
 MEDICAL_RECORD_FIELDS = {
     'illnessHistory': 'illness_history',
     'vitalSigns': 'vital_signs',

@@ -288,21 +288,22 @@ function EditPatientModal({ patient, onClose, onSaved }: { patient: Patient; onC
 }
 
 function PatientAppointmentModal({ patient, onClose, onCreated }: { patient: Patient; onClose: () => void; onCreated: () => void }) {
+  const [initialDate] = useState(todayValue)
   const [context, setContext] = useState<ReceptionContext | null>(null)
   const [bookingContext, setBookingContext] = useState<ReceptionContext | null>(null)
   const [slots, setSlots] = useState<SlotDefinition[]>([])
   const [slot, setSlot] = useState<SlotDefinition>(emptyBookingSlot())
   const [mode, setMode] = useState<BookingMode>('SCHEDULED')
   const [suggestion, setSuggestion] = useState<BookingSuggestion | null>(null)
-  const [draft, setDraft] = useState<AppointmentDraft>({ patientId: patient.id, patientName: patient.fullName, doctorId: '', department: '', room: '', date: todayValue(), slotId: '', service: 'Dịch vụ', insuranceNumber: patient.insuranceNumber, reason: '', note: '' })
+  const [draft, setDraft] = useState<AppointmentDraft>({ patientId: patient.id, patientName: patient.fullName, doctorId: '', department: '', room: '', date: initialDate, slotId: '', service: 'Dịch vụ', insuranceNumber: patient.insuranceNumber, reason: '', note: '' })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
   useEffect(() => {
     let cancelled = false
-    appointmentApi.context(draft.date).then((value) => { if (!cancelled) { setContext(value); setBookingContext(value) } }).catch((error) => { if (!cancelled) setFormError(error instanceof Error ? error.message : 'Không thể tải dữ liệu tạo lịch.') })
+    appointmentApi.context(initialDate).then((value) => { if (!cancelled) { setContext(value); setBookingContext(value) } }).catch((error) => { if (!cancelled) setFormError(error instanceof Error ? error.message : 'Không thể tải dữ liệu tạo lịch.') })
     return () => { cancelled = true }
-  }, [])
+  }, [initialDate])
 
   const loadSlots = async (date: string, doctorId: string) => {
     if (!doctorId) { setSlots([]); return [] }
