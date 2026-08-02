@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, ClipboardList, Clock3,
-  FileClock, FileText, FlaskConical, History, LockKeyhole, MoreHorizontal,
-  Plus, RefreshCw, Save, Search, Stethoscope, Trash2, UserRound, X,
+  Activity, ArrowLeft, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp,
+  ClipboardList, Clock3, FileClock, FileText, History, LockKeyhole,
+  MoreHorizontal, PenLine, Pill, Plus, RefreshCw, Save, Search, Stethoscope,
+  Trash2, UserRound, X,
 } from 'lucide-react'
 import { appointmentApi } from '../lib/appointmentsApi'
 import { useAuthStore } from '../store'
@@ -12,6 +13,8 @@ import {
   mapAppointment,
   mapPatient,
   mapSlot,
+  patientInitials,
+  shortDateLabel,
   statusConfig,
   timeLabel,
   todayValue,
@@ -21,16 +24,63 @@ import type { Appointment, SlotDefinition } from './appointments/model'
 type AppointmentStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED'
 type OrderType = 'LAB_TEST' | 'IMAGING' | 'PROCEDURE' | 'OTHER'
 interface Patient { id: string; code: string; fullName: string; gender: string; dob?: string; age: number; phone: string; address: string; allergy: string; bloodType: string; history: string; chronic: string; note: string }
-interface WaitingAppointment { id: string; patient: Patient; time: string; reason: string; status: AppointmentStatus; appointmentCode: string }
-interface Prescription { id: string; medicationName: string; dosage: string; quantity: number; unit: string; instructions: string }
+interface WaitingAppointment { id: string; patient: Patient; date: string; time: string; endTime: string; reason: string; status: AppointmentStatus; appointmentCode: string; sequenceNumber: number; appointmentType: Appointment['appointmentType'] }
+interface Prescription { id: string; medicationName: string; dosage: string; durationDays: number; quantity: number; unit: string; instructions: string }
 interface MedicalOrder { id: string; orderType: OrderType; name: string; purpose: string; instructions: string }
 
 const orderTypeLabels: Record<OrderType, string> = { LAB_TEST: 'Xét nghiệm', IMAGING: 'Chẩn đoán hình ảnh', PROCEDURE: 'Thủ thuật', OTHER: 'Khác' }
 
-interface Draft { symptoms: string; diagnosis: string; icdCode: string; treatmentPlan: string; notes: string; pulse: string; systolic: string; diastolic: string; temperature: string; spo2: string; weight: string; height: string; prescriptions: Prescription[]; orders: MedicalOrder[] }
-type MedicationDraft = { medicationName: string; dosage: string; quantity: string; unit: string; instructions: string }
+interface Draft { illnessHistory: string; symptoms: string; diagnosis: string; icdCode: string; treatmentPlan: string; notes: string; pulse: string; systolic: string; diastolic: string; temperature: string; spo2: string; weight: string; height: string; prescriptions: Prescription[]; orders: MedicalOrder[] }
+type MedicationDraft = { medicationName: string; dosage: string; durationDays: string; quantity: string; unit: string; instructions: string }
 type OrderDraft = { orderType: OrderType; name: string; purpose: string; instructions: string }
-const EMPTY_DRAFT: Draft = { symptoms: '', diagnosis: '', icdCode: '', treatmentPlan: '', notes: '', pulse: '78', systolic: '120', diastolic: '80', temperature: '36.7', spo2: '98', weight: '', height: '', prescriptions: [], orders: [] }
+const EMPTY_DRAFT: Draft = { illnessHistory: '', symptoms: '', diagnosis: '', icdCode: '', treatmentPlan: '', notes: '', pulse: '78', systolic: '120', diastolic: '80', temperature: '36.7', spo2: '98', weight: '', height: '', prescriptions: [], orders: [] }
+const DEMO_DRAFT: Draft = {
+  ...EMPTY_DRAFT,
+  illnessHistory: 'Tăng huyết áp 5 năm, đang điều trị thuốc đều. Không dị ứng thuốc.',
+  symptoms: 'Bệnh nhân đau đầu vùng trán, âm ỉ, tăng khi làm việc căng thẳng.\nKhông buồn nôn, không sốt. Khám thần kinh không ghi nhận bất thường.',
+  diagnosis: 'Đau đầu căng thẳng (Tension headache)',
+  prescriptions: [
+    { id: 'demo-med-1', medicationName: 'Paracetamol 500mg', dosage: '1 viên/lần', durationDays: 3, quantity: 6, unit: 'viên', instructions: 'Uống khi đau, tối đa 3 lần/ngày' },
+    { id: 'demo-med-2', medicationName: 'Betahistin 16mg', dosage: '1 viên/lần', durationDays: 5, quantity: 10, unit: 'viên', instructions: 'Sau ăn sáng và tối' },
+    { id: 'demo-med-3', medicationName: 'Vitamin B1 100mg', dosage: '1 viên/lần', durationDays: 7, quantity: 14, unit: 'viên', instructions: 'Sau ăn sáng' },
+  ],
+}
+
+const MOCK_PATIENTS = [
+  { fullName: 'Nguyễn Minh Anh', code: 'BN-MOCK-001', gender: 'Nữ' as const, dob: '1992-04-18', age: 34, phone: '0901 234 501', address: 'Đống Đa, Hà Nội', reason: 'Đau đầu, chóng mặt kéo dài', status: 'IN_PROGRESS' as const },
+  { fullName: 'Trần Quốc Bảo', code: 'BN-MOCK-002', gender: 'Nam' as const, dob: '1987-09-02', age: 38, phone: '0901 234 502', address: 'Cầu Giấy, Hà Nội', reason: 'Ho và đau họng từ hôm qua', status: 'WAITING' as const },
+  { fullName: 'Lê Thu Hà', code: 'BN-MOCK-003', gender: 'Nữ' as const, dob: '2000-01-25', age: 26, phone: '0901 234 503', address: 'Thanh Xuân, Hà Nội', reason: 'Tái khám và kiểm tra huyết áp', status: 'WAITING' as const },
+  { fullName: 'Phạm Văn Nam', code: 'BN-MOCK-004', gender: 'Nam' as const, dob: '1978-11-11', age: 47, phone: '0901 234 504', address: 'Hai Bà Trưng, Hà Nội', reason: 'Đau lưng, mỏi vai gáy', status: 'WAITING' as const },
+]
+
+function mockSlots(date: string): SlotDefinition[] {
+  return ['08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00'].map((range, index) => {
+    const [start, end] = range.split('-')
+    return { id: `mock-slot-${index + 1}`, start, end, state: index === 1 ? 'ongoing' : 'available', booked: index === 0 ? 1 : index < 4 ? 1 : 0, capacity: 4, bookable: true, room: 'P.101', date }
+  })
+}
+
+function mockAppointments(slotDefinitions: SlotDefinition[], doctorId: string, doctorName: string, date: string): Appointment[] {
+  return MOCK_PATIENTS.map((item, index) => {
+    const slot = slotDefinitions[index % slotDefinitions.length]
+    return {
+      id: `mock-appointment-${index + 1}`,
+      slotId: slot.id,
+      patient: { id: `mock-patient-${index + 1}`, code: item.code, fullName: item.fullName, phone: item.phone, email: 'mock@example.com', cccd: '', gender: item.gender, age: item.age, dob: item.dob, address: item.address, lastVisit: { date: '', doctor: 'Chưa cập nhật', reason: 'Chưa có dữ liệu' } },
+      doctor: { id: doctorId, fullName: doctorName, department: 'Nội tổng quát' },
+      appointmentType: 'SCHEDULED',
+      startTime: `${date}T${slot.start}:00`,
+      endTime: `${date}T${slot.end}:00`,
+      reason: item.reason,
+      status: item.status,
+      sequenceNumber: index + 1,
+      appointmentCode: `MOCK-${String(index + 1).padStart(3, '0')}`,
+      room: slot.room,
+      cancellationReason: '',
+      cancellationNote: '',
+    }
+  })
+}
 
 function appointmentToVisit(appointment: Appointment): WaitingAppointment {
   return {
@@ -50,10 +100,14 @@ function appointmentToVisit(appointment: Appointment): WaitingAppointment {
       chronic: 'Chưa cập nhật',
       note: '—',
     },
+    date: appointment.startTime.slice(0, 10),
     time: timeLabel(appointment.startTime),
+    endTime: timeLabel(appointment.endTime),
     reason: appointment.reason,
     status: appointment.status as AppointmentStatus,
     appointmentCode: appointment.appointmentCode,
+    sequenceNumber: appointment.sequenceNumber,
+    appointmentType: appointment.appointmentType,
   }
 }
 
@@ -75,7 +129,7 @@ export default function MedicalRecordsPage() {
   const [errors, setErrors] = useState<{ symptoms?: string; diagnosis?: string }>({})
   const [showComplete, setShowComplete] = useState(false)
   const [modal, setModal] = useState<'medication' | 'order' | null>(null)
-  const [medication, setMedication] = useState<MedicationDraft>({ medicationName: '', dosage: '', quantity: '1', unit: 'viên', instructions: '' })
+  const [medication, setMedication] = useState<MedicationDraft>({ medicationName: '', dosage: '', durationDays: '3', quantity: '1', unit: 'viên', instructions: '' })
   const [order, setOrder] = useState<OrderDraft>({ orderType: 'LAB_TEST', name: '', purpose: '', instructions: '' })
   const [toast, setToast] = useState('')
   const [isPatientDrawerOpen, setIsPatientDrawerOpen] = useState(false)
@@ -101,36 +155,47 @@ export default function MedicalRecordsPage() {
         const mappedAppointments = appointmentResponse.appointments.map((item) =>
           mapAppointment(item, mappedPatients, mappedSlots),
         )
-        setSlots(mappedSlots)
-        setAppointments(mappedAppointments)
-        setSelectedId((current) => mappedAppointments.some((item) => item.id === current)
+        const displaySlots = mappedSlots.length > 0 ? mappedSlots : mockSlots(date)
+        const displayAppointments = mappedAppointments.length > 0
+          ? mappedAppointments
+          : mockAppointments(displaySlots, user.id, currentDoctor, date)
+        setSlots(displaySlots)
+        setAppointments(displayAppointments)
+        setSelectedId((current) => displayAppointments.some((item) => item.id === current)
           ? current
-          : mappedAppointments.find((item) => item.status === 'IN_PROGRESS')?.id
-            || mappedAppointments.find((item) => item.status === 'WAITING')?.id
-            || mappedAppointments[0]?.id
+          : displayAppointments.find((item) => item.status === 'IN_PROGRESS')?.id
+            || displayAppointments.find((item) => item.status === 'WAITING')?.id
+            || displayAppointments[0]?.id
             || '')
-      } catch (error) {
-        if (!cancelled) setPageError(error instanceof Error ? error.message : 'Không thể tải lịch khám hôm nay')
+      } catch {
+        if (!cancelled) {
+          const date = todayValue()
+          const fallbackSlots = mockSlots(date)
+          setSlots(fallbackSlots)
+          setAppointments(mockAppointments(fallbackSlots, user.id, currentDoctor, date))
+          setSelectedId('mock-appointment-1')
+          setPageError('Đang sử dụng dữ liệu mẫu để kiểm thử giao diện.')
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     void load()
     return () => { cancelled = true }
-  }, [user?.id, refreshVersion])
+  }, [currentDoctor, refreshVersion, user?.id])
 
   const openVisit = async (appointment: Appointment) => {
     setStartingId(appointment.id)
     setPageError('')
     try {
       let current = appointment
-      if (appointment.status === 'WAITING') {
+      if (appointment.status === 'WAITING' && !appointment.id.startsWith('mock-')) {
         const response = await appointmentApi.start(Number(appointment.id))
         current = mapAppointment(response.appointment, appointments.map((item) => item.patient), slots)
         setAppointments((items) => items.map((item) => item.id === current.id ? current : item))
       }
       setActiveVisit(appointmentToVisit(current))
-      setDraft({ ...EMPTY_DRAFT })
+      setDraft(current.id.startsWith('mock-') ? { ...DEMO_DRAFT, prescriptions: [...DEMO_DRAFT.prescriptions] } : { ...EMPTY_DRAFT })
       setErrors({})
       setSavedAt('Chưa lưu nháp')
     } catch (error) {
@@ -144,12 +209,12 @@ export default function MedicalRecordsPage() {
   const saveDraft = () => { setSavedAt(`Đã lưu lúc ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`); setToast('Đã lưu bản nháp bệnh án') }
   const requestComplete = () => { const next: typeof errors = {}; if (!draft.symptoms.trim()) next.symptoms = 'Triệu chứng là bắt buộc'; if (!draft.diagnosis.trim()) next.diagnosis = 'Chẩn đoán là bắt buộc'; setErrors(next); if (Object.keys(next).length === 0) setShowComplete(true) }
   const completeVisit = () => { if (!activeVisit) return; setAppointments((items) => items.map((item) => item.id === activeVisit.id ? { ...item, status: 'COMPLETED' } : item)); setShowComplete(false); setActiveVisit(null); setToast('Đã hoàn thành ca khám'); setActiveTab('today') }
-  const addMedication = (event: React.FormEvent) => { event.preventDefault(); if (!medication.medicationName.trim() || !medication.instructions.trim()) return; updateDraft('prescriptions', [...draft.prescriptions, { ...medication, id: `med-${Date.now()}`, quantity: Number(medication.quantity) || 1 }]); setMedication({ medicationName: '', dosage: '', quantity: '1', unit: 'viên', instructions: '' }); setModal(null) }
+  const addMedication = (event: React.FormEvent) => { event.preventDefault(); if (!medication.medicationName.trim() || !medication.instructions.trim()) return; updateDraft('prescriptions', [...draft.prescriptions, { ...medication, id: `med-${Date.now()}`, durationDays: Number(medication.durationDays) || 0, quantity: Number(medication.quantity) || 1 }]); setMedication({ medicationName: '', dosage: '', durationDays: '3', quantity: '1', unit: 'viên', instructions: '' }); setModal(null) }
   const addOrder = (event: React.FormEvent) => { event.preventDefault(); if (!order.name.trim()) return; updateDraft('orders', [...draft.orders, { ...order, id: `order-${Date.now()}` }]); setOrder({ orderType: 'LAB_TEST', name: '', purpose: '', instructions: '' }); setModal(null) }
   const setTab = (tab: 'today' | 'schedule' | 'history') => { setActiveTab(tab); setSearchParams(tab === 'history' ? { tab: 'history' } : tab === 'schedule' ? { tab: 'schedule' } : {}) }
 
   if (activeVisit) return <>
-    <ConsultationWorkspace visit={activeVisit} doctorName={currentDoctor} draft={draft} updateDraft={updateDraft} errors={errors} savedAt={savedAt} onBack={backToDashboard} onSave={saveDraft} onComplete={requestComplete} onRemoveMedication={(id) => updateDraft('prescriptions', draft.prescriptions.filter((item) => item.id !== id))} onRemoveOrder={(id) => updateDraft('orders', draft.orders.filter((item) => item.id !== id))} onAddMedication={() => setModal('medication')} onAddOrder={() => setModal('order')} onOpenPatientDrawer={() => setIsPatientDrawerOpen(true)} />
+    <ConsultationWorkspace visit={activeVisit} doctorName={currentDoctor} draft={draft} updateDraft={updateDraft} errors={errors} savedAt={savedAt} onBack={backToDashboard} onSave={saveDraft} onComplete={requestComplete} onRemoveMedication={(id) => updateDraft('prescriptions', draft.prescriptions.filter((item) => item.id !== id))} onAddMedication={() => setModal('medication')} onOpenPatientDrawer={() => setIsPatientDrawerOpen(true)} />
     {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
     {modal === 'medication' && <MedicationModal value={medication} setValue={setMedication} onClose={() => setModal(null)} onSubmit={addMedication} />}
     {modal === 'order' && <OrderModal value={order} setValue={setOrder} onClose={() => setModal(null)} onSubmit={addOrder} />}
@@ -193,20 +258,102 @@ function DoctorQueuePanel({ appointments, selectedId, startingId, onSelect, onSt
   const queue = useMemo(() => appointments.filter((item) => (item.status === 'IN_PROGRESS' || item.status === 'WAITING') && `${item.patient.fullName} ${item.patient.phone} ${item.patient.code} ${item.sequenceNumber}`.toLowerCase().includes(query.toLowerCase())), [appointments, query])
   const selected = appointments.find((item) => item.id === selectedId) || null
   const hasActiveVisit = appointments.some((item) => item.status === 'IN_PROGRESS')
-  return <aside className="appointments-side doctor-appointments-side"><section className="queue-panel"><div className="side-panel-title"><h2>Danh sách chờ</h2><span className="queue-count">{queue.length} bệnh nhân</span></div><label className="queue-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên, SĐT, mã BN hoặc số khám..." /></label><div className="queue-tabs doctor-queue-tabs"><button className={queueTab === 'IN_PROGRESS' ? 'active' : ''} onClick={() => setQueueTab('IN_PROGRESS')}>Đang khám ({queue.filter((item) => item.status === 'IN_PROGRESS').length})</button><button className={queueTab === 'WAITING' ? 'active' : ''} onClick={() => setQueueTab('WAITING')}>Đang chờ ({queue.filter((item) => item.status === 'WAITING').length})</button></div><QueueGroup items={queue.filter((item) => item.status === queueTab)} selectedId={selectedId} onSelect={onSelect} /></section><section className="detail-panel doctor-visit-detail"><div className="side-panel-title"><h2>Thông tin lượt khám</h2></div>{!selected ? <div className="empty-context">Chọn bệnh nhân để xem thông tin.</div> : <><div className="detail-patient"><div className="detail-avatar"><UserRound size={21} /></div><div><strong>{selected.patient.fullName}</strong><span>{selected.patient.code} · Số khám {String(selected.sequenceNumber).padStart(2, '0')}</span><span>{timeLabel(selected.startTime)} - {timeLabel(selected.endTime)}</span></div></div><span className={`status-badge ${statusConfig[selected.status].className}`}>{statusConfig[selected.status].label}</span><dl className="detail-list"><div><dt>Lý do khám</dt><dd>{selected.reason || 'Chưa cập nhật'}</dd></div><div><dt>Phòng khám</dt><dd>{selected.room}</dd></div><div><dt>Mã lịch hẹn</dt><dd>{selected.appointmentCode}</dd></div></dl>{(selected.status === 'WAITING' || selected.status === 'IN_PROGRESS') && <div className="detail-actions"><button className="btn btn-primary btn-sm doctor-start-button" disabled={Boolean(startingId) || (selected.status === 'WAITING' && hasActiveVisit)} onClick={() => onStart(selected)}>{startingId === selected.id ? 'Đang xử lý...' : selected.status === 'IN_PROGRESS' ? 'Tiếp tục khám' : 'Bắt đầu khám'}</button></div>}</>}</section></aside>
+  return <aside className="appointments-side doctor-appointments-side">
+    <section className="queue-panel"><div className="side-panel-title"><h2>Danh sách chờ</h2><span className="queue-count">{queue.length} bệnh nhân</span></div><label className="queue-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên, SĐT, mã BN hoặc số khám..." /></label><div className="queue-tabs doctor-queue-tabs"><button className={queueTab === 'IN_PROGRESS' ? 'active' : ''} onClick={() => setQueueTab('IN_PROGRESS')}>Đang khám ({queue.filter((item) => item.status === 'IN_PROGRESS').length})</button><button className={queueTab === 'WAITING' ? 'active' : ''} onClick={() => setQueueTab('WAITING')}>Đang chờ ({queue.filter((item) => item.status === 'WAITING').length})</button></div><QueueGroup items={queue.filter((item) => item.status === queueTab)} selectedId={selectedId} onSelect={onSelect} /></section>
+    <section className="detail-panel doctor-visit-detail">
+      <div className="side-panel-title"><h2>Thông tin lượt khám</h2></div>
+      {!selected ? <div className="empty-context">Chọn bệnh nhân để xem thông tin.</div> : <>
+        <div className="detail-patient">
+          <div className="detail-avatar doctor-detail-avatar">{patientInitials(selected.patient.fullName)}</div>
+          <div>
+            <strong>{selected.patient.fullName}</strong>
+            <span>{selected.patient.gender} · {selected.patient.age} tuổi · {selected.patient.code}</span>
+            <a href={`tel:${selected.patient.phone}`}>{selected.patient.phone}</a>
+          </div>
+        </div>
+        <span className={`status-badge ${statusConfig[selected.status].className}`}>{statusConfig[selected.status].label}</span>
+        <dl className="detail-list doctor-appointment-detail-list">
+          <div><dt>Số khám</dt><dd>{String(selected.sequenceNumber).padStart(3, '0')}</dd></div>
+          <div><dt>Ngày khám</dt><dd>{shortDateLabel(selected.startTime.slice(0, 10))}</dd></div>
+          <div><dt>Khung giờ</dt><dd>{timeLabel(selected.startTime)} - {timeLabel(selected.endTime)}</dd></div>
+          <div><dt>Bác sĩ</dt><dd>{selected.doctor.fullName}</dd></div>
+          <div><dt>Khoa</dt><dd>{selected.doctor.department}</dd></div>
+          <div><dt>Loại lịch</dt><dd>{selected.appointmentType === 'WALK_IN' ? 'Khám ngay' : 'Đặt lịch trước'}</dd></div>
+          <div><dt>Hình thức</dt><dd>{selected.insuranceNumber ? 'BHYT' : 'Dịch vụ'}</dd></div>
+          {selected.insuranceNumber && <div><dt>Mã thẻ BHYT</dt><dd>{selected.insuranceNumber}</dd></div>}
+          <div><dt>Phòng khám</dt><dd>{selected.room}</dd></div>
+          <div className="detail-reason-row"><dt>Lý do khám</dt><dd>{selected.reason || 'Chưa cập nhật'}</dd></div>
+          <div><dt>Mã lịch hẹn</dt><dd>{selected.appointmentCode}</dd></div>
+        </dl>
+        {(selected.status === 'WAITING' || selected.status === 'IN_PROGRESS') && <div className="detail-actions"><button className="btn btn-primary btn-sm doctor-start-button" disabled={Boolean(startingId) || (selected.status === 'WAITING' && hasActiveVisit)} onClick={() => onStart(selected)}>{startingId === selected.id ? 'Đang xử lý...' : selected.status === 'IN_PROGRESS' ? 'Tiếp tục khám' : 'Bắt đầu khám'}</button></div>}
+      </>}
+    </section>
+  </aside>
 }
 
 function HistoryPanel({ visits }: { visits: WaitingAppointment[] }) { return <section className="doctor-queue-card history-panel"><div className="doctor-section-heading"><div><h3>Lịch sử khám</h3><p>Các ca khám đã hoàn tất trong hôm nay.</p></div><div className="history-search-box"><Search size={15} /><input placeholder="Tìm bệnh nhân" /></div></div>{visits.length === 0 ? <div className="doctor-empty"><FileClock size={38} /><strong>Chưa có ca khám hoàn tất</strong></div> : visits.map((visit) => <div className="history-row" key={visit.id}><span>{visit.time}</span><strong>{visit.patient.fullName}</strong><span>{visit.patient.code}</span><span>{visit.reason}</span><span className="status-pill completed">Đã hoàn tất</span></div>)}</section> }
 
-function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, savedAt, onBack, onSave, onComplete, onRemoveMedication, onRemoveOrder, onAddMedication, onAddOrder, onOpenPatientDrawer }: { visit: WaitingAppointment; doctorName: string; draft: Draft; updateDraft: <K extends keyof Draft>(key: K, value: Draft[K]) => void; errors: { symptoms?: string; diagnosis?: string }; savedAt: string; onBack: () => void; onSave: () => void; onComplete: () => void; onRemoveMedication: (id: string) => void; onRemoveOrder: (id: string) => void; onAddMedication: () => void; onAddOrder: () => void; onOpenPatientDrawer: () => void }) { const patient = visit.patient; return <div className="consultation-page"><div className="consultation-topbar"><button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Quay lại Khám bệnh</button><div className="consultation-top-actions"><button className="btn btn-secondary btn-sm" onClick={onOpenPatientDrawer}><UserRound size={15} /> Xem hồ sơ bệnh nhân</button><button className="icon-button"><MoreHorizontal size={17} /></button></div></div><section className="patient-header-card"><div className="patient-header-main"><div className="patient-large-avatar">NA</div><div><h1>{patient.fullName}</h1><p>{patient.gender} · {patient.age} tuổi</p><div className="patient-quick-info"><span>Mã BN: <b>{patient.code}</b></span><span>{patient.phone}</span><span>{patient.address}</span></div></div></div><div className="patient-appointment-meta"><div><span>Mã lịch hẹn</span><strong>{visit.appointmentCode}</strong></div><div><span>Thời gian hẹn</span><strong>18/07/2026 {visit.time}</strong></div><div><span>Trạng thái</span><b className="status-pill in-progress">ĐANG KHÁM</b></div><div><span>Bác sĩ</span><strong>BS. {doctorName}</strong></div></div></section><div className="clinical-warning"><AlertTriangle size={17} /><span><strong>Dị ứng:</strong> {patient.allergy}</span></div><div className="consultation-tabs"><button className="active">Thông tin khám</button><button>Tiền sử bệnh</button><button>Lịch sử khám</button><button>Ghi chú</button></div><div className="consultation-grid"><aside className="clinical-sidebar"><ClinicalSummary patient={patient} onOpenDrawer={onOpenPatientDrawer} /><div className="visit-reason-card"><h3>Lý do khám</h3><p>{visit.reason}</p></div></aside><main className="consultation-form"><section className="consultation-section"><SectionTitle icon={<Stethoscope size={17} />} title="Nội dung khám" /><label className="clinical-label">Triệu chứng *<textarea className={errors.symptoms ? 'has-error' : ''} rows={4} value={draft.symptoms} onChange={(e) => updateDraft('symptoms', e.target.value)} placeholder="Mô tả triệu chứng, diễn biến bệnh..." />{errors.symptoms && <small className="field-error">{errors.symptoms}</small>}</label><div className="vitals-block"><div className="subsection-title"><span>Dấu hiệu sinh tồn</span><small>Tùy chọn</small></div><div className="vitals-grid">{([['pulse', 'Mạch', 'lần/phút'], ['systolic', 'HA tâm thu', 'mmHg'], ['diastolic', 'HA tâm trương', 'mmHg'], ['temperature', 'Nhiệt độ', '°C'], ['spo2', 'SpO2', '%'], ['weight', 'Cân nặng', 'kg'], ['height', 'Chiều cao', 'cm']] as const).map(([key, label, unit]) => <label key={key}>{label}<div className="input-with-unit"><input type="number" value={draft[key]} onChange={(e) => updateDraft(key, e.target.value)} /><span>{unit}</span></div></label>)}</div></div><div className="diagnosis-grid"><label className="clinical-label">Chẩn đoán *<input className={errors.diagnosis ? 'has-error' : ''} value={draft.diagnosis} onChange={(e) => updateDraft('diagnosis', e.target.value)} placeholder="Nhập chẩn đoán" />{errors.diagnosis && <small className="field-error">{errors.diagnosis}</small>}</label><label className="clinical-label">Mã ICD<input value={draft.icdCode} onChange={(e) => updateDraft('icdCode', e.target.value)} placeholder="Ví dụ: F43.9" /></label></div><label className="clinical-label">Hướng điều trị / Kế hoạch<textarea rows={3} value={draft.treatmentPlan} onChange={(e) => updateDraft('treatmentPlan', e.target.value)} placeholder="Nhập kế hoạch điều trị..." /></label></section><PrescriptionSection items={draft.prescriptions} onAdd={onAddMedication} onRemove={onRemoveMedication} /><OrdersSection items={draft.orders} onAdd={onAddOrder} onRemove={onRemoveOrder} /><section className="consultation-section"><label className="clinical-label">Ghi chú thêm<textarea rows={3} value={draft.notes} onChange={(e) => updateDraft('notes', e.target.value)} placeholder="Ghi chú nội bộ cho ca khám" /></label></section></main></div><div className="consultation-actionbar"><div className="save-state"><button className="btn btn-secondary" onClick={onSave}><Save size={16} /> Lưu nháp</button><span><Check size={14} /> {savedAt}</span></div><button className="btn btn-primary btn-lg" onClick={onComplete}>Hoàn thành ca khám</button></div></div> }
+function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, savedAt, onBack, onSave, onComplete, onRemoveMedication, onAddMedication, onOpenPatientDrawer }: { visit: WaitingAppointment; doctorName: string; draft: Draft; updateDraft: <K extends keyof Draft>(key: K, value: Draft[K]) => void; errors: { symptoms?: string; diagnosis?: string }; savedAt: string; onBack: () => void; onSave: () => void; onComplete: () => void; onRemoveMedication: (id: string) => void; onAddMedication: () => void; onOpenPatientDrawer: () => void }) {
+  const patient = visit.patient
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ history: true, examination: true, vitals: true, diagnosis: true, prescription: true })
+  const toggleSection = (key: string) => setOpenSections((current) => ({ ...current, [key]: !current[key] }))
+  return <div className="consultation-page consultation-redesign">
+    <div className="consultation-topbar">
+      <button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Quay lại Khám bệnh</button>
+      <div className="consultation-top-actions"><button className="btn btn-secondary btn-sm" onClick={onOpenPatientDrawer}><UserRound size={15} /> Xem hồ sơ bệnh nhân</button><button className="icon-button" aria-label="Thao tác khác"><MoreHorizontal size={17} /></button></div>
+    </div>
+    <section className="patient-header-card consultation-patient-header">
+      <div className="patient-header-main"><div className="patient-large-avatar">{patientInitials(patient.fullName)}</div><div><h1>{patient.fullName}</h1><p>{patient.gender} · {patient.age} tuổi · {patient.phone}</p><div className="patient-quick-info"><span>Mã BN: <b>{patient.code}</b></span><span>{patient.address}</span></div></div></div>
+      <div className="patient-appointment-meta">
+        <div><span><CalendarDays size={14} /> Mã lịch hẹn</span><strong>{visit.appointmentCode}</strong></div>
+        <div><span><UserRound size={14} /> Bác sĩ</span><strong>BS. {doctorName}</strong></div>
+        <div><span><Clock3 size={14} /> Thời gian</span><strong>{visit.time} - {visit.endTime}, {shortDateLabel(visit.date)}</strong></div>
+        <div><span><Clock3 size={14} /> Trạng thái</span><b className="status-pill in-progress">ĐANG KHÁM</b></div>
+      </div>
+    </section>
+    <div className="consultation-workspace-grid">
+      <aside className="visit-overview-card">
+        <section><h2><CalendarDays size={17} /> Thông tin cuộc hẹn</h2><dl><div><dt>Lý do khám</dt><dd>{visit.reason}</dd></div><div><dt>Khung giờ</dt><dd>{visit.time} - {visit.endTime}</dd></div><div><dt>Số khám</dt><dd>{String(visit.sequenceNumber).padStart(2, '0')}</dd></div><div><dt>Loại khám</dt><dd>{visit.appointmentType === 'WALK_IN' ? 'Khám ngay' : 'Khám thường'}</dd></div></dl></section>
+        <section className="visit-history-summary"><div className="visit-history-title"><h2><History size={17} /> Lịch sử khám</h2><button type="button" onClick={onOpenPatientDrawer}>Xem tất cả</button></div><div className="visit-history-list"><article><strong>18/05/2026</strong><span>Đau đầu, chóng mặt</span><b>Đã khám</b></article><article><strong>10/03/2026</strong><span>Khám định kỳ</span><b>Đã khám</b></article><article><strong>12/12/2025</strong><span>Đau dạ dày</span><b>Đã khám</b></article></div></section>
+      </aside>
+      <main className="consultation-sheet">
+        <div className="consultation-sheet-tabs"><button className="active">Phiếu khám hiện tại</button><button onClick={onOpenPatientDrawer}>Lịch sử khám</button></div>
+        <ClinicalAccordionSection sectionKey="history" number="1" title="Tiền sử bệnh" icon={<ClipboardList size={17} />} open={openSections.history} onToggle={toggleSection}>
+          <textarea rows={3} value={draft.illnessHistory} onChange={(event) => updateDraft('illnessHistory', event.target.value)} placeholder="Nhập tiền sử bệnh, dị ứng và bệnh nền của bệnh nhân..." />
+        </ClinicalAccordionSection>
+        <ClinicalAccordionSection sectionKey="examination" number="2" title="Diễn biến khám" icon={<FileText size={17} />} open={openSections.examination} onToggle={toggleSection}>
+          <textarea className={errors.symptoms ? 'has-error' : ''} rows={3} value={draft.symptoms} onChange={(event) => updateDraft('symptoms', event.target.value)} placeholder="Mô tả triệu chứng, diễn biến bệnh và ghi nhận khi khám..." />
+          {errors.symptoms && <small className="field-error">{errors.symptoms}</small>}
+        </ClinicalAccordionSection>
+        <ClinicalAccordionSection sectionKey="vitals" number="3" title="Dấu hiệu sinh tồn" icon={<Activity size={17} />} open={openSections.vitals} onToggle={toggleSection}>
+          <div className="consultation-vitals-grid">{([['pulse', 'Mạch (lần/phút)'], ['systolic', 'Huyết áp tâm thu (mmHg)'], ['diastolic', 'Huyết áp tâm trương (mmHg)'], ['temperature', 'Nhiệt độ (°C)'], ['spo2', 'SpO₂ (%)'], ['weight', 'Cân nặng (kg)']] as const).map(([key, label]) => <label key={key}><span>{label}</span><input type="number" value={draft[key]} placeholder="Không đo" onChange={(event) => updateDraft(key, event.target.value)} /></label>)}</div>
+        </ClinicalAccordionSection>
+        <ClinicalAccordionSection sectionKey="diagnosis" number="4" title="Chẩn đoán" icon={<Stethoscope size={17} />} open={openSections.diagnosis} onToggle={toggleSection}>
+          <textarea className={errors.diagnosis ? 'has-error' : ''} rows={2} value={draft.diagnosis} onChange={(event) => updateDraft('diagnosis', event.target.value)} placeholder="Nhập chẩn đoán..." />
+          {errors.diagnosis && <small className="field-error">{errors.diagnosis}</small>}
+        </ClinicalAccordionSection>
+        <ClinicalAccordionSection sectionKey="prescription" number="5" title="Đơn thuốc" icon={<Pill size={17} />} open={openSections.prescription} onToggle={toggleSection} action={<button type="button" className="clinical-add-medicine" onClick={(event) => { event.stopPropagation(); onAddMedication() }}><Plus size={15} /> Thêm thuốc</button>}>
+          <PrescriptionSection items={draft.prescriptions} onAdd={onAddMedication} onRemove={onRemoveMedication} embedded />
+        </ClinicalAccordionSection>
+        <div className="consultation-sheet-actions"><div><button className="btn btn-outline-primary" onClick={onSave}><Save size={16} /> Lưu nháp</button><span><Check size={14} /> {savedAt}</span></div><button className="btn btn-primary" onClick={onComplete}><PenLine size={16} /> Ký và hoàn thành khám</button></div>
+      </main>
+    </div>
+  </div>
+}
 
-function ClinicalSummary({ patient, onOpenDrawer }: { patient: Patient; onOpenDrawer: () => void }) { return <section className="clinical-summary-card"><div className="doctor-section-heading"><h3>Thông tin bệnh nhân</h3></div><dl className="clinical-summary-list"><div><dt>Dị ứng</dt><dd className={patient.allergy !== 'Không ghi nhận' ? 'warning-text' : ''}>{patient.allergy}</dd></div><div><dt>Nhóm máu</dt><dd>{patient.bloodType}</dd></div><div><dt>Tiền sử bệnh</dt><dd>{patient.history}</dd></div><div><dt>Bệnh nền khác</dt><dd>{patient.chronic}</dd></div><div><dt>Ghi chú</dt><dd>{patient.note}</dd></div></dl><button className="drawer-open-button" onClick={onOpenDrawer}>Xem chi tiết hồ sơ</button></section> }
+function ClinicalAccordionSection({ sectionKey, number, title, icon, open, onToggle, action, children }: { sectionKey: string; number: string; title: string; icon: React.ReactNode; open: boolean; onToggle: (key: string) => void; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section className={`clinical-accordion ${open ? 'open' : ''}`}><div className="clinical-accordion-header" role="button" tabIndex={0} onClick={() => onToggle(sectionKey)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onToggle(sectionKey) }}><span className="clinical-accordion-icon">{icon}</span><strong>{number}. {title}</strong><div className="clinical-accordion-actions">{action}{open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}</div></div>{open && <div className="clinical-accordion-body">{children}</div>}</section>
+}
+
 function PatientDetailDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) { const [expanded, setExpanded] = useState<'overview' | 'history' | 'medications' | 'orders'>('overview'); return <div className="consultation-drawer-layer"><aside className="consultation-drawer"><div className="consultation-drawer-header"><div><span>Hồ sơ bệnh nhân</span><h2>{patient.fullName}</h2></div><button className="icon-button" onClick={onClose} aria-label="Đóng hồ sơ"><X size={18} /></button></div><div className="consultation-drawer-profile"><div className="patient-large-avatar">{patient.fullName.split(' ').slice(-1)[0][0]}</div><div><strong>{patient.gender} · {patient.age} tuổi</strong><span>{patient.dob}</span><span>{patient.code} · {patient.phone}</span><span>{patient.address}</span></div></div><div className="consultation-drawer-content"><DrawerSection title="Tổng quan" expanded={expanded === 'overview'} onToggle={() => setExpanded(expanded === 'overview' ? 'history' : 'overview')} action=""><div className="drawer-summary-grid"><div><span>Nhóm máu</span><strong>{patient.bloodType}</strong></div><div><span>Dị ứng</span><strong className={patient.allergy !== 'Không ghi nhận' ? 'warning-text' : ''}>{patient.allergy}</strong></div><div><span>Bệnh nền</span><strong>{patient.chronic}</strong></div><div><span>Ghi chú</span><strong>{patient.note}</strong></div></div><div className="drawer-overview-stats"><div><span>Tổng số lần khám</span><strong>12</strong></div><div><span>Lần khám gần nhất</span><strong>18/07/2026</strong></div><div><span>Bác sĩ khám nhiều nhất</span><strong>BS. Nguyễn Minh Đức</strong></div></div><div className="drawer-note-card"><span>Ghi chú</span><p>{patient.note}</p></div></DrawerSection><DrawerSection title="Lịch sử khám" expanded={expanded === 'history'} onToggle={() => setExpanded(expanded === 'history' ? 'overview' : 'history')} action="Xem 12 lần khám">{expanded === 'history' && <div className="drawer-history-list"><div><strong>18/07/2026</strong><span>BS. Nguyễn Minh Đức · Đau đầu, chóng mặt</span><b>Khám định kỳ</b></div><div><strong>02/06/2026</strong><span>BS. Trần Thị Mai · Tái khám</span><b>Viêm dạ dày</b></div></div>}</DrawerSection><DrawerSection title="Đơn thuốc gần nhất" expanded={expanded === 'medications'} onToggle={() => setExpanded(expanded === 'medications' ? 'overview' : 'medications')} action="Xem 8 đơn thuốc">{expanded === 'medications' && <div className="drawer-history-list"><div><strong>18/07/2026</strong><span>BS. Nguyễn Minh Đức</span><b>Chưa có đơn thuốc</b></div></div>}</DrawerSection><DrawerSection title="Chỉ định gần nhất" expanded={expanded === 'orders'} onToggle={() => setExpanded(expanded === 'overview' ? 'overview' : 'orders')} action="Xem 8 chỉ định">{expanded === 'orders' && <div className="drawer-history-list"><div><strong>18/07/2026</strong><span>Xét nghiệm</span><b>Chưa có chỉ định</b></div></div>}</DrawerSection></div><div className="consultation-drawer-footer"><button className="btn btn-secondary btn-block" onClick={onClose}>Đóng</button></div></aside></div> }
 function DrawerSection({ title, action, expanded, onToggle, children }: { title: string; action: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) { return <section className={`drawer-accordion ${expanded ? 'expanded' : ''}`}><button className="drawer-accordion-trigger" onClick={onToggle}><strong>{title}</strong><span>{action}</span><b>{expanded ? '⌃' : '⌄'}</b></button>{expanded && <div className="drawer-accordion-body">{children}</div>}</section> }
 function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="consultation-section-title">{icon}<h2>{title}</h2></div> }
-function PrescriptionSection({ items, onAdd, onRemove }: { items: Prescription[]; onAdd: () => void; onRemove: (id: string) => void }) { return <section className="consultation-section compact-section"><SectionTitle icon={<FileText size={17} />} title="Đơn thuốc" /><button className="section-add-button" onClick={onAdd}><Plus size={15} /> Thêm thuốc</button>{items.length === 0 ? <div className="section-empty">Chưa có thuốc được kê. Đơn thuốc là tùy chọn.</div> : <div className="clinical-table"><div className="clinical-table-head"><span>Tên thuốc</span><span>Liều dùng</span><span>Số lượng</span><span>Cách dùng</span><span /></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{item.medicationName}</strong><span>{item.dosage || '—'}</span><span>{item.quantity} {item.unit}</span><span>{item.instructions}</span><button onClick={() => onRemove(item.id)} aria-label="Xóa thuốc"><Trash2 size={15} /></button></div>)}</div>}</section> }
-function OrdersSection({ items, onAdd, onRemove }: { items: MedicalOrder[]; onAdd: () => void; onRemove: (id: string) => void }) { return <section className="consultation-section compact-section"><SectionTitle icon={<FlaskConical size={17} />} title="Chỉ định" /><button className="section-add-button" onClick={onAdd}><Plus size={15} /> Thêm chỉ định</button>{items.length === 0 ? <div className="section-empty">Chưa có chỉ định. Chỉ định là tùy chọn.</div> : <div className="clinical-table"><div className="clinical-table-head"><span>Loại</span><span>Tên chỉ định</span><span>Mục đích</span><span>Hướng dẫn</span><span /></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{orderTypeLabels[item.orderType]}</strong><span>{item.name}</span><span>{item.purpose || '—'}</span><span>{item.instructions || '—'}</span><button onClick={() => onRemove(item.id)} aria-label="Xóa chỉ định"><Trash2 size={15} /></button></div>)}</div>}</section> }
+function PrescriptionSection({ items, onAdd, onRemove, embedded = false }: { items: Prescription[]; onAdd: () => void; onRemove: (id: string) => void; embedded?: boolean }) {
+  const content = items.length === 0 ? <div className="section-empty">Chưa có thuốc được kê. Đơn thuốc là tùy chọn.</div> : <div className="clinical-table prescription-table"><div className="clinical-table-head"><span>Tên thuốc</span><span>Liều dùng</span><span>Số ngày</span><span>Số lượng</span><span>Cách dùng</span><span>Thao tác</span></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{item.medicationName}</strong><span>{item.dosage || '—'}</span><span>{item.durationDays || '—'}</span><span>{item.quantity} {item.unit}</span><span>{item.instructions}</span><span className="prescription-row-actions"><button type="button" aria-label="Sửa thuốc"><PenLine size={14} /></button><button type="button" onClick={() => onRemove(item.id)} aria-label="Xóa thuốc"><Trash2 size={14} /></button></span></div>)}</div>
+  if (embedded) return content
+  return <section className="consultation-section compact-section"><SectionTitle icon={<FileText size={17} />} title="Đơn thuốc" /><button className="section-add-button" onClick={onAdd}><Plus size={15} /> Thêm thuốc</button>{content}</section>
+}
 
-function ConfirmModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) { return <div className="modal-backdrop"><div className="doctor-confirm-modal"><div className="confirm-icon"><CheckCircle2 size={25} /></div><h2>Hoàn thành ca khám?</h2><p>Sau khi hoàn thành, hồ sơ khám sẽ được khóa và bệnh nhân được chuyển sang trạng thái hoàn tất.</p><div className="modal-footer"><button className="btn btn-secondary" onClick={onCancel}>Quay lại</button><button className="btn btn-primary" onClick={onConfirm}>Hoàn thành</button></div></div></div> }
-function MedicationModal({ value, setValue, onClose, onSubmit }: { value: MedicationDraft; setValue: React.Dispatch<React.SetStateAction<MedicationDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <div className="modal-backdrop"><form className="doctor-form-modal" onSubmit={onSubmit}><div className="modal-header"><div><h2>Thêm thuốc</h2><p>Nhập thông tin thuốc cho đơn khám.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="doctor-modal-fields"><label>Tên thuốc *<input autoFocus value={value.medicationName} onChange={(e) => setValue((v) => ({ ...v, medicationName: e.target.value }))} placeholder="Ví dụ: Paracetamol 500mg" /></label><label>Liều dùng<input value={value.dosage} onChange={(e) => setValue((v) => ({ ...v, dosage: e.target.value }))} placeholder="500mg" /></label><label>Số lượng *<input type="number" min="1" value={value.quantity} onChange={(e) => setValue((v) => ({ ...v, quantity: e.target.value }))} /></label><label>Đơn vị<input value={value.unit} onChange={(e) => setValue((v) => ({ ...v, unit: e.target.value }))} /></label><label className="span-two">Cách dùng *<textarea rows={2} value={value.instructions} onChange={(e) => setValue((v) => ({ ...v, instructions: e.target.value }))} placeholder="Uống 1 viên sau ăn" /></label></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button><button className="btn btn-primary" type="submit">Thêm thuốc</button></div></form></div> }
+function ConfirmModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) { return <div className="modal-backdrop"><div className="doctor-confirm-modal"><div className="confirm-icon"><CheckCircle2 size={25} /></div><h2>Ký và hoàn thành khám?</h2><p>Sau khi ký, phiếu khám sẽ được khóa và bệnh nhân được chuyển sang trạng thái hoàn tất.</p><div className="modal-footer"><button className="btn btn-secondary" onClick={onCancel}>Quay lại</button><button className="btn btn-primary" onClick={onConfirm}>Ký và hoàn thành</button></div></div></div> }
+function MedicationModal({ value, setValue, onClose, onSubmit }: { value: MedicationDraft; setValue: React.Dispatch<React.SetStateAction<MedicationDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <div className="modal-backdrop"><form className="doctor-form-modal" onSubmit={onSubmit}><div className="modal-header"><div><h2>Thêm thuốc</h2><p>Nhập thông tin thuốc cho đơn khám.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="doctor-modal-fields"><label>Tên thuốc *<input autoFocus value={value.medicationName} onChange={(e) => setValue((v) => ({ ...v, medicationName: e.target.value }))} placeholder="Ví dụ: Paracetamol 500mg" /></label><label>Liều dùng<input value={value.dosage} onChange={(e) => setValue((v) => ({ ...v, dosage: e.target.value }))} placeholder="1 viên/lần" /></label><label>Số ngày<input type="number" min="0" value={value.durationDays} onChange={(e) => setValue((v) => ({ ...v, durationDays: e.target.value }))} /></label><label>Số lượng *<input type="number" min="1" value={value.quantity} onChange={(e) => setValue((v) => ({ ...v, quantity: e.target.value }))} /></label><label>Đơn vị<input value={value.unit} onChange={(e) => setValue((v) => ({ ...v, unit: e.target.value }))} /></label><label className="span-two">Cách dùng *<textarea rows={2} value={value.instructions} onChange={(e) => setValue((v) => ({ ...v, instructions: e.target.value }))} placeholder="Uống 1 viên sau ăn" /></label></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button><button className="btn btn-primary" type="submit">Thêm thuốc</button></div></form></div> }
 function OrderModal({ value, setValue, onClose, onSubmit }: { value: OrderDraft; setValue: React.Dispatch<React.SetStateAction<OrderDraft>>; onClose: () => void; onSubmit: (event: React.FormEvent) => void }) { return <div className="modal-backdrop"><form className="doctor-form-modal" onSubmit={onSubmit}><div className="modal-header"><div><h2>Thêm chỉ định</h2><p>Ghi nhận xét nghiệm hoặc chỉ định cần thực hiện.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="doctor-modal-fields"><label>Loại chỉ định<select value={value.orderType} onChange={(e) => setValue((v) => ({ ...v, orderType: e.target.value as OrderType }))}>{Object.entries(orderTypeLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label className="span-two">Tên chỉ định *<input autoFocus value={value.name} onChange={(e) => setValue((v) => ({ ...v, name: e.target.value }))} placeholder="Ví dụ: Công thức máu" /></label><label>Mục đích<input value={value.purpose} onChange={(e) => setValue((v) => ({ ...v, purpose: e.target.value }))} placeholder="Đánh giá thiếu máu" /></label><label>Hướng dẫn / Ghi chú<input value={value.instructions} onChange={(e) => setValue((v) => ({ ...v, instructions: e.target.value }))} placeholder="Nhịn ăn sáng" /></label></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button><button className="btn btn-primary" type="submit">Thêm chỉ định</button></div></form></div> }

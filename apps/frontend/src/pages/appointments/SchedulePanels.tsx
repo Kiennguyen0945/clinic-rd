@@ -81,6 +81,8 @@ export function SlotRow({
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={`slot-appointments-${slot.id}`}
           >
             Xem lịch{" "}
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -97,7 +99,7 @@ export function SlotRow({
         </div>
       </div>
       {expanded && (
-        <div className="slot-appointment-panel">
+        <div className="slot-appointment-panel" id={`slot-appointments-${slot.id}`}>
           <div className="slot-appointment-head">
             <span>Số khám</span>
             <span>Bệnh nhân</span>
@@ -355,4 +357,3 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
