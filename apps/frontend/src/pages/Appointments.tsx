@@ -1110,7 +1110,7 @@ export default function AppointmentsPage() {
       </div>
       {pageError && <div className="form-error">{pageError}</div>}
       <main className="appointments-grid">
-        <section className="slot-panel">
+        <section className="slot-panel reception-slot-panel">
           <div className="slot-panel-header">
             <div>
               <h2>{selectedDoctor.fullName}</h2>

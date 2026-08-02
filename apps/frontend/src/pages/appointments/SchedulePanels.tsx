@@ -26,6 +26,7 @@ export function SlotRow({
   onSelectAppointment,
   onCreate,
   receptionClosed,
+  showCreateAction = true,
 }: {
   slot: SlotDefinition;
   appointments: Appointment[];
@@ -35,6 +36,7 @@ export function SlotRow({
   onSelectAppointment: (id: string) => void;
   onCreate: (slot: SlotDefinition) => void;
   receptionClosed: boolean;
+  showCreateAction?: boolean;
 }) {
   const remaining = slot.capacity - slot.booked;
   const canCreate =
@@ -83,7 +85,7 @@ export function SlotRow({
             Xem lịch{" "}
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          {canCreate && (
+          {showCreateAction && canCreate && (
             <button
               className="btn btn-outline-primary btn-sm"
               disabled={receptionClosed}
@@ -353,5 +355,4 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
 
