@@ -201,6 +201,8 @@
 .drawer-history-empty, .drawer-history-error { padding:22px 12px; border:1px dashed #d5dfeb; border-radius:8px; color:#7a8aa2; background:#fff; font-size:11px; text-align:center; }
 .drawer-history-error { border-color:#fecaca; color:#b91c1c; background:#fef2f2; }
 .patient-profile-drawer .consultation-drawer-footer { padding:12px 20px; background:#fff; }
+.patient-drawer-management-actions { display:flex; gap:10px; padding:12px 20px; border-top:1px solid #dfe6ef; background:#fff; }
+.patient-drawer-management-actions .btn { flex:1; justify-content:center; }
 @media (max-width:560px) {
   .patient-overview-card dl { grid-template-columns:1fr; }
   .patient-overview-card dl > div:nth-child(even) { border-left:0; padding-left:10px; }

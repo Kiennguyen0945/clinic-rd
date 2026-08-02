@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Activity, ArrowLeft, Cake, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp,
+  Activity, ArrowLeft, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp,
   ClipboardList, Clock3, FileClock, FileText, History, LockKeyhole,
-  MapPin, MoreHorizontal, PenLine, Phone, Pill, Plus, RefreshCw, Save, Search, Stethoscope,
+  MoreHorizontal, PenLine, Pill, Plus, RefreshCw, Save, Search, Stethoscope,
   Trash2, UserRound, X,
 } from 'lucide-react'
 import { appointmentApi } from '../lib/appointmentsApi'
 import { medicalRecordsApi } from '../lib/medicalRecordsApi'
 import type { ApiMedicalRecord, ApiMedicalRecordHistoryItem } from '../lib/medicalRecordsApi'
+import PatientProfileDrawer from '../components/PatientProfileDrawer'
 import { useAuthStore } from '../store'
 import { QueueGroup, SlotRow } from './appointments/SchedulePanels'
 import {
@@ -412,7 +413,7 @@ export default function MedicalRecordsPage() {
     {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
     {modal === 'medication' && <MedicationModal editing={Boolean(editingMedicationId)} value={medication} setValue={setMedication} onClose={closeMedicationModal} onSubmit={addMedication} />}
     {modal === 'order' && <OrderModal value={order} setValue={setOrder} onClose={() => setModal(null)} onSubmit={addOrder} />}
-    {profilePatient && <PatientDetailDrawer patient={profilePatient} onClose={() => setProfilePatient(null)} onOpenMedicalRecord={(record) => openHistoryMedicalRecord(profilePatient, record)} />}
+    {profilePatient && <PatientProfileDrawer patient={profilePatient} onClose={() => setProfilePatient(null)} onOpenMedicalRecord={(record) => openHistoryMedicalRecord(profilePatient, record)} />}
     {toast && <div className="doctor-toast"><CheckCircle2 size={16} /> {toast}</div>}
   </>
   return <>
@@ -427,7 +428,7 @@ export default function MedicalRecordsPage() {
     {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
     {modal === 'medication' && <MedicationModal editing={Boolean(editingMedicationId)} value={medication} setValue={setMedication} onClose={closeMedicationModal} onSubmit={addMedication} />}
     {modal === 'order' && <OrderModal value={order} setValue={setOrder} onClose={() => setModal(null)} onSubmit={addOrder} />}
-    {profilePatient && <PatientDetailDrawer patient={profilePatient} onClose={() => setProfilePatient(null)} onOpenMedicalRecord={(record) => openHistoryMedicalRecord(profilePatient, record)} />}
+    {profilePatient && <PatientProfileDrawer patient={profilePatient} onClose={() => setProfilePatient(null)} onOpenMedicalRecord={(record) => openHistoryMedicalRecord(profilePatient, record)} />}
   </>
 }
 
@@ -563,39 +564,6 @@ function ClinicalAccordionSection({ sectionKey, number, title, icon, open, onTog
   return <section className={`clinical-accordion ${open ? 'open' : ''}`}><div className="clinical-accordion-header" role="button" tabIndex={0} onClick={() => onToggle(sectionKey)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onToggle(sectionKey) }}><span className="clinical-accordion-icon">{icon}</span><strong>{number}. {title}</strong><div className="clinical-accordion-actions">{action}{open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}</div></div>{open && <div className="clinical-accordion-body">{children}</div>}</section>
 }
 
-function PatientDetailDrawer({ patient, onClose, onOpenMedicalRecord }: { patient: Patient; onClose: () => void; onOpenMedicalRecord: (record: ApiMedicalRecordHistoryItem) => void }) {
-  const [overviewOpen, setOverviewOpen] = useState(true)
-  const [historyOpen, setHistoryOpen] = useState(true)
-  const [history, setHistory] = useState<ApiMedicalRecordHistoryItem[]>([])
-  const [historyLoading, setHistoryLoading] = useState(() => Boolean(patient.id && !patient.id.startsWith('mock-')))
-  const [historyError, setHistoryError] = useState('')
-  useEffect(() => {
-    if (!patient.id || patient.id.startsWith('mock-')) return
-    let cancelled = false
-    const loadHistory = async () => {
-      try {
-        const records = await medicalRecordsApi.historyByPatient(Number(patient.id))
-        if (!cancelled) setHistory(records)
-      } catch (error) {
-        if (!cancelled) setHistoryError(error instanceof Error ? error.message : 'Không thể tải lịch sử khám')
-      } finally {
-        if (!cancelled) setHistoryLoading(false)
-      }
-    }
-    void loadHistory()
-    return () => { cancelled = true }
-  }, [patient.id])
-  const latestVisit = history[0]?.visitDate.slice(0, 10)
-  return <div className="consultation-drawer-layer"><aside className="consultation-drawer patient-profile-drawer" aria-label="Hồ sơ bệnh nhân">
-    <header className="consultation-drawer-header"><div><span>Hồ sơ bệnh nhân</span><h2>{patient.fullName}</h2></div><button className="icon-button" onClick={onClose} aria-label="Đóng hồ sơ"><X size={18} /></button></header>
-    <section className="patient-drawer-identity"><div className="patient-large-avatar">{patient.fullName.split(' ').slice(-1)[0][0]}</div><div className="patient-drawer-identity-info"><div><span><UserRound size={13} /> {patient.gender}</span><span><Cake size={13} /> {patient.age} tuổi {patient.dob ? `(${shortDateLabel(patient.dob)})` : ''}</span><b>{patient.code}</b></div><div><a href={`tel:${patient.phone}`}><Phone size={14} /> {patient.phone}</a><span><MapPin size={14} /> {patient.address || 'Chưa cập nhật'}</span></div></div></section>
-    <div className="consultation-drawer-content patient-drawer-content">
-      <section className={`patient-drawer-section ${overviewOpen ? 'expanded' : ''}`}><button className="patient-drawer-section-trigger" onClick={() => setOverviewOpen((value) => !value)}><strong>Tổng quan</strong>{overviewOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>{overviewOpen && <div className="patient-drawer-section-body"><div className="patient-overview-card"><dl><div><dt>Mã bệnh nhân</dt><dd>{patient.code}</dd></div><div><dt>Ngày sinh</dt><dd>{patient.dob ? shortDateLabel(patient.dob) : 'Chưa cập nhật'}</dd></div><div><dt>Email</dt><dd>{patient.email || 'Chưa cập nhật'}</dd></div><div><dt>Số BHYT</dt><dd>{patient.insuranceNumber || 'Chưa cập nhật'}</dd></div><div><dt>CCCD</dt><dd>{patient.cccd || 'Chưa cập nhật'}</dd></div><div><dt>Địa chỉ</dt><dd>{patient.address || 'Chưa cập nhật'}</dd></div></dl><div className="patient-overview-stats"><div><span className="patient-stat-icon"><UserRound size={18} /></span><span>Tổng số lần khám<strong>{history.length}</strong></span></div><div><span className="patient-stat-icon"><CalendarDays size={18} /></span><span>Lần khám gần nhất<strong>{latestVisit ? shortDateLabel(latestVisit) : 'Chưa có'}</strong></span></div></div></div></div>}</section>
-      <section className={`patient-drawer-section ${historyOpen ? 'expanded' : ''}`}><button className="patient-drawer-section-trigger" onClick={() => setHistoryOpen((value) => !value)}><strong>Lịch sử khám</strong><span>Xem tất cả ({history.length})</span>{historyOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>{historyOpen && <div className="patient-drawer-section-body">{historyLoading ? <div className="drawer-history-empty">Đang tải lịch sử khám...</div> : historyError ? <div className="drawer-history-error">{historyError}</div> : history.length === 0 ? <div className="drawer-history-empty">Chưa có hồ sơ đã ký và hoàn thành.</div> : <div className="patient-medical-history-list">{history.map((record) => <article key={record.id}><div className="patient-history-time"><strong>{shortDateLabel(record.visitDate.slice(0, 10))}</strong><span>{record.startTime} - {record.endTime}</span></div><div className="patient-history-content"><div><strong>BS. {record.doctorName}</strong><i /> <span>{record.departmentName || 'Chưa phân khoa'}</span><b>Đã ký</b></div><p>Lý do: {record.reason || 'Chưa cập nhật'}</p><p>Chẩn đoán: {record.diagnosis || 'Chưa cập nhật'}</p></div><button className="btn btn-secondary btn-sm" onClick={() => onOpenMedicalRecord(record)}>Xem hồ sơ</button></article>)}</div>}</div>}</section>
-    </div>
-    <footer className="consultation-drawer-footer"><button className="btn btn-secondary btn-block" onClick={onClose}>Đóng</button></footer>
-  </aside></div>
-}
 function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="consultation-section-title">{icon}<h2>{title}</h2></div> }
 function PrescriptionSection({ items, onAdd, onEdit, onRemove, embedded = false, readOnly = false }: { items: Prescription[]; onAdd: () => void; onEdit?: (item: Prescription) => void; onRemove: (id: string) => void; embedded?: boolean; readOnly?: boolean }) {
   const content = items.length === 0 ? <div className="section-empty">Chưa có thuốc được kê. Đơn thuốc là tùy chọn.</div> : <div className="clinical-table prescription-table"><div className="clinical-table-head"><span>Tên thuốc</span><span>Liều dùng</span><span>Số ngày</span><span>Số lượng</span><span>Cách dùng</span><span>Thao tác</span></div>{items.map((item) => <div className="clinical-table-row" key={item.id}><strong>{item.medicationName}</strong><span>{item.dosage || '—'}</span><span>{item.durationDays || '—'}</span><span>{item.quantity} {item.unit}</span><span>{item.instructions}</span><span className="prescription-row-actions"><button type="button" disabled={readOnly || !onEdit} onClick={() => onEdit?.(item)} aria-label={`Sửa thuốc ${item.medicationName}`}><PenLine size={14} /></button><button type="button" disabled={readOnly} onClick={() => onRemove(item.id)} aria-label={`Xóa thuốc ${item.medicationName}`}><Trash2 size={14} /></button></span></div>)}</div>
