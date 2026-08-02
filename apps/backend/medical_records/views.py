@@ -211,12 +211,13 @@ class MedicalRecordSignView(APIView):
 
         with transaction.atomic():
             try:
-                record = MedicalRecord.objects.select_for_update().select_related('appointment').get(pk=pk)
+                record = MedicalRecord.objects.select_for_update().get(pk=pk)
             except MedicalRecord.DoesNotExist:
                 return error_response('MEDICAL_RECORD_NOT_FOUND', 'Không tìm thấy hồ sơ bệnh án', status=404)
+            appointment = Appointment.objects.select_for_update().get(pk=record.appointment_id)
             if record.status == 'SIGNED':
                 return error_response('MEDICAL_RECORD_ALREADY_SIGNED', 'Hồ sơ đã được ký trước đó', status=409)
-            if record.appointment.doctor_id != request.user.id:
+            if appointment.doctor_id != request.user.id:
                 return error_response(
                     'FORBIDDEN',
                     'Chỉ bác sĩ được phân công cho lượt khám mới được ký hồ sơ',
@@ -233,4 +234,6 @@ class MedicalRecordSignView(APIView):
             record.signed_by = request.user
             record.signed_at = timezone.now()
             record.save(update_fields=['status', 'signed_by', 'signed_at', 'updated_at'])
+            appointment.status = 'COMPLETED'
+            appointment.save(update_fields=['status', 'updated_at'])
         return _record_response(record, message='Ký hồ sơ thành công')

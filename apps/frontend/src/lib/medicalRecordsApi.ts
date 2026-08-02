@@ -10,11 +10,23 @@ interface ApiEnvelope<T> {
 export interface ApiMedicalRecordHistoryItem {
   id: number
   appointmentId: number
+  appointmentCode: string | null
+  sequenceNumber: number | null
   visitDate: string
   doctorName: string
+  departmentName: string | null
+  reason: string
+  appointmentStatus: 'COMPLETED'
+  bookingType: 'SCHEDULE' | 'WALK_IN'
+  startTime: string
+  endTime: string
   symptoms: string
   diagnosis: string
   notes: string
+  vitalSigns: string
+  status: 'SIGNED'
+  signedAt: string | null
+  prescription: ApiMedicalRecord['prescription']
 }
 
 export interface ApiPrescriptionItem {
