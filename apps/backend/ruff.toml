@@ -4,3 +4,4 @@
 "**/tests.py" = ["F401"]
 "**/models.py" = ["F401"]
 "**/urls.py" = ["F401"]
+"config/settings/*.py" = ["E402", "F403", "F405"]

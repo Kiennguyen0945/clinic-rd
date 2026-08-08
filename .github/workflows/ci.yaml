@@ -87,7 +87,7 @@ jobs:
             backend_auth_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/appointment_service/'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/appointments/'; then
             backend_appointment_changed=true
           fi
 
@@ -95,7 +95,7 @@ jobs:
             backend_patient_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/backend/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/(backend|config|core)/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/(Dockerfile\.bprod|entrypoint\.prod\.sh)$'; then
             backend_shared_changed=true
           fi
 
@@ -131,13 +131,15 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
-          cache-dependency-path: apps/backend/requirements.txt
+          cache-dependency-path: |
+            apps/backend/requirements.txt
+            apps/backend/requirements_dev.txt
       - name: Setup Python && Ruff Check
         working-directory: apps/backend
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff==0.16.1
+          pip install -r requirements_dev.txt
           ruff check .
       - name: Integration Test
         working-directory: apps/backend
@@ -158,7 +160,7 @@ jobs:
           test_targets=()
 
           if [ "$BACKEND_SHARED_CHANGED" = "true" ]; then
-            test_targets=(auth_service patient_service appointment_service)
+            test_targets=(auth_service patient_service appointments)
           else
             if [ "$BACKEND_AUTH_CHANGED" = "true" ]; then
               test_targets+=(auth_service)
@@ -167,19 +169,20 @@ jobs:
               test_targets+=(patient_service)
             fi
             if [ "$BACKEND_APPOINTMENT_CHANGED" = "true" ]; then
-              test_targets+=(appointment_service)
+              test_targets+=(appointments)
             fi
           fi
 
           if [ ${#test_targets[@]} -eq 0 ]; then
-            test_targets=(auth_service patient_service appointment_service)
+            test_targets=(auth_service patient_service appointments)
           fi
 
-          python manage.py check
-          python manage.py migrate
+          python manage.py check --settings=config.settings.test
+          python manage.py migrate --settings=config.settings.test
           python -W error::RuntimeWarning \
                  -W error::DeprecationWarning \
-                manage.py test "${test_targets[@]}"
+                manage.py test core "${test_targets[@]}" \
+                --settings=config.settings.test
       - name: Docker Hub Login
         if: github.event_name == 'push'
         uses: docker/login-action@v4
