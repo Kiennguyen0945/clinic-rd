@@ -1,0 +1,67 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title MEDICAL RECORD SERVICE
+
+' Cấu hình cho STUB CLASS
+skinparam class {
+    BackgroundColor<<Stub>> #F0F0F0
+    BorderColor<<Stub>> #Gray
+    BorderStyle<<Stub>> dashed
+    FontColor<<Stub>> #555555
+}
+
+scale 2
+
+class MedicalRecords {
+    + id : Long
+    + appointmentId : Long
+    + illnessHistory : String
+    + vitalSigns : String
+    + examinationNote : String
+    + diagnosis : String
+    + status : String
+    + signedBy : Long
+    + signedAt : DateTime
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+' status: DRAFT | SIGNED
+
+class Prescriptions {
+    + id : Long
+    + medicalRecordId : Long
+    + prescribedBy : Long
+    + createdAt : DateTime
+}
+
+class PrescriptionItems {
+    + id : Long
+    + prescriptionId : Long
+    + medicationName : String
+    + dosage : String
+    + durationDays : Int
+    + quantity : Int
+    + instructions : String
+}
+
+' === STUB CLASS (Dịch vụ bên ngoài) ===
+class Appointments <<Stub>> {
+    + id : Long
+}
+
+class Users <<Stub>> {
+    + id : Long
+}
+
+' === QUAN HỆ ===
+Appointments "1" *-- "0..1" MedicalRecords
+Users "0..1" -- "0..*" MedicalRecords : signedBy
+MedicalRecords "1" *-- "0..1" Prescriptions
+Users "1" -- "0..*" Prescriptions : prescribedBy
+Prescriptions "1" *-- "0..*" PrescriptionItems
+
+@enduml
