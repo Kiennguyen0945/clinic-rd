@@ -95,7 +95,7 @@ jobs:
             backend_patient_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/backend/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/(backend|config|core)/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/(Dockerfile\.bprod|entrypoint\.prod\.sh)$'; then
             backend_shared_changed=true
           fi
 
@@ -175,11 +175,12 @@ jobs:
             test_targets=(auth_service patient_service appointment_service)
           fi
 
-          python manage.py check
-          python manage.py migrate
+          python manage.py check --settings=config.settings.test
+          python manage.py migrate --settings=config.settings.test
           python -W error::RuntimeWarning \
                  -W error::DeprecationWarning \
-                manage.py test "${test_targets[@]}"
+                manage.py test core "${test_targets[@]}" \
+                --settings=config.settings.test
       - name: Docker Hub Login
         if: github.event_name == 'push'
         uses: docker/login-action@v4

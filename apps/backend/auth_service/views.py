@@ -11,8 +11,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.permissions import IsManager
-from backend.response_utils import error_response, success_response
+from core.api.permissions import IsManager
+from core.api.responses import error_response, success_response
 
 from .models import Role, User
 from .serializers import RoleSerializer, UserSerializer
