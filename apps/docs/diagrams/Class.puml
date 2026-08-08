@@ -130,23 +130,16 @@ class Appointments {
 
 
 together {
-   class "MedicalRecords" {
-    + id : Long
-    + appointmentId : Long
-    + illnessHistory : String
-    + vitalSigns : String
-    + examinationNote : String
-    + diagnosis : String
-    + status : String              
-    + signedBy : Long
-    + signedAt : DateTime
-    + createdAt : DateTime
-    + updatedAt : DateTime
+    class "MedicalRecords" {
+        + id : Long
+        + appointmentId : Long
+        + symptoms : String
+        + diagnosis : String
+        + notes : String
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
 }
-}
-' status: DRAFT | SIGNED
-
-
 
 ' === STUB CLASS (Đại diện cho dịch vụ ngoài trong Microservices) ===
 class "Auth_Service" <<Stub>> {
@@ -154,26 +147,6 @@ class "Auth_Service" <<Stub>> {
     + payload : String
     + verifyToken() : Boolean
 }
-
-
-
-class "Prescriptions" {
-    + id : Long
-    + medicalRecordId : Long
-    + prescribedBy : Long
-    + createdAt : DateTime
-}
-
-class "PrescriptionItems" {
-    + id : Long
-    + prescriptionId : Long
-    + medicationName : String
-    + dosage : String
-    + durationDays : Int
-    + quantity : Int
-    + instructions : String
-}
-
 
 
 ' === QUAN HỆ ===
@@ -201,9 +174,3 @@ DoctorDepartment "1" -- "0..*" Departments
 
 
 Rooms "1" -- "0..*" DoctorSlot
-
-Appointments "1" -- "0..1" MedicalRecords
-MedicalRecords "1" -- "0..1" Prescriptions
-Prescriptions "1" -- "0..*" PrescriptionItems
-Users "1" -- "0..*" MedicalRecords : signedBy
-Users "1" -- "0..*" Prescriptions : prescribedBy
