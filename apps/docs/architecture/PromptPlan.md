@@ -251,7 +251,7 @@ YÊU CẦU CỤ THỂ:
       - Tìm kiếm case-insensitive trong patient_code, full_name, phone dùng Q objects OR
       - Nếu không có keyword: trả về lỗi VALIDATION_ERROR
       - Nếu không có kết quả: trả về mảng rỗng
-      - Sử dụng success_response() từ backend.response_utils
+      - Sử dụng success_response() từ core.api.responses
 
    b) **PatientCreateView (POST /api/patients/)**
       - Permission: IsReceptionist
