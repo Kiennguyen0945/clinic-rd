@@ -87,7 +87,7 @@ jobs:
             backend_auth_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/appointment_service/'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/appointments/'; then
             backend_appointment_changed=true
           fi
 
@@ -158,7 +158,7 @@ jobs:
           test_targets=()
 
           if [ "$BACKEND_SHARED_CHANGED" = "true" ]; then
-            test_targets=(auth_service patient_service appointment_service)
+            test_targets=(auth_service patient_service appointments)
           else
             if [ "$BACKEND_AUTH_CHANGED" = "true" ]; then
               test_targets+=(auth_service)
@@ -167,12 +167,12 @@ jobs:
               test_targets+=(patient_service)
             fi
             if [ "$BACKEND_APPOINTMENT_CHANGED" = "true" ]; then
-              test_targets+=(appointment_service)
+              test_targets+=(appointments)
             fi
           fi
 
           if [ ${#test_targets[@]} -eq 0 ]; then
-            test_targets=(auth_service patient_service appointment_service)
+            test_targets=(auth_service patient_service appointments)
           fi
 
           python manage.py check --settings=config.settings.test

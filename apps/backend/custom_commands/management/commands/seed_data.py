@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from appointment_service.models import Appointment, DoctorSlot
+from appointments.models import Appointment, DoctorSlot
 from auth_service.models import Role, User
 from medical_records.models import MedicalRecord
 from organization_service.models import Department, DoctorDepartment, Room

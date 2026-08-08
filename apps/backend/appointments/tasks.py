@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from appointment_service.models import Appointment, DEFAULT_SLOT_HOURS, DoctorSlot
+from appointments.models import Appointment, DEFAULT_SLOT_HOURS, DoctorSlot
 from auth_service.models import User
 from organization_service.models import Room
 

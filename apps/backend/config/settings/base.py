@@ -20,7 +20,7 @@ INSTALLED_APPS = [
     "jazzmin",
     "auth_service",
     "patient_service",
-    "appointment_service",
+    "appointments.apps.AppointmentsConfig",
     "medical_records",
     "organization_service",
     "custom_commands",

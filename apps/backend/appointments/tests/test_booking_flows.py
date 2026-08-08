@@ -7,8 +7,8 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from appointment_service.models import Appointment, DoctorSlot
-from appointment_service.scheduled_jobs import (
+from appointments.models import Appointment, DoctorSlot
+from appointments.tasks import (
     cancel_confirmed_no_shows,
     cancel_expired_waiting,
     generate_doctor_slots,
@@ -183,7 +183,7 @@ class ReceptionistBookingFlowTests(TestCase):
                 sequence_number=sequence, status='CONFIRMED', booking_type='SCHEDULE',
             )
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_walk_in_without_slot_uses_current_slot_and_waits(self, mocked_now):
         mocked_now.return_value = self.now
         response = self.client.post(self.url, self.payload('WALK_IN'), format='json')
@@ -194,7 +194,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(appointment.check_in_at, self.now)
         self.assertEqual(appointment.sequence_number, 1)
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_schedule_without_slot_requires_confirmation(self, mocked_now):
         mocked_now.return_value = self.now
         response = self.client.post(self.url, self.payload('SCHEDULE'), format='json')
@@ -203,7 +203,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(response.json()['error']['details']['suggestedSlot']['id'], self.current_slot.id)
         self.assertFalse(Appointment.objects.exists())
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_selected_future_schedule_is_confirmed_without_check_in(self, mocked_now):
         mocked_now.return_value = self.now
         response = self.client.post(self.url, self.payload('SCHEDULE', self.future_slot.id), format='json')
@@ -212,7 +212,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(appointment.status, 'CONFIRMED')
         self.assertIsNone(appointment.check_in_at)
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.selectors.slot_queries.timezone.now')
     def test_listing_virtual_slots_does_not_write_to_database(self, mocked_now):
         mocked_now.return_value = self.now
         future_date = timezone.localdate() + timedelta(days=90)
@@ -230,7 +230,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertTrue(all(slot['slotKey'].startswith('virtual:') for slot in slots))
         self.assertFalse(DoctorSlot.objects.exists())
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_booking_virtual_slot_materializes_only_selected_slot(self, mocked_now):
         mocked_now.return_value = self.now
         future_date = timezone.localdate() + timedelta(days=90)
@@ -268,7 +268,7 @@ class ReceptionistBookingFlowTests(TestCase):
             [f'{hour:02d}:00' for hour in range(6, 17)],
         )
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_selected_future_walk_in_stays_waiting(self, mocked_now):
         mocked_now.return_value = self.now
         response = self.client.post(self.url, self.payload('WALK_IN', self.future_slot.id), format='json')
@@ -277,7 +277,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(appointment.status, 'WAITING')
         self.assertEqual(appointment.check_in_at, self.now)
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_full_current_walk_in_suggests_nearest_future_slot(self, mocked_now):
         mocked_now.return_value = self.now
         Appointment.objects.create(
@@ -290,7 +290,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(response.json()['error']['code'], 'SLOT_CONFIRMATION_REQUIRED')
         self.assertEqual(response.json()['error']['details']['suggestedSlot']['id'], self.future_slot.id)
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.check_in_appointment.timezone.now')
     def test_check_in_preserves_sequence_and_sets_timestamp(self, mocked_now):
         mocked_now.return_value = self.now
         appointment = Appointment.objects.create(
@@ -305,7 +305,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(appointment.status, 'WAITING')
         self.assertEqual(appointment.check_in_at, self.now)
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_walk_in_suggestion_does_not_cross_into_tomorrow(self, mocked_now):
         mocked_now.return_value = self.now
         self.fill_slot(self.current_slot)
@@ -319,7 +319,7 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()['error']['code'], 'NO_AVAILABLE_SLOT')
 
-    @patch('appointment_service.views.timezone.now')
+    @patch('appointments.services.create_appointment.timezone.now')
     def test_schedule_suggestion_can_use_tomorrow(self, mocked_now):
         mocked_now.return_value = self.now
         self.fill_slot(self.current_slot)

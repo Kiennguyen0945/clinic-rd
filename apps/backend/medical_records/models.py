@@ -1,6 +1,6 @@
 from django.db import models
 
-from appointment_service.models import Appointment
+from appointments.models import Appointment
 from auth_service.models import User
 
 

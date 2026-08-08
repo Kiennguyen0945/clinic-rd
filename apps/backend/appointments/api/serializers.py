@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Appointment
+from appointments.models import Appointment
 
 
 class AppointmentListSerializer(serializers.ModelSerializer):
