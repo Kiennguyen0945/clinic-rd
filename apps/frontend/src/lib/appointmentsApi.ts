@@ -134,6 +134,5 @@ export const appointmentApi = {
   create: (body: { patientId: number; doctorId: number; slotId?: number; slotKey?: string; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: number, body: { reason: string; slotId?: number; slotKey?: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
   checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
-  start: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/start/`, { method: 'POST' }),
   cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
 }

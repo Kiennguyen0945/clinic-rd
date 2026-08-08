@@ -1,0 +1,102 @@
+@startuml Appointment_Flow
+title Luồng Appointment: CONFIRMED → WAITING → COMPLETED / CANCELLED
+
+|Lễ tân|
+start
+
+if (Hình thức tiếp nhận?) then (Đặt lịch qua điện thoại)
+
+  :Tìm hoặc tạo hồ sơ bệnh nhân;
+  :Nhập lý do khám;
+  :Chọn bác sĩ và khung giờ;
+  :Bấm "Lưu lịch";
+
+  |Hệ thống|
+  :Kiểm tra thông tin bắt buộc;
+  :Kiểm tra lịch làm việc của bác sĩ;
+  :Kiểm tra trùng lịch\n(bác sĩ + khung giờ);
+
+  if (Thông tin hợp lệ và slot còn trống?) then (Không)
+    :Hiển thị lỗi;
+    :Gợi ý các khung giờ phù hợp khác;
+
+    |Lễ tân|
+    :Điều chỉnh bác sĩ hoặc khung giờ;
+    detach
+  else (Có)
+    :Tạo appointment;
+    :Cập nhật status = CONFIRMED;
+    :Lưu người tạo và thời điểm tạo;
+  endif
+
+  |Lễ tân|
+  :Theo dõi danh sách lịch hẹn;
+
+  if (Bệnh nhân có đến?) then (Báo hủy / Không khám)
+    :Chọn "Hủy lịch";
+    :Nhập lý do hủy;
+
+    |Hệ thống|
+    :Cập nhật status = CANCELLED;
+    :Lưu lý do, người hủy,\nthời điểm hủy;
+    :Giải phóng khung giờ;
+    stop
+
+  else (Có mặt)
+    |Lễ tân|
+    :Bấm "Check-in";
+
+    |Hệ thống|
+    :Cập nhật status = WAITING;
+    :Ghi nhận thời điểm check-in;
+    :Đưa bệnh nhân vào danh sách chờ;
+  endif
+
+else (Khách vãng lai)
+
+  :Tìm hoặc tạo hồ sơ bệnh nhân;
+  :Nhập lý do khám;
+  :Chọn bác sĩ;
+  :Bấm "Khám ngay";
+
+  |Hệ thống|
+  :Kiểm tra thông tin bắt buộc;
+  :Kiểm tra bác sĩ đang làm việc\nvà có thể tiếp nhận;
+
+  if (Có thể tiếp nhận?) then (Không)
+    :Hiển thị lý do không thể tiếp nhận;
+    :Gợi ý bác sĩ hoặc thời gian khác;
+    detach
+  else (Có)
+    :Tạo appointment;
+    :Cập nhật status = WAITING;
+    :Ghi nhận thời điểm check-in;
+    :Đưa bệnh nhân vào danh sách chờ;
+  endif
+
+endif
+
+|Bác sĩ|
+:Xem danh sách bệnh nhân WAITING;
+:Chọn bệnh nhân để khám;
+:Xem thông tin bệnh nhân\nvà lý do khám;
+:Nhập triệu chứng, chẩn đoán,\nđơn thuốc và chỉ định;
+:Bấm "Hoàn thành ca khám";
+
+|Hệ thống|
+:Kiểm tra dữ liệu bắt buộc\ncủa hồ sơ khám;
+
+if (Hồ sơ khám hợp lệ?) then (Không)
+  :Hiển thị lỗi và yêu cầu bổ sung;
+
+  |Bác sĩ|
+  :Bổ sung thông tin còn thiếu;
+  detach
+else (Có)
+  :Lưu Medical Record\n(appointment_id + patient_id + doctor_id);
+  :Cập nhật status = COMPLETED;
+  :Lưu thời điểm hoàn thành;
+endif
+
+stop
+@enduml

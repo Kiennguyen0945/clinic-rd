@@ -2,12 +2,6 @@
 
 __pycache__/
 *.py[cod]
-.ruff_cache/
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-.legacy-backend-cache/
 venv/
 .venv/
 productionfiles/
