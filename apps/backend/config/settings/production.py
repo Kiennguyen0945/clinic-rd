@@ -2,7 +2,7 @@
 
 from decouple import Csv, config
 
-from .base import *  # noqa: F403
+from .base import *
 
 DEBUG = False
 ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="localhost", cast=Csv())

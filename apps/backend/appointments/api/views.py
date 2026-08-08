@@ -6,6 +6,21 @@ from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.views import APIView
 
+from appointments.models import Appointment, DoctorSlot
+from appointments.selectors.slot_queries import slot_capacity as _slot_capacity
+from appointments.selectors.slot_queries import slot_datetimes as _slot_datetimes
+from appointments.selectors.slot_queries import slot_payload as _slot_payload
+from appointments.selectors.slot_queries import (
+    virtual_slots_for_date as _virtual_slots_for_date,
+)
+from appointments.services import AppointmentServiceError
+from appointments.services.cancel_appointment import cancel_appointment
+from appointments.services.check_in_appointment import (
+    check_in_appointment,
+    start_appointment,
+)
+from appointments.services.create_appointment import create_appointment
+from appointments.services.reschedule_appointment import reschedule_appointment
 from auth_service.models import User
 from core.api.permissions import IsManager
 from core.api.responses import error_response, success_response
@@ -17,21 +32,6 @@ from medical_records.serializers import (
 from organization_service.models import Department, DoctorDepartment, Room
 from patient_service.models import Patient
 
-from appointments.models import Appointment, DoctorSlot
-from appointments.selectors.slot_queries import (
-    slot_capacity as _slot_capacity,
-    slot_datetimes as _slot_datetimes,
-    slot_payload as _slot_payload,
-    virtual_slots_for_date as _virtual_slots_for_date,
-)
-from appointments.services import AppointmentServiceError
-from appointments.services.cancel_appointment import cancel_appointment
-from appointments.services.check_in_appointment import (
-    check_in_appointment,
-    start_appointment,
-)
-from appointments.services.create_appointment import create_appointment
-from appointments.services.reschedule_appointment import reschedule_appointment
 from .serializers import (
     AppointmentCreateSerializer,
     AppointmentListSerializer,
@@ -791,5 +791,4 @@ class AppointmentStatsView(APIView):
             {'stats': stats},
             message="Lấy thống kê thành công",
         )
-
 

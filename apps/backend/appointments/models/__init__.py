@@ -10,10 +10,10 @@ from .doctor_slot import (
 )
 
 __all__ = [
-    "Appointment",
     "DEFAULT_SLOT_CAPACITY",
     "DEFAULT_SLOT_DURATION_MINUTES",
     "DEFAULT_SLOT_HOURS",
-    "DoctorSlot",
     "ONLINE_BOOKING_LEAD_TIME_MINUTES",
+    "Appointment",
+    "DoctorSlot",
 ]

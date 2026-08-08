@@ -4,7 +4,6 @@ from rest_framework.views import APIView
 
 from appointments.models import Appointment
 from core.api.responses import error_response, success_response
-
 from .models import MedicalRecord, Prescription, PrescriptionItem
 from .serializers import MedicalRecordDetailSerializer
 

@@ -4,7 +4,7 @@ import os
 
 os.environ.setdefault("DJANGO_DB_ENGINE", "sqlite")
 
-from .base import *  # noqa: E402,F403
+from .base import *
 
 DEBUG = False
 ALLOWED_HOSTS = ["testserver", "localhost"]
@@ -15,5 +15,5 @@ PASSWORD_HASHERS = [
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
-if DB_ENGINE != "postgres":  # noqa: F405
-    DATABASES["default"]["NAME"] = ":memory:"  # noqa: F405
+if DB_ENGINE != "postgres":
+    DATABASES["default"]["NAME"] = ":memory:"

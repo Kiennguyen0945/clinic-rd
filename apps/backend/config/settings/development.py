@@ -1,6 +1,6 @@
 """Settings for local development."""
 
-from .base import *  # noqa: F403
+from .base import *
 
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
