@@ -1,0 +1,27 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title PATIENT SERVICE
+
+scale 2
+
+class Patients {
+    + id : Long
+    + patientCode : String
+    + fullName : String
+    + dob : Date
+    + gender : String
+    + phone : String
+    + email : String
+    + address : String
+    + insuranceNumber : String
+    + cccd : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+' gender: M | F | O
+
+@enduml

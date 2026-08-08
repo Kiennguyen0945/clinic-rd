@@ -1,0 +1,47 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title ORGANIZATION SERVICE
+
+' Cấu hình cho STUB CLASS
+skinparam class {
+    BackgroundColor<<Stub>> #F0F0F0
+    BorderColor<<Stub>> #Gray
+    BorderStyle<<Stub>> dashed
+    FontColor<<Stub>> #555555
+}
+
+scale 2
+
+class Departments {
+    + id : Long
+    + code : String
+    + name : String
+    + description : String
+}
+
+class Rooms {
+    + id : Long
+    + roomNumber : String
+}
+
+class DoctorDepartment {
+    + id : Long
+    + doctorId : Long
+    + departmentId : Long
+}
+
+' Mỗi cặp doctorId - departmentId là duy nhất
+
+' === STUB CLASS (Dịch vụ bên ngoài) ===
+class Users <<Stub>> {
+    + id : Long
+}
+
+' === QUAN HỆ ===
+Users "1" -- "0..*" DoctorDepartment
+Departments "1" -- "0..*" DoctorDepartment
+
+@enduml

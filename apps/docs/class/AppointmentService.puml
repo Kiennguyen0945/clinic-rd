@@ -1,0 +1,85 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title APPOINTMENT SERVICE
+
+' Cấu hình cho STUB CLASS
+skinparam class {
+    BackgroundColor<<Stub>> #F0F0F0
+    BorderColor<<Stub>> #Gray
+    BorderStyle<<Stub>> dashed
+    FontColor<<Stub>> #555555
+}
+
+scale 2
+
+class DoctorSlot {
+    + id : Long
+    + doctorId : Long
+    + roomId : Long
+    + slotDate : Date
+    + startTime : Time
+    + endTime : Time
+    + capacity : Int
+    + status : String
+}
+
+' status: OPEN | CLOSED
+' capacity mặc định: 4; mỗi slot kéo dài 60 phút
+
+class Appointments {
+    + id : Long
+    + slotId : Long
+    + patientId : Long
+    + doctorId : Long
+    + creatorId : Long
+    + appointmentCode : String
+    + departmentId : Long
+    + sequenceNumber : Int
+    + bookingType : String
+    + patientType : String
+    + bhytNumber : String
+    + cancellationReason : String
+    + appointmentTime : DateTime
+    + checkInAt : DateTime
+    + reason : String
+    + status : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+    + cancellationNote : String
+}
+
+' status: PENDING | CONFIRMED | WAITING | IN_PROGRESS | COMPLETED | CANCELLED
+' bookingType: SCHEDULE | WALK_IN
+' patientType: BHYT | SERVICE
+' cancellationReason: PATIENT_REQUEST | PATIENT_WRONG_INFO | NO_SHOW | DOCTOR_UNAVAILABLE | ROOM_ISSUE | OTHER
+
+' === STUB CLASS (Dịch vụ bên ngoài) ===
+class Users <<Stub>> {
+    + id : Long
+}
+
+class Rooms <<Stub>> {
+    + id : Long
+}
+
+class Patients <<Stub>> {
+    + id : Long
+}
+
+class Departments <<Stub>> {
+    + id : Long
+}
+
+' === QUAN HỆ ===
+Users "1" -- "0..*" DoctorSlot : doctor
+Rooms "1" -- "0..*" DoctorSlot
+DoctorSlot "0..1" -- "0..*" Appointments
+Patients "1" -- "0..*" Appointments
+Users "1" -- "0..*" Appointments : doctor
+Users "1" -- "0..*" Appointments : creator
+Departments "0..1" -- "0..*" Appointments
+
+@enduml

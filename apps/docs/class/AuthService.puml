@@ -1,0 +1,36 @@
+@startuml
+' Cấu hình hiển thị
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+title AUTH SERVICE
+
+scale 2
+
+class Roles {
+    + id : Long
+    + code : String
+    + name : String
+    + description : String
+}
+
+' code: MANAGER | DOCTOR | RECEPTIONIST
+
+class Users {
+    + id : Long
+    + roleId : Long
+    + username : String
+    + passwordHash : String
+    + fullName : String
+    + phone : String
+    + status : String
+    + createdAt : DateTime
+    + updatedAt : DateTime
+}
+
+' status: ACTIVE | INACTIVE | LOCKED
+
+' === QUAN HỆ ===
+Roles "1" -- "0..*" Users
+
+@enduml
