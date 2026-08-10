@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from appointment_service.scheduled_jobs import cancel_expired_waiting
+from appointment_service.tasks import cancel_expired_waiting
 
 
 class Command(BaseCommand):

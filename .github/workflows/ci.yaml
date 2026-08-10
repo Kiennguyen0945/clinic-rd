@@ -95,7 +95,7 @@ jobs:
             backend_patient_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/backend/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/backend/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(_dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
             backend_shared_changed=true
           fi
 
@@ -131,14 +131,20 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
-          cache-dependency-path: apps/backend/requirements.txt
-      - name: Setup Python && Ruff Check
+          cache-dependency-path: |
+            apps/backend/requirements.txt
+            apps/backend/requirements_dev.txt
+      - name: Install Backend Dependencies
         working-directory: apps/backend
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff==0.16.1
-          ruff check .
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements_dev.txt
+      - name: Ruff Check
+        working-directory: apps/backend
+        # Keep this identical to the documented local command. Disabling the
+        # cache also avoids ownership conflicts with Docker bind mounts.
+        run: python -m ruff check --no-cache .
       - name: Integration Test
         working-directory: apps/backend
         env:

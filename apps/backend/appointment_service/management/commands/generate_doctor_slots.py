@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from appointment_service.scheduled_jobs import generate_doctor_slots
+from appointment_service.tasks import generate_doctor_slots
 
 
 class Command(BaseCommand):
