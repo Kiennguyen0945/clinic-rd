@@ -14,7 +14,11 @@ from ..selectors.appointment_queries import (
     dashboard_today,
     reception_context,
 )
-from ..selectors.slot_queries import slot_payload, slot_with_appointments, slots_for_date
+from ..selectors.slot_queries import (
+    slot_payload,
+    slot_with_appointments,
+    slots_for_date,
+)
 from ..services import AppointmentServiceError
 from ..services.cancel_appointment import cancel_appointment
 from ..services.check_in_appointment import check_in_appointment
@@ -29,8 +33,11 @@ from .presenters import (
     service_error_response,
     slot_detail_data,
 )
-from .serializers import AppointmentCreateSerializer, AppointmentUpdateSerializer, MedicalRecordCreateSerializer
-
+from .serializers import (
+    AppointmentCreateSerializer,
+    AppointmentUpdateSerializer,
+    MedicalRecordCreateSerializer,
+)
 
 # Historical private names remain aliases so integrations that patched the old
 # module during tests continue to work after the extraction.

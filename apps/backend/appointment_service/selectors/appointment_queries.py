@@ -6,7 +6,12 @@ from auth_service.models import User
 from organization_service.models import Department, Room
 
 from ..models import Appointment, DoctorSlot
-from .slot_queries import slot_capacity, slot_datetimes, slot_payload, virtual_slots_for_date
+from .slot_queries import (
+    slot_capacity,
+    slot_datetimes,
+    slot_payload,
+    virtual_slots_for_date,
+)
 
 
 def next_sequence(slot):

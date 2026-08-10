@@ -8,7 +8,12 @@ from organization_service.models import Department, DoctorDepartment
 
 from ..models import ONLINE_BOOKING_LEAD_TIME_MINUTES, Appointment, DoctorSlot
 from ..selectors.appointment_queries import next_sequence
-from ..selectors.slot_queries import materialize_slot, reschedule_suggestions, slot_capacity, slot_datetimes
+from ..selectors.slot_queries import (
+    materialize_slot,
+    reschedule_suggestions,
+    slot_capacity,
+    slot_datetimes,
+)
 from . import AppointmentServiceError
 
 
