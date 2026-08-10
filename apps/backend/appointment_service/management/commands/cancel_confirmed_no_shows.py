@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from appointment_service.scheduled_jobs import cancel_confirmed_no_shows
+from appointment_service.tasks import cancel_confirmed_no_shows
 
 
 class Command(BaseCommand):
