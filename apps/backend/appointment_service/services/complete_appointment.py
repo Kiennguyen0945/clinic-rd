@@ -1,6 +1,9 @@
 from django.db import transaction
+from django.utils import timezone
 
-from ..models import Appointment, MedicalRecord
+from medical_records.models import MedicalRecord
+
+from ..models import Appointment
 from . import AppointmentServiceError
 
 
@@ -17,7 +20,14 @@ def complete_appointment(*, appointment_id, doctor, data):
         if MedicalRecord.objects.filter(appointment_id=appointment_id).exists():
             raise AppointmentServiceError('RECORD_EXISTS', 'Bệnh án cho lịch hẹn này đã tồn tại', status=409)
         record = MedicalRecord.objects.create(
-            appointment=appointment, symptoms=data['symptoms'], diagnosis=data['diagnosis'], notes=data.get('notes', ''))
+            appointment=appointment,
+            illness_history=data['symptoms'],
+            diagnosis=data['diagnosis'],
+            examination_note=data.get('notes', '') or '',
+            status='SIGNED',
+            signed_by=doctor,
+            signed_at=timezone.now(),
+        )
         appointment.status = 'COMPLETED'
         appointment.save(update_fields=['status', 'updated_at'])
     return record

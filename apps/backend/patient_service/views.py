@@ -6,10 +6,10 @@ from django.db.models import Q
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 
-from appointment_service.models import MedicalRecord
-from appointment_service.serializers import MedicalRecordListSerializer
 from appointment_service.views import generate_patient_code
 from backend.response_utils import error_response, success_response
+from medical_records.models import MedicalRecord
+from medical_records.serializers import MedicalRecordListSerializer
 
 from .models import Patient
 from .serializers import PatientSerializer
@@ -45,9 +45,23 @@ class PatientMedicalHistoryView(APIView):
                 status=404,
             )
 
-        records = MedicalRecord.objects.select_related('appointment', 'appointment__doctor').filter(
-            appointment__patient_id=patientId
-        ).order_by('-appointment__appointment_time')
+        records = (
+            MedicalRecord.objects
+            .select_related(
+                'appointment',
+                'appointment__doctor',
+                'appointment__department',
+                'appointment__slot',
+                'prescription',
+            )
+            .prefetch_related('prescription__items')
+            .filter(
+                appointment__patient_id=patientId,
+                status='SIGNED',
+                appointment__status='COMPLETED',
+            )
+            .order_by('-appointment__appointment_time')
+        )
 
         serializer = MedicalRecordListSerializer(records, many=True)
         return success_response(

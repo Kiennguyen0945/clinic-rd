@@ -1,6 +1,6 @@
 """Appointment domain models and stable public exports."""
 
-from .appointment import Appointment, MedicalRecord
+from .appointment import Appointment
 from .doctor_slot import (
     DEFAULT_SLOT_CAPACITY,
     DEFAULT_SLOT_DURATION_MINUTES,
@@ -16,5 +16,4 @@ __all__ = [
     'ONLINE_BOOKING_LEAD_TIME_MINUTES',
     'Appointment',
     'DoctorSlot',
-    'MedicalRecord',
 ]
