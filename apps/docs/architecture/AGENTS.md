@@ -18,7 +18,7 @@ Tài liệu này mô tả ngắn gọn kiến trúc của Clinic RD để dùng 
 ## Backend
 
 - Backend được chia theo service domain: `auth_service`, `patient_service`, `appointment_service` và `custom_commands`.
-- Django project chính nằm trong `apps/backend/backend/`.
+- Cấu hình Django nằm trong `apps/backend/config/`; hạ tầng dùng chung nằm trong `apps/backend/core/`.
 - SQLite hiện có ở `apps/backend/db.sqlite3`.
 - Các endpoint và luồng xác thực nên được đối chiếu với tài liệu API trong `docs/api/` khi cần.
 

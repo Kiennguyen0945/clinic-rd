@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 
 from appointment_service.views import generate_patient_code
-from backend.response_utils import error_response, success_response
+from core.api.responses import error_response, success_response
 from medical_records.models import MedicalRecord
 from medical_records.serializers import MedicalRecordListSerializer
 

@@ -7,29 +7,22 @@ from auth_service.models import User
 
 
 class CustomJWTAuthentication(JWTAuthentication):
-    """
-    Custom JWT authentication that uses the auth_service.User model
-    instead of the default Django auth.User model.
-    """
+    """Authenticate tokens against the project's custom user model."""
 
     def get_user(self, validated_token):
-        """
-        Attempts to find and return a user using the given validated token.
-        Uses auth_service.User model instead of get_user_model().
-        """
         try:
             user_id = validated_token[api_settings.USER_ID_CLAIM]
-        except KeyError as e:
+        except KeyError as exc:
             raise InvalidToken(
                 _("Token contained no recognizable user identification")
-            ) from e
+            ) from exc
 
         try:
             user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
-        except User.DoesNotExist as e:
+        except User.DoesNotExist as exc:
             raise AuthenticationFailed(
                 _("User not found"), code="user_not_found"
-            ) from e
+            ) from exc
 
         if api_settings.CHECK_USER_IS_ACTIVE and user.status != "ACTIVE":
             raise AuthenticationFailed(_("User is inactive"), code="user_inactive")

@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework.views import APIView
 
 from appointment_service.models import Appointment
-from backend.response_utils import error_response, success_response
+from core.api.responses import error_response, success_response
 
 from .models import MedicalRecord, Prescription, PrescriptionItem
 from .serializers import MedicalRecordDetailSerializer

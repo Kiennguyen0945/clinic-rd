@@ -1,4 +1,4 @@
-from backend.response_utils import error_response
+from core.api.responses import error_response
 
 from .serializers import AppointmentListSerializer, MedicalRecordSerializer
 
