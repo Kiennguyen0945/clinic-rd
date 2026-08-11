@@ -24,5 +24,3 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.patient_code} - {self.full_name}"
-
-# Create your models here.

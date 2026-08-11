@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from auth_service.models import User
 from core.api.permissions import IsManager
 from core.api.responses import error_response, success_response
-from patient_service.models import Patient
+from patient_service.services import generate_patient_code as _generate_patient_code
 
 from ..models import Appointment, DoctorSlot
 from ..selectors.appointment_queries import (
@@ -49,13 +49,8 @@ _slot_payload = slot_payload
 
 
 def generate_patient_code():
-    """Generate the next global patient code: BN-########."""
-    codes = Patient.objects.filter(patient_code__startswith='BN-').values_list('patient_code', flat=True)
-    last_sequence = max(
-        (int(code[3:]) for code in codes if len(code[3:]) == 8 and code[3:].isdigit()),
-        default=0,
-    )
-    return f'BN-{last_sequence + 1:08d}'
+    """Backward-compatible delegate to the patient domain."""
+    return _generate_patient_code()
 
 
 class AppointmentReceptionContextView(APIView):

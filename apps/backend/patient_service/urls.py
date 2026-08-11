@@ -1,9 +1,5 @@
-from django.urls import path
+"""Backward-compatible URL entrypoint for the patient API."""
 
-from .views import PatientMedicalHistoryView, patient_detail, patient_list
+from .api.urls import urlpatterns
 
-urlpatterns = [
-    path('patients/', patient_list, name='patient-list'),
-    path('patients/<int:pk>/', patient_detail, name='patient-detail'),
-    path('patients/<int:patientId>/medical-records/', PatientMedicalHistoryView.as_view(), name='patient-medical-history'),
-]
+__all__ = ["urlpatterns"]
