@@ -81,7 +81,7 @@ python manage.py runserver
 - Tạo permission classes cho từng role
 - Đăng ký models vào Django Admin
 - Tạo file `urls.py` cho `patient_service` và `appointment_service`
-- Cấu hình router chính `backend/urls.py`
+- Cấu hình router chính `config/urls.py`
 
 ### 📦 Context cần cung cấp
 Đính kèm các file sau:
@@ -90,8 +90,8 @@ python manage.py runserver
 - `apps/backend/auth_service/serializers.py`
 - `apps/backend/auth_service/models.py`
 - `apps/backend/auth_service/admin.py`
-- `apps/backend/backend/settings.py`
-- `apps/backend/backend/urls.py`
+- `apps/backend/config/settings/base.py`
+- `apps/backend/config/urls.py`
 - File usecase `docs/usecases/AuthService.md`
 - `apps/backend/requirements.txt`
 
@@ -113,7 +113,7 @@ YÊU CẦU CỤ THỂ:
    - Success: `{ "success": true, "data": {...}, "message": "Mô tả tiếng Việt" }`
    - Error: `{ "success": false, "error": { "code": "ERROR_CODE", "message": "Mô tả tiếng Việt", "details": {} } }`
    
-   Tạo file `apps/backend/backend/response_utils.py` với 2 helper function:
+   Tạo file `apps/backend/core/api/responses.py` với 2 helper function:
    ```python
    # success_response(data, message="Thành công", status=200)
    # error_response(code, message, status=400, details=None)
@@ -142,7 +142,7 @@ YÊU CẦU CỤ THỂ:
      - Set `CORS_ALLOW_CREDENTIALS = True`
 
 4. **Tạo Permission Classes:**
-   Tạo file `apps/backend/backend/permissions.py`:
+   Tạo file `apps/backend/core/api/permissions.py`:
    - `IsReceptionist`: user.role.code == 'RECEPTIONIST'
    - `IsDoctor`: user.role.code == 'DOCTOR'
    - `IsManager`: user.role.code == 'MANAGER'
@@ -156,7 +156,7 @@ YÊU CẦU CỤ THỂ:
 6. **Tạo URL routes cho patient_service và appointment_service:**
    - Tạo `patient_service/urls.py` (để trống, sẽ thêm sau)
    - Tạo `appointment_service/urls.py` (để trống, sẽ thêm sau)
-   - Sửa `backend/urls.py` để include cả 3 service:
+   - Sửa `config/urls.py` để include cả 3 service:
    ```python
    urlpatterns = [
        path('admin/', admin.site.urls),
@@ -225,8 +225,8 @@ Xây dựng API quản lý bệnh nhân theo `docs/api/patient-api.md`:
 - `apps/docs/usecases/PatientService.md` (UC_PAT_01 → UC_PAT_03)
 - `apps/backend/patient_service/models.py`
 - `apps/backend/patient_service/views.py` (hiện đang trống)
-- `apps/backend/backend/response_utils.py` (đã tạo ở Prompt #1)
-- `apps/backend/backend/permissions.py` (đã tạo ở Prompt #1)
+- `apps/backend/core/api/responses.py` (đã tạo ở Prompt #1)
+- `apps/backend/core/api/permissions.py` (đã tạo ở Prompt #1)
 - `apps/backend/patient_service/urls.py` (đã tạo rỗng ở Prompt #1)
 
 ### 🔨 Prompt chi tiết
@@ -251,7 +251,7 @@ YÊU CẦU CỤ THỂ:
       - Tìm kiếm case-insensitive trong patient_code, full_name, phone dùng Q objects OR
       - Nếu không có keyword: trả về lỗi VALIDATION_ERROR
       - Nếu không có kết quả: trả về mảng rỗng
-      - Sử dụng success_response() từ backend.response_utils
+      - Sử dụng success_response() từ core.api.responses
 
    b) **PatientCreateView (POST /api/patients/)**
       - Permission: IsReceptionist
@@ -343,8 +343,8 @@ Xây dựng API quản lý lịch hẹn theo `docs/api/appointment-api.md`:
 - `apps/docs/usecases/AppointmentService.md` (UC_APPT_01, UC_APPT_02)
 - `apps/backend/appointment_service/models.py`
 - `apps/backend/appointment_service/views.py` (hiện đang trống)
-- `apps/backend/backend/response_utils.py`
-- `apps/backend/backend/permissions.py`
+- `apps/backend/core/api/responses.py`
+- `apps/backend/core/api/permissions.py`
 - `apps/backend/appointment_service/urls.py`
 
 ### 🔨 Prompt chi tiết
@@ -478,7 +478,7 @@ curl -X PATCH "http://localhost:8000/api/appointments/<UUID>/cancel/" \
 - `apps/backend/appointment_service/models.py` (đã có MedicalRecord)
 - `apps/backend/patient_service/views.py`
 - `apps/backend/appointment_service/views.py`
-- `apps/backend/backend/permissions.py`
+- `apps/backend/core/api/permissions.py`
 
 ### 🔨 Prompt chi tiết
 
@@ -590,7 +590,7 @@ curl "http://localhost:8000/api/patients/<patientId>/medical-records/" \
 - `apps/backend/auth_service/views.py`
 - `apps/backend/auth_service/serializers.py`
 - `apps/backend/appointment_service/views.py`
-- `apps/backend/backend/permissions.py`
+- `apps/backend/core/api/permissions.py`
 
 ### 🔨 Prompt chi tiết
 

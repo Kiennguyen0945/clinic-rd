@@ -4,7 +4,15 @@ CLINIC-RD/
 │   └── backend/                    # Django Backend
 │       ├── appointment_service/    # Quản lý lịch hẹn
 │       ├── auth_service/           # Xác thực và phân quyền
-│       ├── backend/                # Cấu hình Django Project
+│       ├── config/                 # Cấu hình Django project
+│       │   ├── settings/           # Base, development, test, production
+│       │   ├── urls.py
+│       │   ├── asgi.py
+│       │   └── wsgi.py
+│       ├── core/                   # Hạ tầng dùng chung
+│       │   ├── api/                # Auth, permissions, responses, exceptions
+│       │   ├── management/commands/
+│       │   └── tests/
 │       ├── custom_commands/        # Custom management commands
 │       ├── patient_service/        # Quản lý bệnh nhân
 │       ├── productfiles/           # File upload (media)

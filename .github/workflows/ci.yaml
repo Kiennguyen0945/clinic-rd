@@ -95,7 +95,7 @@ jobs:
             backend_patient_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/backend/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(_dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/backend/(config|core)/|^apps/backend/custom_commands/|^apps/backend/manage\.py$|^apps/backend/requirements(\.dev)?\.txt$|^apps/backend/ruff\.toml$|^apps/backend/entrypoint\.sh$|^apps/docker/backend/Dockerfile\.bprod$'; then
             backend_shared_changed=true
           fi
 
@@ -148,6 +148,7 @@ jobs:
       - name: Integration Test
         working-directory: apps/backend
         env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
           DJANGO_DB_ENGINE: postgres
           POSTGRES_DB: db
           POSTGRES_USER: postgres

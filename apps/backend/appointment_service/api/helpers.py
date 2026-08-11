@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.utils import timezone
 
-from backend.response_utils import error_response
+from core.api.responses import error_response
 
 
 def require_auth(request):

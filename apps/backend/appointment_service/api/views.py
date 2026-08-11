@@ -2,8 +2,8 @@ from django.utils import timezone
 from rest_framework.views import APIView
 
 from auth_service.models import User
-from backend.permissions import IsManager
-from backend.response_utils import error_response, success_response
+from core.api.permissions import IsManager
+from core.api.responses import error_response, success_response
 from patient_service.models import Patient
 
 from ..models import Appointment, DoctorSlot
