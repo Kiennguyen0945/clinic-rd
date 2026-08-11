@@ -20,7 +20,7 @@ if DB_ENGINE == "postgres":
             "NAME": config("POSTGRES_DB", default="clinic_db"),
             "USER": config("POSTGRES_USER", default="postgres"),
             "PASSWORD": config("POSTGRES_PASSWORD", default="123456"),
-            "HOST": config("POSTGRES_HOST", default="db"),
+            "HOST": config("POSTGRES_HOST", default="database"),
             "PORT": config("POSTGRES_PORT", default="5432"),
         }
     }
