@@ -29,6 +29,9 @@ services:
         condition: service_healthy
     env_file:
       - ./.env
+    environment:
+      # Compose service names are resolvable as hostnames on its default network.
+      POSTGRES_HOST: database
     entrypoint: ["sh", "/apps/backend/entrypoint.sh"]
 
   frontend:
@@ -57,6 +60,8 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin4_container
+    profiles:
+      - tools
     restart: always
     ports:
       - "8888:80"

@@ -1,3 +1,19 @@
-from django.shortcuts import render
+"""Backward-compatible exports for organization API views."""
 
-# Create your views here.
+from .api.views import (
+    DepartmentDetailView,
+    DepartmentListCreateView,
+    DoctorDepartmentDetailView,
+    DoctorDepartmentListCreateView,
+    RoomDetailView,
+    RoomListCreateView,
+)
+
+__all__ = [
+    "DepartmentDetailView",
+    "DepartmentListCreateView",
+    "DoctorDepartmentDetailView",
+    "DoctorDepartmentListCreateView",
+    "RoomDetailView",
+    "RoomListCreateView",
+]
