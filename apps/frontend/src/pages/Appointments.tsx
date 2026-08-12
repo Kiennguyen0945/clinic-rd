@@ -17,22 +17,22 @@ import {
 } from "lucide-react";
 import CreatePatientModal from "../components/CreatePatientModal";
 import { useAuthStore } from "../store";
-import { AppointmentApiError, appointmentApi } from "../lib/appointmentsApi";
+import { appointmentApi, mapAppointment } from "../entities/appointment";
 import type {
-  ApiPatient,
-  ApiSlot,
-  ReceptionContext,
-} from "../lib/appointmentsApi";
-
-import {
-  emptyBookingSlot,
-  isSlotAvailable,
-  mapAppointment,
-  mapDoctor,
-  mapPatient,
-  mapSlot,
-  todayValue,
-} from "./appointments/model";
+  Appointment,
+  AppointmentDraft,
+  AppointmentStatus,
+  BookingMode,
+  BookingSuggestion,
+} from "../entities/appointment";
+import { mapPatient, patientApi } from "../entities/patient";
+import type { ApiPatient, PatientProfile } from "../entities/patient";
+import { emptyBookingSlot, isSlotAvailable, mapSlot, slotApi } from "../entities/slot";
+import type { ApiSlot, SlotDefinition } from "../entities/slot";
+import { mapDoctor, receptionApi } from "../features/appointments";
+import type { ReceptionContext } from "../features/appointments";
+import { ApiError as AppointmentApiError } from "../shared/api";
+import { todayValue } from "../shared/lib/date";
 import {
   AppointmentOverview,
   QuickDatePicker,
@@ -55,16 +55,6 @@ import {
   PrintTicket,
   ReceptionistPatientDrawer,
 } from "./appointments/PatientArtifacts";
-import type {
-  Appointment,
-  AppointmentDraft,
-  AppointmentStatus,
-  BookingMode,
-  BookingSuggestion,
-  PatientProfile,
-  SlotDefinition,
-} from "./appointments/model";
-
 export default function AppointmentsPage() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
@@ -144,8 +134,8 @@ export default function AppointmentsPage() {
       setPageError("");
       try {
         const [nextContext, nextPatients] = await Promise.all([
-          appointmentApi.context(selectedDate),
-          appointmentApi.patients(),
+          receptionApi.context(selectedDate),
+          patientApi.list(),
         ]);
         if (cancelled) return;
         setContext(nextContext);
@@ -153,8 +143,8 @@ export default function AppointmentsPage() {
         const nextDoctorId = requestedDoctorId || "";
         if (!nextDoctorId) return;
         const [nextSlots, nextAppointments] = await Promise.all([
-          appointmentApi.slots(selectedDate, nextDoctorId),
-          appointmentApi.appointments(selectedDate, nextDoctorId),
+          slotApi.list(selectedDate, nextDoctorId),
+          appointmentApi.list(selectedDate, nextDoctorId),
         ]);
         if (cancelled) return;
         const mappedSlots = nextSlots.slots.map(mapSlot);
@@ -248,7 +238,7 @@ export default function AppointmentsPage() {
     for (let offset = 1; offset <= 60; offset += 1) {
       date.setDate(date.getDate() + 1);
       const nextDate = date.toISOString().slice(0, 10);
-      const response = await appointmentApi.slots(
+      const response = await slotApi.list(
         nextDate,
         doctorId,
         "SCHEDULE",
@@ -413,7 +403,7 @@ export default function AppointmentsPage() {
     setFormError("");
     if (!draft.doctorId) return;
     try {
-      const response = await appointmentApi.slots(
+      const response = await slotApi.list(
         draft.date,
         draft.doctorId,
         "SCHEDULE",
@@ -436,7 +426,7 @@ export default function AppointmentsPage() {
     }
     setDraft((current) => ({ ...current, date, slotId: "", room: "" }));
     try {
-      const nextContext = await appointmentApi.context(date);
+      const nextContext = await receptionApi.context(date);
       setBookingContext(nextContext);
       if (!draft.doctorId) {
         setSlotDefinitions([]);
@@ -456,7 +446,7 @@ export default function AppointmentsPage() {
         );
         return;
       }
-      const response = await appointmentApi.slots(
+      const response = await slotApi.list(
         date,
         draft.doctorId,
         "SCHEDULE",
@@ -526,7 +516,7 @@ export default function AppointmentsPage() {
       return;
     }
     try {
-      const response = await appointmentApi.slots(
+      const response = await slotApi.list(
         draft.date,
         nextDoctorId,
         "SCHEDULE",
@@ -683,7 +673,7 @@ export default function AppointmentsPage() {
 
     setSaving(true);
     try {
-      const response = await appointmentApi.slots(
+      const response = await slotApi.list(
         draft.date,
         draft.doctorId,
         "SCHEDULE",
@@ -785,7 +775,7 @@ export default function AppointmentsPage() {
     if (!patientEditTarget) return;
     setSaving(true);
     try {
-      const response = await appointmentApi.updatePatient(
+      const response = await patientApi.update(
         Number(patientEditTarget.patient.id),
         {
           full_name: values.fullName.trim(),
@@ -859,7 +849,7 @@ export default function AppointmentsPage() {
     setRescheduleTarget(appointment);
     setRescheduleSuggestion(null);
     if (appointment.slotId && !slotDefinitions.some((item) => item.id === appointment.slotId)) {
-      void appointmentApi.slots(appointment.startTime.slice(0, 10), appointment.doctor.id, "SCHEDULE")
+      void slotApi.list(appointment.startTime.slice(0, 10), appointment.doctor.id, "SCHEDULE")
         .then((response) => setSlotDefinitions(response.slots.map(mapSlot)))
         .catch((error) => setFormError(error instanceof Error ? error.message : "Không thể tải khung giờ"));
     }

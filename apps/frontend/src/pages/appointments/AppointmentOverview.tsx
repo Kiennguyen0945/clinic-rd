@@ -9,8 +9,8 @@ import {
   Settings2,
   Stethoscope,
 } from "lucide-react";
-import type { ReceptionContext } from "../../lib/appointmentsApi";
-import { dateLabel, timeLabel, todayValue } from "./model";
+import type { ReceptionContext } from "../../features/appointments";
+import { dateLabel, timeLabel, todayValue } from "../../shared/lib/date";
 
 export function AppointmentOverview({
   selectedDate,

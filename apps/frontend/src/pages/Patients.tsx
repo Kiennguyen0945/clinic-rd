@@ -3,12 +3,17 @@ import type { FormEvent } from 'react'
 import { CalendarPlus, Eye, Filter, MoreHorizontal, Pencil, Plus, Search, X } from 'lucide-react'
 import CreatePatientModal from '../components/CreatePatientModal'
 import PatientProfileDrawer from '../entities/patient/ui/PatientProfileDrawer'
-import { appointmentApi } from '../lib/appointmentsApi'
-import type { ApiPatient, ReceptionContext } from '../lib/appointmentsApi'
+import { mapPatient, patientApi } from '../entities/patient'
+import type { ApiPatient } from '../entities/patient'
+import { appointmentApi } from '../entities/appointment'
+import type { AppointmentDraft, BookingMode, BookingSuggestion } from '../entities/appointment'
+import { emptyBookingSlot, isSlotAvailable, mapSlot, slotApi } from '../entities/slot'
+import type { SlotDefinition } from '../entities/slot'
+import { receptionApi } from '../features/appointments'
+import type { ReceptionContext } from '../features/appointments'
 import { useAuthStore } from '../store'
+import { todayValue } from '../shared/lib/date'
 import { CreateAppointmentModal } from './appointments/AppointmentModals'
-import { emptyBookingSlot, isSlotAvailable, mapPatient, mapSlot, todayValue } from './appointments/model'
-import type { AppointmentDraft, BookingMode, BookingSuggestion, SlotDefinition } from './appointments/model'
 
 interface Patient {
   id: string
@@ -88,7 +93,7 @@ export default function PatientsPage() {
       setLoading(true)
       setError('')
       try {
-        const response = await appointmentApi.patients({
+        const response = await patientApi.list({
           keyword: keyword.trim(),
           page,
           pageSize: 10,
@@ -259,7 +264,7 @@ function EditPatientModal({ patient, onClose, onSaved }: { patient: Patient; onC
     setSaving(true)
     setFormError('')
     try {
-      const response = await appointmentApi.updatePatient(Number(patient.id), {
+      const response = await patientApi.update(Number(patient.id), {
         full_name: values.fullName.trim(), phone: values.phone.trim(), email: values.email.trim(), cccd: values.cccd.trim(),
         insurance_number: values.insuranceNumber.trim(), address: values.address.trim(),
       })
@@ -301,13 +306,13 @@ function PatientAppointmentModal({ patient, onClose, onCreated }: { patient: Pat
 
   useEffect(() => {
     let cancelled = false
-    appointmentApi.context(initialDate).then((value) => { if (!cancelled) { setContext(value); setBookingContext(value) } }).catch((error) => { if (!cancelled) setFormError(error instanceof Error ? error.message : 'Không thể tải dữ liệu tạo lịch.') })
+    receptionApi.context(initialDate).then((value) => { if (!cancelled) { setContext(value); setBookingContext(value) } }).catch((error) => { if (!cancelled) setFormError(error instanceof Error ? error.message : 'Không thể tải dữ liệu tạo lịch.') })
     return () => { cancelled = true }
   }, [initialDate])
 
   const loadSlots = async (date: string, doctorId: string) => {
     if (!doctorId) { setSlots([]); return [] }
-    const response = await appointmentApi.slots(date, doctorId, 'SCHEDULE')
+    const response = await slotApi.list(date, doctorId, 'SCHEDULE')
     const mapped = response.slots.map(mapSlot)
     setSlots(mapped)
     return mapped
@@ -317,7 +322,7 @@ function PatientAppointmentModal({ patient, onClose, onCreated }: { patient: Pat
     setDraft((current) => ({ ...current, date, slotId: '', room: '' }))
     setSlot(emptyBookingSlot()); setSuggestion(null); setFormError('')
     try {
-      const nextContext = await appointmentApi.context(date)
+      const nextContext = await receptionApi.context(date)
       setBookingContext(nextContext)
       if (draft.doctorId) {
         const doctorRooms = [...new Set(nextContext.openSlotAssignments.filter((item) => item.doctorId === draft.doctorId).map((item) => item.roomNumber))]

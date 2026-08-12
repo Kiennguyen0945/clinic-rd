@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Cake, CalendarDays, ChevronDown, ChevronUp, MapPin, Phone, UserRound, X } from 'lucide-react'
-import { medicalRecordsApi } from '../../../lib/medicalRecordsApi'
-import type { ApiMedicalRecordHistoryItem } from '../../../lib/medicalRecordsApi'
+import { medicalRecordApi } from '../../medical-record'
+import type { ApiMedicalRecordHistoryItem } from '../../medical-record'
 
 export interface DrawerPatient {
   id: string
@@ -44,7 +44,7 @@ export default function PatientProfileDrawer({ patient, onClose, showMedicalHist
   useEffect(() => {
     if (!canLoadHistory) return
     let cancelled = false
-    medicalRecordsApi.historyByPatient(Number(patient.id))
+    medicalRecordApi.historyByPatient(Number(patient.id))
       .then((records) => { if (!cancelled) { setHistory(records); setHistoryError(''); setLoadedPatientId(patient.id) } })
       .catch((error: unknown) => { if (!cancelled) { setHistoryError(error instanceof Error ? error.message : 'Không thể tải lịch sử khám'); setLoadedPatientId(patient.id) } })
     return () => { cancelled = true }

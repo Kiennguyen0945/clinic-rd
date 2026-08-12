@@ -1,14 +1,15 @@
 import { useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { CalendarDays, X } from "lucide-react";
-import type { ApiDoctor, ReceptionContext } from "../../lib/appointmentsApi";
+import type { ApiDoctor, ReceptionContext } from "../../features/appointments";
 import type {
   Appointment,
   AppointmentDraft,
   BookingSuggestion,
-  SlotDefinition,
-} from "./model";
-import { cancellationReasonLabels, todayValue } from "./model";
+} from "../../entities/appointment";
+import { cancellationReasonLabels } from "../../entities/appointment";
+import type { SlotDefinition } from "../../entities/slot";
+import { todayValue } from "../../shared/lib/date";
 import {
   BookingSuggestionPanel,
   SearchableSelect,
@@ -271,5 +272,4 @@ export function CancellationModal({
     </div>
   );
 }
-
 

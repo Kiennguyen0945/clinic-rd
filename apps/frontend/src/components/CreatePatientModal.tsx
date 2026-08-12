@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { X } from "lucide-react";
 
-import { appointmentApi } from "../lib/appointmentsApi";
-import type { ApiPatient } from "../lib/appointmentsApi";
+import { patientApi } from "../entities/patient";
+import type { ApiPatient } from "../entities/patient";
 
 interface NewPatientDraft {
   fullName: string;
@@ -47,7 +47,7 @@ export default function CreatePatientModal({
     setSaving(true);
     setError("");
     try {
-      const response = await appointmentApi.createPatient({
+      const response = await patientApi.create({
         full_name: value.fullName.trim(),
         phone: value.phone.replace(/\s/g, ""),
         dob: value.dob,

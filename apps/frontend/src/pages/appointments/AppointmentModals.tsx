@@ -7,18 +7,15 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import type { ApiDoctor, ReceptionContext } from "../../lib/appointmentsApi";
+import type { ApiDoctor, ReceptionContext } from "../../features/appointments";
 import type {
   AppointmentDraft,
   BookingMode,
   BookingSuggestion,
-  PatientProfile,
-  SlotDefinition,
-} from "./model";
-import {
-  relativeSlotDateLabel,
-  todayValue,
-} from "./model";
+} from "../../entities/appointment";
+import type { PatientProfile } from "../../entities/patient";
+import type { SlotDefinition } from "../../entities/slot";
+import { relativeSlotDateLabel, todayValue } from "../../shared/lib/date";
 
 export function BookingSuggestionPanel({
   suggestion,

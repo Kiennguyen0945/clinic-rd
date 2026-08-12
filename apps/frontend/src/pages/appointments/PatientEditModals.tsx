@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { X } from "lucide-react";
-import type { Appointment } from "./model";
-import { shortDateLabel, timeLabel } from "./model";
+import type { Appointment } from "../../entities/appointment";
+import { shortDateLabel, timeLabel } from "../../shared/lib/date";
 
 export function PatientQuickEditModal({
   appointment,
@@ -269,5 +269,4 @@ export function AppointmentQuickEditModal({
     </div>
   );
 }
-
 
