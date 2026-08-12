@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import type { ReactNode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 
-const queryClient = new QueryClient()
+import { queryClient } from '../shared/api/query-client'
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   return (

@@ -1,11 +1,4 @@
-import { authFetch } from './authFetch'
-
-interface ApiEnvelope<T> {
-  success: boolean
-  data: T
-  message?: string
-  error?: { code?: string; message?: string; details?: Record<string, unknown> }
-}
+import { apiRequest } from '../shared/api/http-client'
 
 export interface ApiMedicalRecordHistoryItem {
   id: number
@@ -59,61 +52,16 @@ export interface ApiMedicalRecord {
   } | null
 }
 
-export class MedicalRecordApiError extends Error {
-  code?: string
-  details?: Record<string, unknown>
-
-  constructor(message: string, code?: string, details?: Record<string, unknown>) {
-    super(message)
-    this.name = 'MedicalRecordApiError'
-    this.code = code
-    this.details = details
-  }
-}
+export { ApiError as MedicalRecordApiError } from '../shared/api/api-error'
 
 async function request(path: string, init?: RequestInit): Promise<ApiMedicalRecord> {
-  const response = await authFetch(path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  })
-  const contentType = response.headers.get('content-type') || ''
-  let payload: ApiEnvelope<{ medicalRecord: ApiMedicalRecord }> | null = null
-  if (contentType.includes('application/json')) {
-    try {
-      payload = await response.json() as ApiEnvelope<{ medicalRecord: ApiMedicalRecord }>
-    } catch {
-      payload = null
-    }
-  } else {
-    await response.text()
-  }
-  if (!response.ok || !payload?.success) {
-    throw new MedicalRecordApiError(
-      payload?.error?.message || payload?.message || `Máy chủ không thể xử lý yêu cầu (${response.status})`,
-      payload?.error?.code,
-      payload?.error?.details,
-    )
-  }
-  return payload.data.medicalRecord
+  const data = await apiRequest<{ medicalRecord: ApiMedicalRecord }>(path, init)
+  return data.medicalRecord
 }
 
 async function requestHistory(patientId: number): Promise<ApiMedicalRecordHistoryItem[]> {
-  const response = await authFetch(`/api/patients/${patientId}/medical-records/`)
-  const contentType = response.headers.get('content-type') || ''
-  let payload: ApiEnvelope<{ medicalRecords: ApiMedicalRecordHistoryItem[] }> | null = null
-  if (contentType.includes('application/json')) {
-    try {
-      payload = await response.json() as ApiEnvelope<{ medicalRecords: ApiMedicalRecordHistoryItem[] }>
-    } catch {
-      payload = null
-    }
-  } else {
-    await response.text()
-  }
-  if (!response.ok || !payload?.success) {
-    throw new MedicalRecordApiError(payload?.error?.message || payload?.message || `Máy chủ không thể xử lý yêu cầu (${response.status})`, payload?.error?.code, payload?.error?.details)
-  }
-  return payload.data.medicalRecords
+  const data = await apiRequest<{ medicalRecords: ApiMedicalRecordHistoryItem[] }>(`/api/patients/${patientId}/medical-records/`)
+  return data.medicalRecords
 }
 
 export const medicalRecordsApi = {

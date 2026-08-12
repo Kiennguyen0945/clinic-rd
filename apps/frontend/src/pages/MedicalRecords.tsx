@@ -9,7 +9,7 @@ import {
 import { appointmentApi } from '../lib/appointmentsApi'
 import { medicalRecordsApi } from '../lib/medicalRecordsApi'
 import type { ApiMedicalRecord, ApiMedicalRecordHistoryItem } from '../lib/medicalRecordsApi'
-import PatientProfileDrawer from '../components/PatientProfileDrawer'
+import PatientProfileDrawer from '../entities/patient/ui/PatientProfileDrawer'
 import { useAuthStore } from '../store'
 import { QueueGroup, SlotRow } from './appointments/SchedulePanels'
 import {

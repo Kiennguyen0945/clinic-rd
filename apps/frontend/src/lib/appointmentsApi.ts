@@ -1,23 +1,7 @@
-import { authFetch } from './authFetch'
+import { apiRequest } from '../shared/api/http-client'
 
-export interface ApiEnvelope<T> {
-  success: boolean
-  data: T
-  message?: string
-  error?: { code?: string; message?: string; details?: Record<string, unknown> }
-}
-
-export class AppointmentApiError extends Error {
-  code?: string
-  details?: Record<string, unknown>
-
-  constructor(message: string, code?: string, details?: Record<string, unknown>) {
-    super(message)
-    this.name = 'AppointmentApiError'
-    this.code = code
-    this.details = details
-  }
-}
+export type { ApiEnvelope } from '../shared/api/api-envelope'
+export { ApiError as AppointmentApiError } from '../shared/api/api-error'
 
 export interface ApiPatient {
   id: number | null
@@ -92,33 +76,11 @@ export interface ReceptionContext {
   waitingDoctors: Array<{ doctorId: string; doctorName: string; waitingCount: number }>
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await authFetch(path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  })
-  const contentType = response.headers.get('content-type') || ''
-  let payload: ApiEnvelope<T> | null = null
-  if (contentType.includes('application/json')) {
-    try {
-      payload = await response.json() as ApiEnvelope<T>
-    } catch {
-      payload = null
-    }
-  } else {
-    await response.text()
-  }
-  if (!response.ok || !payload?.success) {
-    throw new AppointmentApiError(payload?.error?.message || payload?.message || `Máy chủ không thể xử lý yêu cầu (${response.status})`, payload?.error?.code, payload?.error?.details)
-  }
-  return payload.data
-}
-
 export const appointmentApi = {
-  context: (date: string) => request<ReceptionContext>(`/api/appointments/reception-context/?date=${date}`),
-  slots: (date: string, doctorId: string, bookingType = 'SCHEDULE') => request<{ slots: ApiSlot[] }>(`/api/doctor-slots/?date=${date}&doctorId=${doctorId}&bookingType=${bookingType}`),
-  appointments: (date: string, doctorId: string) => request<{ appointments: ApiAppointment[] }>(`/api/appointments/?date=${date}&doctorId=${doctorId}`),
-  queue: (date: string, doctorId?: string, keyword = '') => request<{ appointments: ApiAppointment[] }>(`/api/appointments/queue/?date=${date}${doctorId ? `&doctorId=${doctorId}` : ''}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`),
+  context: (date: string) => apiRequest<ReceptionContext>(`/api/appointments/reception-context/?date=${date}`),
+  slots: (date: string, doctorId: string, bookingType = 'SCHEDULE') => apiRequest<{ slots: ApiSlot[] }>(`/api/doctor-slots/?date=${date}&doctorId=${doctorId}&bookingType=${bookingType}`),
+  appointments: (date: string, doctorId: string) => apiRequest<{ appointments: ApiAppointment[] }>(`/api/appointments/?date=${date}&doctorId=${doctorId}`),
+  queue: (date: string, doctorId?: string, keyword = '') => apiRequest<{ appointments: ApiAppointment[] }>(`/api/appointments/queue/?date=${date}${doctorId ? `&doctorId=${doctorId}` : ''}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`),
   patients: (options: { keyword?: string; page?: number; pageSize?: number; gender?: string; age?: string } = {}) => {
     const params = new URLSearchParams()
     if (options.keyword) params.set('keyword', options.keyword)
@@ -127,13 +89,13 @@ export const appointmentApi = {
     if (options.gender && options.gender !== 'all') params.set('gender', options.gender)
     if (options.age && options.age !== 'all') params.set('age', options.age)
     const query = params.toString()
-    return request<{ patients: ApiPatient[]; pagination: { page: number; pageSize: number; totalItems: number; totalPages: number } }>(`/api/patients/${query ? `?${query}` : ''}`)
+    return apiRequest<{ patients: ApiPatient[]; pagination: { page: number; pageSize: number; totalItems: number; totalPages: number } }>(`/api/patients/${query ? `?${query}` : ''}`)
   },
-  createPatient: (body: { full_name: string; phone: string; dob: string; gender: 'M' | 'F' | 'O'; email?: string; cccd?: string; address?: string; insurance_number?: string }) => request<{ patient: ApiPatient }>('/api/patients/', { method: 'POST', body: JSON.stringify(body) }),
-  updatePatient: (id: number, body: { full_name: string; phone: string; email: string; cccd: string; address: string; insurance_number: string }) => request<{ patient: ApiPatient }>(`/api/patients/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
-  create: (body: { patientId: number; doctorId: number; slotId?: number; slotKey?: string; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => request<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
-  update: (id: number, body: { reason: string; slotId?: number; slotKey?: string }) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
-  checkIn: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
-  start: (id: number) => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/start/`, { method: 'POST' }),
-  cancel: (id: number, cancellationReason: string, cancellationNote = '') => request<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
+  createPatient: (body: { full_name: string; phone: string; dob: string; gender: 'M' | 'F' | 'O'; email?: string; cccd?: string; address?: string; insurance_number?: string }) => apiRequest<{ patient: ApiPatient }>('/api/patients/', { method: 'POST', body: JSON.stringify(body) }),
+  updatePatient: (id: number, body: { full_name: string; phone: string; email: string; cccd: string; address: string; insurance_number: string }) => apiRequest<{ patient: ApiPatient }>(`/api/patients/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
+  create: (body: { patientId: number; doctorId: number; slotId?: number; slotKey?: string; departmentId?: number; bookingType: 'SCHEDULE' | 'WALK_IN'; patientType: 'SERVICE' | 'BHYT'; bhytNumber?: string; reason: string }) => apiRequest<{ appointment: ApiAppointment }>('/api/appointments/', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: number, body: { reason: string; slotId?: number; slotKey?: string }) => apiRequest<{ appointment: ApiAppointment }>(`/api/appointments/${id}/`, { method: 'PUT', body: JSON.stringify(body) }),
+  checkIn: (id: number) => apiRequest<{ appointment: ApiAppointment }>(`/api/appointments/${id}/check-in/`, { method: 'POST' }),
+  start: (id: number) => apiRequest<{ appointment: ApiAppointment }>(`/api/appointments/${id}/start/`, { method: 'POST' }),
+  cancel: (id: number, cancellationReason: string, cancellationNote = '') => apiRequest<{ appointment: ApiAppointment }>(`/api/appointments/${id}/cancel/`, { method: 'PATCH', body: JSON.stringify({ cancellationReason, cancellationNote }) }),
 }
