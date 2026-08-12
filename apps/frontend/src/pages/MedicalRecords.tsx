@@ -16,7 +16,7 @@ import type { ApiMedicalRecord, ApiMedicalRecordHistoryItem } from '../entities/
 import PatientProfileDrawer from '../entities/patient/ui/PatientProfileDrawer'
 import { useAuthStore } from '../store'
 import { shortDateLabel, timeLabel, todayValue } from '../shared/lib/date'
-import { QueueGroup, SlotRow } from './appointments/SchedulePanels'
+import { QueueGroup, SlotRow } from '../features/appointments/components/schedule/SchedulePanels'
 
 type AppointmentStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED'
 type OrderType = 'LAB_TEST' | 'IMAGING' | 'PROCEDURE' | 'OTHER'
