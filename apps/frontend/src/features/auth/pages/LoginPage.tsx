@@ -17,7 +17,7 @@ export default function LoginPage() {
     const success = await login(username, password)
 
     if (success) {
-      navigate('/dashboard', { replace: true })
+      void navigate('/dashboard', { replace: true })
     }
   }
 

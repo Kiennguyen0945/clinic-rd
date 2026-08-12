@@ -11,12 +11,43 @@ export default defineConfig([
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-misused-promises': ['error', {
+        checksVoidReturn: { attributes: false },
+      }],
+    },
+  },
+  {
+    files: ['src/shared/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['@/app/**', '@/features/**', '@/pages/**', '../../app/**', '../../features/**', '../../pages/**', '../../../app/**', '../../../features/**', '../../../pages/**'],
+          message: 'Shared code must not depend on app, page, or feature layers.',
+        }],
+      }],
+    },
+  },
+  {
+    files: ['src/entities/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['@/app/**', '@/features/**', '@/pages/**', '../../app/**', '../../features/**', '../../pages/**', '../../../app/**', '../../../features/**', '../../../pages/**'],
+          message: 'Entities may depend only on other entities and shared infrastructure.',
+        }],
+      }],
     },
   },
 ])

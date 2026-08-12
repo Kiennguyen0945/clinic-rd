@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "type-check": "tsc -b --pretty false",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:cycles": "node scripts/check-import-cycles.mjs",
+    "report:bundle": "node scripts/report-bundle-size.mjs",
+    "check": "npm run lint && npm run type-check && npm run check:cycles && npm run test && npm run build && npm run report:bundle",
+    "ci": "npm run check"
   },
   "dependencies": {
     "@fullcalendar/interaction": "^6.1.21",

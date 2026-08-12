@@ -193,7 +193,7 @@ function PatientAppointmentModal({ patient, onClose, onCreated }: { patient: Pat
   }
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLElement | null
+    const submitter = (event.nativeEvent as SubmitEvent).submitter
     const actionMode: BookingMode = submitter?.textContent?.includes('Khám ngay') ? 'IMMEDIATE' : 'SCHEDULED'
     if (!draft.doctorId || !draft.department || !draft.room || !draft.date || !draft.reason.trim() || (draft.service === 'BHYT' && !draft.insuranceNumber.trim())) return setFormError('Vui lòng điền đầy đủ thông tin bắt buộc.')
     const selected = slots.find((item) => item.id === draft.slotId)

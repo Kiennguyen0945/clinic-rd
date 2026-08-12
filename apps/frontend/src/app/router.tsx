@@ -1,18 +1,27 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-import { LoginPage } from '../features/auth'
-import { AppointmentsPage } from '../features/appointments'
-import { DashboardPage } from '../features/dashboard'
-import { PatientsPage } from '../features/patients'
-import MedicalRecordsPage from '../pages/MedicalRecords'
-import { useAuthStore } from '../store'
+import { useAuthStore } from '@/shared/auth/session-store'
 import MainLayout from './layouts/MainLayout'
+
+const LoginPage = lazy(() => import('@/features/auth').then((module) => ({ default: module.LoginPage })))
+const DashboardPage = lazy(() => import('@/features/dashboard').then((module) => ({ default: module.DashboardPage })))
+const AppointmentsPage = lazy(() => import('@/features/appointments').then((module) => ({ default: module.AppointmentsPage })))
+const PatientsPage = lazy(() => import('@/features/patients').then((module) => ({ default: module.PatientsPage })))
+const MedicalRecordsPage = lazy(() => import('@/features/medical-records').then((module) => ({ default: module.MedicalRecordsPage })))
+
+const routeFallback = <div className="empty-box">Đang tải trang...</div>
+const dashboardFallback = (
+  <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+    <p style={{ color: 'var(--text-secondary)' }}>Đang tải dữ liệu...</p>
+  </div>
+)
 
 function DoctorRoute() {
   const user = useAuthStore((state) => state.user)
 
   return user?.role === 'doctor' ? (
-    <MedicalRecordsPage />
+    <Suspense fallback={routeFallback}><MedicalRecordsPage /></Suspense>
   ) : (
     <Navigate to="/dashboard" replace />
   )
@@ -25,14 +34,14 @@ export default function AppRouter() {
     <Routes>
       <Route
         path="/login"
-        element={token ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        element={token ? <Navigate to="/dashboard" replace /> : <Suspense fallback={routeFallback}><LoginPage /></Suspense>}
       />
       <Route
         element={token ? <MainLayout /> : <Navigate to="/login" replace />}
       >
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/appointments" element={<AppointmentsPage />} />
-        <Route path="/patients" element={<PatientsPage />} />
+        <Route path="/dashboard" element={<Suspense fallback={dashboardFallback}><DashboardPage /></Suspense>} />
+        <Route path="/appointments" element={<Suspense fallback={routeFallback}><AppointmentsPage /></Suspense>} />
+        <Route path="/patients" element={<Suspense fallback={routeFallback}><PatientsPage /></Suspense>} />
         <Route path="/medical-records" element={<DoctorRoute />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>

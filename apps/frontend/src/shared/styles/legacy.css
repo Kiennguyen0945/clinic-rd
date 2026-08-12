@@ -1,0 +1,6 @@
+/*
+ * Phase 8 compatibility entry point.
+ * Keep this import order stable while selectors move to owned stylesheets.
+ */
+@import './legacy-base.css';
+@import './legacy-app.css';
