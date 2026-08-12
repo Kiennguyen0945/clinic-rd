@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuthStore } from '../store';
+import { useAuthStore } from '../../store';
 import { X, LogOut, KeyRound, ChevronDown } from 'lucide-react';
-import { authFetch } from '../lib/authFetch';
+import { authFetch } from '../../lib/authFetch';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
