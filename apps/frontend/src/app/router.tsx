@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import { LoginPage } from '../features/auth'
+import { DashboardPage } from '../features/dashboard'
 import AppointmentsPage from '../pages/Appointments'
-import DashboardPage from '../pages/Dashboard'
-import LoginPage from '../pages/Login'
 import MedicalRecordsPage from '../pages/MedicalRecords'
 import PatientsPage from '../pages/Patients'
 import { useAuthStore } from '../store'
