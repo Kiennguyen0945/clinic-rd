@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
-import type { Appointment } from "./model";
-import {
-  patientInitials,
-  shortDateLabel,
-  statusConfig,
-  timeLabel,
-} from "./model";
+import { statusConfig } from "../../entities/appointment";
+import type { Appointment } from "../../entities/appointment";
+import { patientInitials } from "../../entities/patient";
+import { shortDateLabel, timeLabel } from "../../shared/lib/date";
 
 export function PrintTicket({
   appointment,
@@ -174,4 +171,3 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

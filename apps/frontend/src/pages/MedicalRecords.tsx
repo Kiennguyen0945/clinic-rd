@@ -6,23 +6,17 @@ import {
   MoreHorizontal, PenLine, Pill, Plus, RefreshCw, Save, Search, Stethoscope,
   Trash2, UserRound, X,
 } from 'lucide-react'
-import { appointmentApi } from '../lib/appointmentsApi'
-import { medicalRecordsApi } from '../lib/medicalRecordsApi'
-import type { ApiMedicalRecord, ApiMedicalRecordHistoryItem } from '../lib/medicalRecordsApi'
+import { appointmentApi, mapAppointment, statusConfig } from '../entities/appointment'
+import type { Appointment } from '../entities/appointment'
+import { mapPatient, patientApi, patientInitials } from '../entities/patient'
+import { mapSlot, slotApi } from '../entities/slot'
+import type { SlotDefinition } from '../entities/slot'
+import { medicalRecordApi } from '../entities/medical-record'
+import type { ApiMedicalRecord, ApiMedicalRecordHistoryItem } from '../entities/medical-record'
 import PatientProfileDrawer from '../entities/patient/ui/PatientProfileDrawer'
 import { useAuthStore } from '../store'
+import { shortDateLabel, timeLabel, todayValue } from '../shared/lib/date'
 import { QueueGroup, SlotRow } from './appointments/SchedulePanels'
-import {
-  mapAppointment,
-  mapPatient,
-  mapSlot,
-  patientInitials,
-  shortDateLabel,
-  statusConfig,
-  timeLabel,
-  todayValue,
-} from './appointments/model'
-import type { Appointment, SlotDefinition } from './appointments/model'
 
 type AppointmentStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED'
 type OrderType = 'LAB_TEST' | 'IMAGING' | 'PROCEDURE' | 'OTHER'
@@ -203,9 +197,9 @@ export default function MedicalRecordsPage() {
       try {
         const date = todayValue()
         const [slotResponse, appointmentResponse, patientResponse] = await Promise.all([
-          appointmentApi.slots(date, user.id),
-          appointmentApi.appointments(date, user.id),
-          appointmentApi.patients({ pageSize: 100 }),
+          slotApi.list(date, user.id),
+          appointmentApi.list(date, user.id),
+          patientApi.list({ pageSize: 100 }),
         ])
         if (cancelled) return
         const mappedSlots = slotResponse.slots.map(mapSlot)
@@ -260,7 +254,7 @@ export default function MedicalRecordsPage() {
         setAppointments((items) => items.map((item) => item.id === current.id ? current : item))
       }
       if (!current.id.startsWith('mock-')) {
-        const record = await medicalRecordsApi.getByAppointment(Number(current.id))
+        const record = await medicalRecordApi.getByAppointment(Number(current.id))
         setMedicalRecordId(record.id)
         setMedicalRecordStatus(record.status)
         setDraft(draftFromMedicalRecord(record))
@@ -299,13 +293,13 @@ export default function MedicalRecordsPage() {
     setSavingRecord(true)
     setMedicalRecordError('')
     try {
-      await medicalRecordsApi.update(medicalRecordId, {
+      await medicalRecordApi.update(medicalRecordId, {
         illnessHistory: draft.illnessHistory,
         vitalSigns: JSON.stringify({ pulse: draft.pulse, systolic: draft.systolic, diastolic: draft.diastolic, temperature: draft.temperature, spo2: draft.spo2, weight: draft.weight, height: draft.height }),
         examinationNote: draft.symptoms,
         diagnosis: draft.diagnosis,
       })
-      const record = await medicalRecordsApi.replacePrescription(medicalRecordId, draft.prescriptions.map((item) => ({ medicationName: item.medicationName, dosage: item.dosage, durationDays: item.durationDays, quantity: item.quantity, instructions: item.instructions })))
+      const record = await medicalRecordApi.replacePrescription(medicalRecordId, draft.prescriptions.map((item) => ({ medicationName: item.medicationName, dosage: item.dosage, durationDays: item.durationDays, quantity: item.quantity, instructions: item.instructions })))
       setDraft(draftFromMedicalRecord(record))
       setMedicalRecordStatus(record.status)
       setSavedAt(formatSavedAt(record.updatedAt))
@@ -329,7 +323,7 @@ export default function MedicalRecordsPage() {
       try {
         setSavingRecord(true)
         setMedicalRecordError('')
-        const signedRecord = await medicalRecordsApi.sign(savedRecord.id)
+        const signedRecord = await medicalRecordApi.sign(savedRecord.id)
         setMedicalRecordStatus(signedRecord.status)
       } catch (error) {
         setMedicalRecordError(error instanceof Error ? error.message : 'Không thể ký hồ sơ bệnh án')
@@ -358,7 +352,7 @@ export default function MedicalRecordsPage() {
         setMedicalRecordId(null)
         setDraft({ ...DEMO_DRAFT, prescriptions: DEMO_DRAFT.prescriptions.map((item) => ({ ...item })) })
       } else {
-        const history = await medicalRecordsApi.historyByPatient(Number(appointment.patient.id))
+        const history = await medicalRecordApi.historyByPatient(Number(appointment.patient.id))
         const record = history.find((item) => item.appointmentId === Number(appointment.id))
         if (!record) throw new Error('Không tìm thấy hồ sơ bệnh án của lượt khám này')
         setMedicalRecordId(record.id)
@@ -504,7 +498,7 @@ function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, 
     let cancelled = false
     const loadRecentHistory = async () => {
       try {
-        const records = await medicalRecordsApi.historyByPatient(Number(patient.id))
+        const records = await medicalRecordApi.historyByPatient(Number(patient.id))
         if (!cancelled) setRecentHistory(records.slice(0, 3))
       } catch (error) {
         if (!cancelled) setHistoryError(error instanceof Error ? error.message : 'Không thể tải lịch sử khám')

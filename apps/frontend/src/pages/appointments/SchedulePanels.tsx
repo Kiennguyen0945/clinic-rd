@@ -10,12 +10,10 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import type { Appointment, AppointmentStatus, SlotDefinition } from "./model";
-import {
-  cancellationReasonLabel,
-  statusConfig,
-  timeLabel,
-} from "./model";
+import { cancellationReasonLabel, statusConfig } from "../../entities/appointment";
+import type { Appointment, AppointmentStatus } from "../../entities/appointment";
+import type { SlotDefinition } from "../../entities/slot";
+import { timeLabel } from "../../shared/lib/date";
 
 export function SlotRow({
   slot,

@@ -1,13 +1,13 @@
 import type {
   ApiAppointment,
-  ApiPatient,
-  ApiSlot,
-  ReceptionContext,
-} from '../lib/appointmentsApi'
+} from '../entities/appointment'
+import type { ApiPatient } from '../entities/patient'
+import type { ApiSlot } from '../entities/slot'
+import type { ReceptionContext } from '../features/appointments'
 import type {
   ApiMedicalRecord,
   ApiMedicalRecordHistoryItem,
-} from '../lib/medicalRecordsApi'
+} from '../entities/medical-record'
 
 export const testDate = new Date().toISOString().slice(0, 10)
 
