@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from '../App'
+import App from '../app/App'
 import MedicalRecordsPage from '../pages/MedicalRecords'
 import { useAuthStore } from '../store'
 import {

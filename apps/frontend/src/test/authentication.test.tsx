@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from '../App'
+import App from '../app/App'
 import { authFetch } from '../lib/authFetch'
 import { useAuthStore } from '../store'
 import { receptionistUser } from './fixtures'
@@ -148,6 +148,6 @@ describe('authentication behavior', () => {
 })
 
 function renderApp() {
-  // App owns BrowserRouter, so these tests exercise the actual routing boundary.
+  // App owns the global providers, so these tests exercise the actual app boundary.
   return render(<App />)
 }
