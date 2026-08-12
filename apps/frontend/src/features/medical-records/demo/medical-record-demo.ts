@@ -1,7 +1,7 @@
 import type { Appointment } from '../../../entities/appointment'
 import type { SlotDefinition } from '../../../entities/slot'
-import type { ConsultationDraft } from '../../../features/medical-records/model/consultation.schema'
-import { EMPTY_CONSULTATION_DRAFT } from '../../../features/medical-records/model/consultation.schema'
+import type { ConsultationDraft } from '../model/consultation.schema'
+import { EMPTY_CONSULTATION_DRAFT } from '../model/consultation.schema'
 
 export const DEMO_CONSULTATION_DRAFT: ConsultationDraft = {
   ...EMPTY_CONSULTATION_DRAFT,

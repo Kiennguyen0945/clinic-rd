@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../app/App'
-import { authFetch } from '../lib/authFetch'
+import { authenticatedFetch as authFetch } from '../shared/api'
 import { useAuthStore } from '../store'
 import { receptionistUser } from './fixtures'
 import { server } from './server'

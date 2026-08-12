@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuthStore } from '../../store';
 import { X, LogOut, KeyRound, ChevronDown } from 'lucide-react';
-import { authFetch } from '../../lib/authFetch';
+import { authenticatedFetch as authFetch } from '../../shared/api';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);

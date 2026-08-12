@@ -4,7 +4,7 @@ import { appointmentApi, mapAppointment } from '../../../entities/appointment'
 import { mapPatient, patientApi } from '../../../entities/patient'
 import { mapSlot, slotApi } from '../../../entities/slot'
 import { todayValue } from '../../../shared/lib/date'
-import { createDemoAppointments, createDemoSlots } from '../../../shared/test/fixtures/medical-record-demo'
+import { createDemoAppointments, createDemoSlots } from '../demo/medical-record-demo'
 
 export const medicalRecordQueryKeys = {
   all: ['medical-records'] as const,
