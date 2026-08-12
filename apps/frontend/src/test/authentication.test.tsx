@@ -85,6 +85,33 @@ describe('authentication behavior', () => {
     expect(window.location.pathname).toBe('/dashboard')
   })
 
+  it('keeps the user on login and shows the server error when authentication fails', async () => {
+    const user = userEvent.setup()
+    server.use(
+      http.post('/api/auth/login/', () =>
+        HttpResponse.json(
+          {
+            success: false,
+            error: { message: 'Tên đăng nhập hoặc mật khẩu không đúng' },
+          },
+          { status: 401 },
+        ),
+      ),
+    )
+
+    renderApp()
+    await user.type(screen.getByLabelText('Tên đăng nhập'), 'sai-tai-khoan')
+    await user.type(screen.getByLabelText('Mật khẩu'), 'sai-mat-khau')
+    await user.click(screen.getByRole('button', { name: 'Đăng nhập' }))
+
+    expect(
+      await screen.findByText('Tên đăng nhập hoặc mật khẩu không đúng'),
+    ).toBeVisible()
+    expect(window.location.pathname).toBe('/login')
+    expect(localStorage.getItem('authToken')).toBeNull()
+    expect(useAuthStore.getState().token).toBeNull()
+  })
+
   it('restores a stored session and logs out through the header menu', async () => {
     const user = userEvent.setup()
     localStorage.setItem('authToken', 'stored-token')
