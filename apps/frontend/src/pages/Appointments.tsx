@@ -15,7 +15,7 @@ import {
   Stethoscope,
   X,
 } from "lucide-react";
-import CreatePatientModal from "../components/CreatePatientModal";
+import { CreatePatientModal } from "../features/patients";
 import { useAuthStore } from "../store";
 import { appointmentApi, mapAppointment } from "../entities/appointment";
 import type {

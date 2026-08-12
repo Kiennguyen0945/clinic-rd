@@ -2,9 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { LoginPage } from '../features/auth'
 import { DashboardPage } from '../features/dashboard'
+import { PatientsPage } from '../features/patients'
 import AppointmentsPage from '../pages/Appointments'
 import MedicalRecordsPage from '../pages/MedicalRecords'
-import PatientsPage from '../pages/Patients'
 import { useAuthStore } from '../store'
 import MainLayout from './layouts/MainLayout'
 
