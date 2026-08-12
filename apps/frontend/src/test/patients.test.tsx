@@ -2,8 +2,9 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useSearchParams } from 'react-router-dom'
 
-import PatientsPage from '../pages/Patients'
+import { PatientsPage } from '../features/patients'
 import { useAuthStore } from '../store'
 import {
   appointment,
@@ -29,6 +30,13 @@ function setSession(user: typeof receptionistUser | typeof doctorUser) {
   })
 }
 
+function PatientSearchParamsProbe() {
+  const [searchParams] = useSearchParams()
+  return <output data-testid="patient-search-params">
+    {JSON.stringify(Object.fromEntries(searchParams))}
+  </output>
+}
+
 describe('patient workflow behavior', () => {
   beforeEach(() => setSession(receptionistUser))
 
@@ -50,7 +58,7 @@ describe('patient workflow behavior', () => {
       }),
     )
 
-    renderWithRouter(<PatientsPage />, '/patients')
+    renderWithRouter(<><PatientsPage /><PatientSearchParamsProbe /></>, '/patients')
     expect(await screen.findByText(patient.full_name)).toBeVisible()
 
     await user.type(
@@ -67,9 +75,13 @@ describe('patient workflow behavior', () => {
       expect(latest.searchParams.get('age')).toBe('30to40')
       expect(latest.searchParams.get('page')).toBe('1')
     })
+    expect(screen.getByTestId('patient-search-params')).toHaveTextContent(
+      JSON.stringify({ keyword: 'Thu Hà', gender: 'Nữ', age: '30to40' }),
+    )
 
     await user.click(screen.getByRole('button', { name: '2' }))
     await waitFor(() => expect(requests[requests.length - 1].searchParams.get('page')).toBe('2'))
+    expect(screen.getByTestId('patient-search-params')).toHaveTextContent('"page":"2"')
     expect(screen.getByText('Hiển thị 11 đến 12 trong tổng số 12 bệnh nhân')).toBeVisible()
   })
 
