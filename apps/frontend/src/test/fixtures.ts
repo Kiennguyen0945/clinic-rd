@@ -4,6 +4,10 @@ import type {
   ApiSlot,
   ReceptionContext,
 } from '../lib/appointmentsApi'
+import type {
+  ApiMedicalRecord,
+  ApiMedicalRecordHistoryItem,
+} from '../lib/medicalRecordsApi'
 
 export const testDate = new Date().toISOString().slice(0, 10)
 
@@ -18,6 +22,13 @@ export const doctor = {
   id: '11',
   fullName: 'BS. Nguyễn Minh Đức',
   departments: [{ id: 3, name: 'Nội tổng quát' }],
+}
+
+export const doctorUser = {
+  id: doctor.id,
+  username: 'bacsi.duc',
+  fullName: doctor.fullName,
+  role: 'doctor' as const,
 }
 
 export const patient: ApiPatient = {
@@ -113,6 +124,51 @@ export const receptionContext: ReceptionContext = {
   waitingDoctors: [
     { doctorId: doctor.id, doctorName: doctor.fullName, waitingCount: 1 },
   ],
+}
+
+export const medicalRecord: ApiMedicalRecord = {
+  id: 51,
+  appointmentId: appointment.id,
+  illnessHistory: 'Không có tiền sử đặc biệt',
+  vitalSigns: JSON.stringify({
+    pulse: '78',
+    systolic: '120',
+    diastolic: '80',
+    temperature: '36.7',
+    spo2: '98',
+    weight: '52',
+    height: '160',
+  }),
+  examinationNote: 'Đau đầu hai ngày',
+  diagnosis: 'Đau đầu căng thẳng',
+  status: 'DRAFT',
+  signedBy: null,
+  signedAt: null,
+  createdAt: `${testDate}T08:00:00`,
+  updatedAt: `${testDate}T08:15:00`,
+  prescription: null,
+}
+
+export const medicalHistory: ApiMedicalRecordHistoryItem = {
+  id: 50,
+  appointmentId: 40,
+  appointmentCode: 'LH000040',
+  sequenceNumber: 1,
+  visitDate: `${testDate}T09:00:00`,
+  doctorName: 'Nguyễn Minh Đức',
+  departmentName: 'Nội tổng quát',
+  reason: 'Tái khám',
+  appointmentStatus: 'COMPLETED',
+  bookingType: 'SCHEDULE',
+  startTime: '09:00',
+  endTime: '09:30',
+  symptoms: 'Đau đầu nhẹ',
+  diagnosis: 'Đau đầu căng thẳng',
+  notes: 'Theo dõi tại nhà',
+  vitalSigns: medicalRecord.vitalSigns,
+  status: 'SIGNED',
+  signedAt: `${testDate}T09:25:00`,
+  prescription: null,
 }
 
 export function envelope<T>(data: T) {
