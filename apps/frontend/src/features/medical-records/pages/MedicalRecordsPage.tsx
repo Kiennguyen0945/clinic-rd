@@ -15,8 +15,8 @@ import type { ApiMedicalRecordHistoryItem } from '../../../entities/medical-reco
 import PatientProfileDrawer from '../../../entities/patient/ui/PatientProfileDrawer'
 import { useAuthStore } from '../../../shared/auth/session-store'
 import { shortDateLabel, timeLabel } from '../../../shared/lib/date'
-import { DEMO_CONSULTATION_DRAFT } from '../../../shared/test/fixtures/medical-record-demo'
 import { QueueGroup, SlotRow } from '../../appointments/components/schedule/SchedulePanels'
+import { DEMO_CONSULTATION_DRAFT } from '../demo/medical-record-demo'
 import {
   EMPTY_CONSULTATION_DRAFT, EMPTY_MEDICATION, draftFromMedicalRecord,
   parseVitalSigns, validateConsultation,
