@@ -5,6 +5,12 @@ import { useAuthStore } from '../../store';
 import { X, LogOut, KeyRound, ChevronDown } from 'lucide-react';
 import { authenticatedFetch as authFetch } from '../../shared/api';
 
+interface ChangePasswordResponse {
+  success: boolean;
+  message?: string;
+  error?: { message?: string };
+}
+
 export default function Header() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -80,7 +86,7 @@ export default function Header() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const json = await response.json();
+      const json = await response.json() as ChangePasswordResponse;
 
       if (!response.ok || !json.success) {
         setFormError(json.error?.message || json.message || 'Không thể đổi mật khẩu.');

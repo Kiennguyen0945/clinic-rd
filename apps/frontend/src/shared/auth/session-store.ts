@@ -21,6 +21,27 @@ export interface AuthState {
   clearError: () => void;
 }
 
+interface AuthResponse {
+  success: boolean;
+  message?: string;
+  error?: { message?: string };
+  data: {
+    token: string;
+    refreshToken?: string;
+    user: { id: string; username: string; full_name?: string; role?: string };
+  };
+}
+
+interface RefreshResponse {
+  success: boolean;
+  data: { token: string; refreshToken?: string };
+}
+
+function normalizeRole(role?: string): User['role'] {
+  const normalized = role?.toLowerCase();
+  return normalized === 'receptionist' || normalized === 'manager' ? normalized : 'doctor';
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   refreshToken: null,
@@ -36,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const json = await res.json();
+      const json = await res.json() as AuthResponse;
 
       if (!res.ok || !json.success) {
         const msg = json.error?.message || json.message || 'Đăng nhập thất bại';
@@ -48,7 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         id: json.data.user.id,
         username: json.data.user.username,
         fullName: json.data.user.full_name || json.data.user.username,
-        role: (json.data.user.role || 'doctor').toLowerCase(),
+        role: normalizeRole(json.data.user.role),
       };
 
       localStorage.setItem('authToken', json.data.token);
@@ -85,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Lấy user từ localStorage (login đã lưu sẵn)
         const stored = localStorage.getItem('authUser');
         if (stored) {
-          set({ user: JSON.parse(stored), isLoading: false });
+          set({ user: JSON.parse(stored) as User, isLoading: false });
         } else {
           set({ isLoading: false });
         }
@@ -109,7 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
-      const json = await res.json();
+      const json = await res.json() as RefreshResponse;
 
       if (!res.ok || !json.success) {
         localStorage.removeItem('authToken');
@@ -146,8 +167,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const refreshToken = localStorage.getItem('refreshToken');
     const storedUser = localStorage.getItem('authUser');
     if (token) {
-      const user = storedUser ? JSON.parse(storedUser) : null;
-      if (user?.role) user.role = user.role.toLowerCase();
+      const stored = storedUser ? JSON.parse(storedUser) as User : null;
+      const user = stored ? { ...stored, role: normalizeRole(stored.role) } : null;
       set({ token, refreshToken, user, isLoading: false });
     } else {
       set({ refreshToken, isLoading: false });

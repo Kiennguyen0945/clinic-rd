@@ -208,7 +208,7 @@ export function useAppointmentBooking({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLElement | null
+    const submitter = (event.nativeEvent as SubmitEvent).submitter
     const mode: BookingMode = submitter?.textContent?.includes('Khám ngay') || submitter?.textContent?.includes('Xếp vào khung') ? 'IMMEDIATE' : 'SCHEDULED'
     if (validateBookingDraft(draft) || draft.date < todayValue()) return setFormError('Vui lòng điền đầy đủ thông tin bắt buộc.')
     const selected = slots.find((slot) => slot.id === draft.slotId)
