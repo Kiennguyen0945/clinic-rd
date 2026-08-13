@@ -75,7 +75,48 @@ appointment reasons, and other clinical or personal data are excluded.
 ## Deferred after Phase 2
 
 - HTTP synchronization client inside Reporting Service
-- Reporting-owned read models and migrations
 - Synchronization run history and retry behavior
 - Manager dashboard report endpoints
 - public nginx routing for `/api/reports/`
+
+## Phase 3: Reporting-owned database
+
+Reporting now owns four tables in `reporting_db`:
+
+```text
+SynchronizationRun
+  id, status, started_at, finished_at,
+  date_from, date_to, error_message
+
+DailyAppointmentStatistic
+  date, total, pending, confirmed, waiting,
+  in_progress, completed, cancelled, synchronized_at
+
+DailyDoctorStatistic
+  date, doctor_id, total, completed, cancelled, synchronized_at
+
+SystemSummary
+  snapshot_date, employee_total, active_employees, locked_employees,
+  doctor_total, receptionist_total, manager_total,
+  department_total, room_total, synchronized_at
+```
+
+The schema enforces unique daily records, a unique `(date, doctor_id)` pair,
+valid synchronization date ranges, reconciled appointment status totals, and
+non-negative counters. `doctor_id` is stored as an ordinary positive integer;
+it is deliberately not a foreign key because the doctor entity belongs to
+Clinic Core.
+
+An automated architecture test parses imports across the Reporting source tree
+and fails if it finds `auth_service`, `appointment_service`, `patient_service`,
+`organization_service`, or `medical_records`. This provides repeatable evidence
+that Reporting is independent from Clinic Core's ORM and source modules.
+
+## Deferred after Phase 3
+
+- fetch the snapshot from Clinic Core over HTTP;
+- atomically upsert Reporting read models;
+- mark synchronization runs as successful or failed;
+- retry and idempotency behavior;
+- Manager dashboard report endpoints;
+- public nginx routing for `/api/reports/`.

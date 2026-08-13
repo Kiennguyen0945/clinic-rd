@@ -1,8 +1,9 @@
 # Reporting Service
 
 Independent Django/DRF service for clinic reporting read models and dashboard
-queries. Phase 1 establishes the runtime and data boundary; synchronization and
-report APIs are intentionally deferred to the next phase.
+queries. It owns its database schema and never imports Clinic Core domain
+models. Snapshot synchronization and report APIs are implemented in later
+phases on top of these read models.
 
 ## Ownership
 
@@ -14,6 +15,19 @@ report APIs are intentionally deferred to the next phase.
 
 The service uses only `REPORTING_DB_*` credentials. It must not import Clinic
 Core domain models or connect to the Clinic Core database.
+
+## Database schema
+
+| Model | Purpose | Natural uniqueness |
+| --- | --- | --- |
+| `SynchronizationRun` | Audit synchronization attempts and failures | Generated ID |
+| `DailyAppointmentStatistic` | Appointment status totals for one date | `date` |
+| `DailyDoctorStatistic` | Outcome totals for one doctor and date | `date`, `doctor_id` |
+| `SystemSummary` | Employee and organization totals | `snapshot_date` |
+
+`DailyDoctorStatistic.doctor_id` is an ordinary numeric identifier copied from
+Clinic Core, not a foreign key. Reporting therefore has no cross-database ORM
+relationship.
 
 ## Local test
 

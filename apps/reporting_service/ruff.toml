@@ -1,2 +1,6 @@
 [lint.isort]
 known-first-party = ["config", "reports"]
+
+[lint.per-file-ignores]
+"**/migrations/*.py" = ["RUF012"]
+"**/models.py" = ["RUF012"]
