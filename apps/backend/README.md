@@ -1,7 +1,9 @@
-# Clinic RD Backend
+# Clinic Core Backend
 
-Django REST Framework backend for clinic staff, patients, organization data,
-appointments, doctor slots, and medical records.
+Django REST Framework Clinic Core service for clinic staff, patients,
+organization data, appointments, doctor slots, and medical records. Its source
+remains in `apps/backend`; `clinic-core` is its development Compose service
+name and `clinic-core-db` is its PostgreSQL network hostname.
 
 ## Contents
 
@@ -162,6 +164,15 @@ model and database constraints.
 All service routes use the `/api/` prefix. Django administration is available
 at `/admin/`.
 
+### Service health
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health/` | Confirm that the Clinic Core HTTP process is available |
+
+The health endpoint does not query the database. Database readiness is handled
+separately by the PostgreSQL health check in Docker Compose.
+
 ### Authentication and staff
 
 | Method | Path | Purpose |
@@ -244,9 +255,32 @@ From the repository root:
 docker compose -f docker-compose.dev.yaml up --build
 ```
 
-The development backend listens on port `8000`. Its entrypoint runs migrations,
+The `clinic-core` service listens on port `8000` and connects to
+`clinic-core-db` over the Compose network. Its entrypoint runs migrations,
 attempts idempotent superuser creation, starts cron, and then starts Django's
-development server.
+development server. The existing `postgres_clinic_db` volume name is retained
+so this service rename does not delete or recreate persisted database files.
+
+Copy `.env.example` to `.env` for a fresh environment and replace every
+placeholder secret. Existing environments should keep their current `.env`:
+changing `POSTGRES_DB` does not rename a database already stored in a Docker
+volume.
+
+When upgrading a running checkout that used the old `backend` and `database`
+service names, remove only the orphaned containers during the first startup:
+
+```bash
+docker compose -f docker-compose.dev.yaml up --build --remove-orphans
+```
+
+This keeps the `postgres_clinic_db` volume. Do not add `--volumes` or run
+`docker compose down --volumes` when preserving local database data.
+
+Once the stack is running, check Clinic Core through nginx:
+
+```bash
+curl http://localhost/api/health/
+```
 
 ### Local virtual environment
 
@@ -272,8 +306,8 @@ For PostgreSQL, configure these environment variables:
 
 ```text
 DJANGO_DB_ENGINE=postgres
-POSTGRES_DB=clinic_db
-POSTGRES_USER=postgres
+POSTGRES_DB=clinic_core_db
+POSTGRES_USER=clinic_core_user
 POSTGRES_PASSWORD=...
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
