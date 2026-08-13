@@ -72,7 +72,7 @@ The response contains only:
 Patient names, staff names, phone numbers, addresses, diagnoses, prescriptions,
 appointment reasons, and other clinical or personal data are excluded.
 
-## Deferred after Phase 2
+## Deferred at the end of Phase 2
 
 - HTTP synchronization client inside Reporting Service
 - Synchronization run history and retry behavior
@@ -112,7 +112,7 @@ and fails if it finds `auth_service`, `appointment_service`, `patient_service`,
 `organization_service`, or `medical_records`. This provides repeatable evidence
 that Reporting is independent from Clinic Core's ORM and source modules.
 
-## Deferred after Phase 3
+## Deferred at the end of Phase 3
 
 - fetch the snapshot from Clinic Core over HTTP;
 - atomically upsert Reporting read models;
@@ -159,4 +159,31 @@ is introduced.
 - synchronization retry policy;
 - manager dashboard query endpoints;
 - production Compose deployment for Reporting;
+- optional asymmetric JWT signing or token introspection.
+
+## Phase 5: Manager reporting queries
+
+Reporting now exposes manager-protected read endpoints for the manager
+dashboard, daily appointment statistics, daily doctor statistics, and the most
+recent synchronization attempt. Queries use only Reporting-owned tables; they
+never call Clinic Core or join across databases.
+
+The dashboard totals appointment values over the requested inclusive range.
+Employee and organization totals come from the newest `SystemSummary` whose
+snapshot date is not later than the requested `dateTo`. Its
+`lastSynchronizedAt` value is the completion time of the latest successful
+synchronization. The separate latest-synchronization endpoint returns the most
+recent attempt, including a failure, so managers can distinguish stale data
+from an operational synchronization problem.
+
+Every read API uses the same infrastructure-level identity trust established
+in Phase 4: Reporting verifies the signed Clinic Core access token and requires
+the `MANAGER` role. Empty read models produce stable zero/empty responses, and
+date ranges default to the latest 30 inclusive days with a 366-day maximum.
+
+## Deferred after Phase 5
+
+- scheduled synchronization and retry policy;
+- production Compose deployment for Reporting;
+- manager dashboard frontend integration;
 - optional asymmetric JWT signing or token introspection.

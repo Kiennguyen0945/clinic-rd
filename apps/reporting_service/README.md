@@ -2,8 +2,8 @@
 
 Independent Django/DRF service for clinic reporting read models and dashboard
 queries. It owns its database schema and never imports Clinic Core domain
-models. Snapshot synchronization and report APIs are implemented in later
-phases on top of these read models.
+models. Managers can synchronize privacy-safe aggregates from Clinic Core and
+query dashboard projections without accessing Clinic Core's database.
 
 ## Ownership
 
@@ -79,6 +79,22 @@ docker compose -f docker-compose.dev.yaml exec reporting-service \
 Synchronization is idempotent, atomically upserts read models, deletes stale
 statistics in the requested range, and records every attempt as `SUCCESS` or
 `FAILED` in `SynchronizationRun`.
+
+## Read APIs
+
+All report endpoints require a valid Clinic Core manager access token:
+
+```text
+GET /api/reports/dashboard/manager/
+GET /api/reports/appointments/
+GET /api/reports/doctors/
+GET /api/reports/synchronizations/latest/
+```
+
+The first three accept optional `dateFrom` and `dateTo` query parameters and
+default to the latest 30-day inclusive period. An empty reporting database
+returns empty lists and zero totals, allowing the manager dashboard to render
+before its first synchronization.
 
 After the Docker stack starts:
 
