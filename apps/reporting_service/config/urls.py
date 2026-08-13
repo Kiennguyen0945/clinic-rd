@@ -1,6 +1,7 @@
 """Root routes owned by the Reporting Service."""
 
 from django.urls import include, path
+
 from reports.api.views import health_check
 
 urlpatterns = [
