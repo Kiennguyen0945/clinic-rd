@@ -173,6 +173,21 @@ at `/admin/`.
 The health endpoint does not query the database. Database readiness is handled
 separately by the PostgreSQL health check in Docker Compose.
 
+### Internal Reporting integration
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/internal/reporting/snapshot/` | Return privacy-safe aggregates to Reporting Service |
+
+The snapshot endpoint requires `X-Service-Token`, accepts inclusive
+`dateFrom` and `dateTo` query parameters in `YYYY-MM-DD` format, and limits a
+request to 366 days. It returns appointment counts by date and doctor plus
+employee and organization summaries. It never returns names, contact details,
+clinical data, or appointment free text.
+
+nginx blocks `/api/internal/`; Reporting calls Clinic Core directly through
+`http://clinic-core:8000` on the private Compose network.
+
 ### Authentication and staff
 
 | Method | Path | Purpose |

@@ -3,7 +3,11 @@
 from datetime import timedelta
 from pathlib import Path
 
+from decouple import config
+
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+INTERNAL_SERVICE_TOKEN = config("INTERNAL_SERVICE_TOKEN", default="")
 
 INSTALLED_APPS = [
     "corsheaders",

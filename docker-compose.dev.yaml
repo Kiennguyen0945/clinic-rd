@@ -32,6 +32,7 @@ services:
     environment:
       # Compose service names are resolvable as hostnames on its default network.
       POSTGRES_HOST: clinic-core-db
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-development-internal-token}
     entrypoint: ["sh", "/apps/backend/entrypoint.sh"]
 
   reporting-db:
