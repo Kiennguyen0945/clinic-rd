@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 
-class SynchronizationInputSerializer(serializers.Serializer):
+class DateRangeSerializer(serializers.Serializer):
     dateFrom = serializers.DateField(required=False)
     dateTo = serializers.DateField(required=False)
 
@@ -22,3 +22,7 @@ class SynchronizationInputSerializer(serializers.Serializer):
                 {"dateRange": "Khoảng thời gian tối đa là 366 ngày"}
             )
         return {"date_from": date_from, "date_to": date_to}
+
+
+class SynchronizationInputSerializer(DateRangeSerializer):
+    pass
