@@ -10,8 +10,9 @@
 #   DJANGO_SUPERUSER_USERNAME, DJANGO_SUPERUSER_PASSWORD, DJANGO_SUPERUSER_EMAIL
 #   POSTGRES_HOST=database
 #   DOCKER_USERNAME=<docker-hub-username>
-#   FRONTEND_TAG=<git-sha>
-#   BACKEND_TAG=<git-sha>
+#   FRONTEND_TAG=<git-sha>, BACKEND_TAG=<git-sha>, REPORTING_TAG=<git-sha>
+#   REPORTING_DB_NAME, REPORTING_DB_USER, REPORTING_DB_PASSWORD
+#   REPORTING_DJANGO_SECRET_KEY, INTERNAL_SERVICE_TOKEN, CORE_JWT_SIGNING_KEY
 # ============================
 
 services:
@@ -52,6 +53,54 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  reporting-db:
+    container_name: reporting_db_prod
+    image: postgres:17.10-alpine3.23
+    environment:
+      POSTGRES_DB: ${REPORTING_DB_NAME}
+      POSTGRES_USER: ${REPORTING_DB_USER}
+      POSTGRES_PASSWORD: ${REPORTING_DB_PASSWORD}
+    volumes:
+      - reporting_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  reporting-service:
+    container_name: reporting_service_prod
+    image: ${DOCKER_USERNAME}/my-clinic-app-reporting:${REPORTING_TAG}
+    environment:
+      REPORTING_DB_ENGINE: postgres
+      REPORTING_DB_HOST: reporting-db
+      REPORTING_DB_PORT: 5432
+      REPORTING_DB_NAME: ${REPORTING_DB_NAME}
+      REPORTING_DB_USER: ${REPORTING_DB_USER}
+      REPORTING_DB_PASSWORD: ${REPORTING_DB_PASSWORD}
+      REPORTING_DJANGO_SECRET_KEY: ${REPORTING_DJANGO_SECRET_KEY}
+      CLINIC_CORE_URL: http://backend:8000
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      CORE_JWT_SIGNING_KEY: ${CORE_JWT_SIGNING_KEY}
+      CORE_HTTP_TIMEOUT_SECONDS: ${CORE_HTTP_TIMEOUT_SECONDS:-10}
+    depends_on:
+      reporting-db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - /opt/venv/bin/python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/', timeout=2)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   frontend:
     container_name: clininc_frontend_prod
     image: ${DOCKER_USERNAME}/my-clinic-app-frontend:${FRONTEND_TAG}
@@ -64,6 +113,8 @@ services:
     depends_on:
       backend:
         condition: service_started
+      reporting-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:80/"]
       interval: 10s
@@ -74,4 +125,5 @@ services:
 
 volumes:
   postgres_data:
+  reporting_data:
   static_files:

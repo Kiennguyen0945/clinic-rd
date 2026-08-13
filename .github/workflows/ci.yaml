@@ -114,11 +114,11 @@ jobs:
             backend_shared_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/frontend/|^apps/docker/frontend/Dockerfile\.fprod$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/frontend/|^apps/docker/frontend/Dockerfile\.fprod$|^apps/docker/nginx/nginx\.prod\.conf$'; then
             frontend_changed=true
           fi
 
-          if printf '%s\n' "$changed_files" | grep -qE '^apps/docker/nginx/|^apps/backend/static/'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^apps/docker/nginx/(Dockerfile|nginx\.dev\.conf)$|^apps/backend/static/'; then
             nginx_changed=true
           fi
 

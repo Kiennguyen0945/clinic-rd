@@ -187,3 +187,33 @@ date ranges default to the latest 30 inclusive days with a 366-day maximum.
 - production Compose deployment for Reporting;
 - manager dashboard frontend integration;
 - optional asymmetric JWT signing or token introspection.
+
+## Phase 6: Public gateway boundary
+
+Both nginx configurations apply the same routing boundary:
+
+```text
+/api/reports/*  -> reporting-service:8001 (full URI preserved)
+/api/internal   -> 404
+/api/internal/* -> 404
+/api/*          -> Clinic Core
+```
+
+The Reporting `proxy_pass` directive contains only the upstream origin and no
+URI suffix. nginx therefore forwards, for example,
+`/api/reports/appointments/?dateFrom=...` unchanged rather than stripping the
+`/api/reports/` prefix. Prefix locations use `^~`, and the private Core route
+has both exact and child-path blocks so it cannot fall through to the general
+Core proxy.
+
+Production Compose now deploys `reporting-service` and `reporting-db`, keeps
+their data in the independent `reporting_data` volume, and waits for Reporting
+health before starting the public frontend/nginx container. The staging
+workflow supplies the Reporting image tag and service credentials from GitHub
+variables and secrets.
+
+## Deferred after Phase 6
+
+- scheduled synchronization and retry policy;
+- manager dashboard frontend integration;
+- optional asymmetric JWT signing or token introspection.

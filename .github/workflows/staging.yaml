@@ -29,6 +29,13 @@ jobs:
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          REPORTING_DB_NAME=${{ secrets.REPORTING_DB_NAME }}
+          REPORTING_DB_USER=${{ secrets.REPORTING_DB_USER }}
+          REPORTING_DB_PASSWORD=${{ secrets.REPORTING_DB_PASSWORD }}
+          REPORTING_DJANGO_SECRET_KEY=${{ secrets.REPORTING_DJANGO_SECRET_KEY }}
+          INTERNAL_SERVICE_TOKEN=${{ secrets.INTERNAL_SERVICE_TOKEN }}
+          CORE_JWT_SIGNING_KEY=${{ secrets.CORE_JWT_SIGNING_KEY }}
+          CORE_HTTP_TIMEOUT_SECONDS=10
           DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           DJANGO_DB_ENGINE=${{ secrets.DJANGO_DB_ENGINE }}
           DJANGO_SUPERUSER_USERNAME=${{ secrets.DJANGO_SUPERUSER_USERNAME }}
@@ -36,6 +43,7 @@ jobs:
           DJANGO_SUPERUSER_EMAIL=${{ secrets.DJANGO_SUPERUSER_EMAIL }}
           FRONTEND_TAG=${{ vars.CURRENT_FRONTEND_TAG }}
           BACKEND_TAG=${{ vars.CURRENT_BACKEND_TAG }}
+          REPORTING_TAG=${{ vars.CURRENT_REPORTING_TAG }}
           NGINX_TAG=${{ vars.CURRENT_NGINX_TAG }}
           EOF
       - name: Deploy to Production
@@ -51,6 +59,9 @@ jobs:
           echo ""
           echo "=== Health Check Endpoints ==="
           curl -sf http://localhost/admin/ && echo " - Backend OK" || echo " - Backend FAIL"
+          reporting_status=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost/api/reports/dashboard/manager/)
+          test "$reporting_status" = "401" && echo " - Reporting route reachable and protected"
           curl -sf http://localhost/ && echo " - Frontend OK" || echo " - Frontend FAIL"
       - name: Cleanup Old Images
         run: |
