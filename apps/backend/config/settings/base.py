@@ -73,6 +73,10 @@ SIMPLE_JWT = {
     "CHECK_USER_IS_ACTIVE": False,
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=12),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "SIGNING_KEY": config(
+        "CORE_JWT_SIGNING_KEY",
+        default="development-core-jwt-signing-key-32-bytes",
+    ),
 }
 
 AUTH_PASSWORD_VALIDATORS = [

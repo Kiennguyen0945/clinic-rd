@@ -43,6 +43,43 @@ the complete Reporting test suite against an independent PostgreSQL service. On
 pushes to `main`, it publishes `my-clinic-app-reporting:<commit-sha>` and updates
 the `CURRENT_REPORTING_TAG` repository variable.
 
+## Synchronization
+
+Managers can trigger a synchronous snapshot refresh through nginx:
+
+```http
+POST /api/reports/synchronize/
+Authorization: Bearer <clinic-core-access-token>
+Content-Type: application/json
+
+{
+  "dateFrom": "2026-08-01",
+  "dateTo": "2026-08-13"
+}
+```
+
+Both dates are optional; the default is the latest 30-day inclusive period.
+Clinic Core access tokens carry a signed `role` claim. Reporting verifies the
+signature, expiry, access-token type, and `MANAGER` role locally using
+`CORE_JWT_SIGNING_KEY`, without accessing Clinic Core's database.
+
+The same workflow is available as a command:
+
+```bash
+python manage.py sync_reports --days 30
+```
+
+From the Docker development stack, invoke the image's virtual environment:
+
+```bash
+docker compose -f docker-compose.dev.yaml exec reporting-service \
+  /opt/venv/bin/python manage.py sync_reports --days 30
+```
+
+Synchronization is idempotent, atomically upserts read models, deletes stale
+statistics in the requested range, and records every attempt as `SUCCESS` or
+`FAILED` in `SynchronizationRun`.
+
 After the Docker stack starts:
 
 ```bash

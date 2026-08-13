@@ -12,6 +12,11 @@ SECRET_KEY = config(
 )
 DEBUG = config("REPORTING_DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config("REPORTING_ALLOWED_HOSTS", default="*").split(",")
+CLINIC_CORE_URL = config("CLINIC_CORE_URL", default="http://clinic-core:8000").rstrip("/")
+INTERNAL_SERVICE_TOKEN = config("INTERNAL_SERVICE_TOKEN", default="")
+CORE_JWT_SIGNING_KEY = config("CORE_JWT_SIGNING_KEY", default="")
+CORE_JWT_ALGORITHM = "HS256"
+CORE_HTTP_TIMEOUT_SECONDS = config("CORE_HTTP_TIMEOUT_SECONDS", default=10, cast=int)
 
 INSTALLED_APPS = [
     "django.contrib.auth",

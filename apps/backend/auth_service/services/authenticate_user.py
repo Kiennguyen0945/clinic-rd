@@ -7,6 +7,13 @@ from ..selectors.user_queries import get_user_by_username
 from . import AuthServiceError
 
 
+def _tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    access = refresh.access_token
+    access["role"] = user.role.code
+    return str(access), str(refresh)
+
+
 def authenticate_user(*, username, password):
     user = get_user_by_username(username)
     if user is None:
@@ -28,10 +35,10 @@ def authenticate_user(*, username, password):
             status=401,
         )
 
-    refresh = RefreshToken.for_user(user)
+    access_token, refresh_token = _tokens_for_user(user)
     return {
-        "token": str(refresh.access_token),
-        "refreshToken": str(refresh),
+        "token": access_token,
+        "refreshToken": refresh_token,
         "user": {
             "id": str(user.id),
             "username": user.username,
@@ -65,8 +72,8 @@ def refresh_session(*, refresh_token):
             status=403,
         )
 
-    new_refresh = RefreshToken.for_user(user)
+    access_token, new_refresh_token = _tokens_for_user(user)
     return {
-        "token": str(new_refresh.access_token),
-        "refreshToken": str(new_refresh),
+        "token": access_token,
+        "refreshToken": new_refresh_token,
     }
