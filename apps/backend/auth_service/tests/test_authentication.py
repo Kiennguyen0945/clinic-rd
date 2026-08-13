@@ -1,4 +1,5 @@
 from django.test import TestCase
+from rest_framework_simplejwt.tokens import AccessToken
 
 from auth_service.services import AuthServiceError
 from auth_service.services.authenticate_user import authenticate_user, refresh_session
@@ -14,6 +15,8 @@ class AuthenticationServiceTests(TestCase):
         refreshed = refresh_session(refresh_token=session["refreshToken"])
 
         self.assertEqual(session["user"]["id"], str(user.id))
+        self.assertEqual(AccessToken(session["token"])["role"], "DOCTOR")
+        self.assertEqual(AccessToken(refreshed["token"])["role"], "DOCTOR")
         self.assertIn("token", refreshed)
         self.assertIn("refreshToken", refreshed)
 

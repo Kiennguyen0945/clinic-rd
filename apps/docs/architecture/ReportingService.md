@@ -120,3 +120,43 @@ that Reporting is independent from Clinic Core's ORM and source modules.
 - retry and idempotency behavior;
 - Manager dashboard report endpoints;
 - public nginx routing for `/api/reports/`.
+
+## Phase 4: Synchronous synchronization
+
+The manual synchronization flow is now implemented:
+
+```text
+Manager
+  -> POST /api/reports/synchronize/
+  -> nginx routes to Reporting
+  -> Reporting verifies Clinic Core JWT and MANAGER role
+  -> Reporting calls Clinic Core snapshot API with X-Service-Token
+  -> Clinic Core returns privacy-safe aggregates
+  -> Reporting atomically upserts reporting_db
+  -> SynchronizationRun becomes SUCCESS or FAILED
+```
+
+Clinic Core adds a signed `role` claim to access tokens. Both services share
+only `CORE_JWT_SIGNING_KEY`; Reporting validates tokens locally and does not
+query or import Clinic Core user data. Tokens remain valid until expiry, so a
+role or lock change takes full effect in Reporting when the current access
+token expires. Shorter access-token lifetime or token introspection is future
+security hardening.
+
+`DailyAppointmentStatistic`, `DailyDoctorStatistic`, and `SystemSummary` use
+`update_or_create`, making repeated synchronization idempotent. Rows no longer
+present in the authoritative snapshot are removed only inside the requested
+date range. All read-model changes use one transaction; a malformed snapshot
+rolls back data changes while the failed synchronization audit remains stored.
+
+The `sync_reports --days 30` management command invokes the same service
+function as the HTTP endpoint. No Celery, Redis, RabbitMQ, or Kafka dependency
+is introduced.
+
+## Deferred after Phase 4
+
+- scheduled command execution;
+- synchronization retry policy;
+- manager dashboard query endpoints;
+- production Compose deployment for Reporting;
+- optional asymmetric JWT signing or token introspection.

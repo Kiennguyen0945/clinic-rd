@@ -33,6 +33,8 @@ services:
       # Compose service names are resolvable as hostnames on its default network.
       POSTGRES_HOST: clinic-core-db
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-development-internal-token}
+      CORE_JWT_SIGNING_KEY: ${CORE_JWT_SIGNING_KEY:-development-core-jwt-signing-key-32-bytes}
+      CORE_HTTP_TIMEOUT_SECONDS: ${CORE_HTTP_TIMEOUT_SECONDS:-10}
     entrypoint: ["sh", "/apps/backend/entrypoint.sh"]
 
   reporting-db:
@@ -71,6 +73,7 @@ services:
       REPORTING_DJANGO_SECRET_KEY: ${REPORTING_DJANGO_SECRET_KEY:-django-insecure-reporting-development-only}
       CLINIC_CORE_URL: http://clinic-core:8000
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-development-internal-token}
+      CORE_JWT_SIGNING_KEY: ${CORE_JWT_SIGNING_KEY:-development-core-jwt-signing-key-32-bytes}
     depends_on:
       reporting-db:
         condition: service_healthy
@@ -109,6 +112,7 @@ services:
     depends_on:
       - frontend
       - clinic-core
+      - reporting-service
 
   pgadmin:
     image: dpage/pgadmin4
