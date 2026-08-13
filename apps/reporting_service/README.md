@@ -38,6 +38,11 @@ cd apps/reporting_service
 REPORTING_DB_ENGINE=sqlite ../../.venv/bin/python manage.py test
 ```
 
+The CI job runs Ruff, Django checks, migration-drift detection, migrations, and
+the complete Reporting test suite against an independent PostgreSQL service. On
+pushes to `main`, it publishes `my-clinic-app-reporting:<commit-sha>` and updates
+the `CURRENT_REPORTING_TAG` repository variable.
+
 After the Docker stack starts:
 
 ```bash
