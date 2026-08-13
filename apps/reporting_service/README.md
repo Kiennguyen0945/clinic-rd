@@ -96,6 +96,15 @@ default to the latest 30-day inclusive period. An empty reporting database
 returns empty lists and zero totals, allowing the manager dashboard to render
 before its first synchronization.
 
+## Gateway routing
+
+Development and production nginx route `/api/reports/` to
+`reporting-service:8001`. The `proxy_pass` target intentionally has no trailing
+URI slash, so the complete request path is preserved. All other `/api/` traffic
+continues to Clinic Core. Both `/api/internal` and `/api/internal/*` return 404
+at the public gateway; the snapshot API is available only inside the Compose
+network.
+
 After the Docker stack starts:
 
 ```bash
