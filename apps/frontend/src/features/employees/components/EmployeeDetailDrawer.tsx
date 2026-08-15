@@ -18,7 +18,7 @@ export default function EmployeeDetailDrawer({ employeeId, onClose, onDeleted }:
   const [editing, setEditing] = useState(false)
   const [message, setMessage] = useState('')
   const [tomorrow] = useState(tomorrowValue)
-  const { register, handleSubmit, formState: { errors } } = useForm<AllocationFormValues>({ resolver: zodResolver(allocationSchema), defaultValues: { roomId: '', date: tomorrow, startTime: '08:00', endTime: '17:00' } })
+  const { register, handleSubmit, formState: { errors } } = useForm<AllocationFormValues>({ resolver: zodResolver(allocationSchema), defaultValues: { roomId: '', date: tomorrow, startTime: '06:00', endTime: '17:00' } })
   const employee = query.data
 
   const remove = async () => {
