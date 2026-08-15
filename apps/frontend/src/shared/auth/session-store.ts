@@ -19,6 +19,7 @@ export interface AuthState {
   logout: () => void;
   loadFromStorage: () => void;
   clearError: () => void;
+  updateUser: (updates: Partial<Pick<User, 'fullName'>>) => void;
 }
 
 interface AuthResponse {
@@ -176,4 +177,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  updateUser: (updates) => set((state) => {
+    if (!state.user) return state;
+    const user = { ...state.user, ...updates };
+    localStorage.setItem('authUser', JSON.stringify(user));
+    return { user };
+  }),
 }));

@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     ChangePasswordView,
+    PersonalProfileView,
     StaffCreateView,
     StaffDetailView,
     StaffRoomAllocationView,
@@ -20,6 +21,7 @@ urlpatterns = [
     path("auth/login/", login_api, name="login-api"),
     path("auth/refresh/", refresh_api, name="refresh-api"),
     path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("auth/me/", PersonalProfileView.as_view(), name="personal-profile"),
     path("auth/staff/", StaffCreateView.as_view(), name="staff-create"),
     path("auth/staff/<int:pk>/", StaffDetailView.as_view(), name="staff-detail"),
     path(

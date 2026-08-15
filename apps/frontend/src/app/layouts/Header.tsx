@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuthStore } from '../../store';
-import { X, LogOut, KeyRound, ChevronDown } from 'lucide-react';
+import { X, LogOut, KeyRound, ChevronDown, UserRound } from 'lucide-react';
 import { authenticatedFetch as authFetch } from '../../shared/api';
+import PersonalProfileModal from '../../features/profile/PersonalProfileModal';
 
 interface ChangePasswordResponse {
   success: boolean;
@@ -16,6 +17,7 @@ export default function Header() {
   const logout = useAuthStore((s) => s.logout);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +126,10 @@ export default function Header() {
 
         {dropdownOpen && (
           <div className="user-dropdown">
+            <button className="user-dropdown-btn" onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}>
+              <UserRound size={16} />
+              Quản lý thông tin cá nhân
+            </button>
             <button className="user-dropdown-btn" onClick={openChangePassword}>
               <KeyRound size={16} />
               Đổi mật khẩu
@@ -139,6 +145,8 @@ export default function Header() {
           </div>
         )}
       </div>
+
+      {profileOpen && <PersonalProfileModal onClose={() => setProfileOpen(false)} />}
 
       {changePasswordOpen && createPortal(
         <div className="modal-overlay" role="presentation" onMouseDown={closeChangePassword}>
