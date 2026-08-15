@@ -34,6 +34,9 @@ class StaffCreateSerializer(serializers.Serializer):
     fullName = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    gender = serializers.ChoiceField(choices=User.GENDER_CHOICES, required=False, allow_blank=True)
+    dateOfBirth = serializers.DateField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True)
     roleCode = serializers.ChoiceField(choices=("RECEPTIONIST", "DOCTOR"))
     password = serializers.CharField(required=False, allow_blank=False, write_only=True)
     departmentId = serializers.IntegerField(required=False)
@@ -42,7 +45,7 @@ class StaffCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["roleCode"] == "DOCTOR" and not attrs.get("departmentId"):
             raise serializers.ValidationError(
-                {"departmentId": "This field is required for doctors"}
+                {"departmentId": "Bác sĩ phải được phân khoa"}
             )
         return attrs
 
@@ -51,6 +54,9 @@ class StaffUpdateSerializer(serializers.Serializer):
     fullName = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    gender = serializers.ChoiceField(choices=User.GENDER_CHOICES, required=False, allow_blank=True)
+    dateOfBirth = serializers.DateField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True)
     status = serializers.ChoiceField(choices=User.STATUS_CHOICES)
     departmentId = serializers.IntegerField(required=False)
 

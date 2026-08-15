@@ -1,0 +1,56 @@
+.employee-page { display: grid; gap: 20px; }
+.employee-toolbar { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-card); }
+.employee-search { display: flex; flex: 1; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-secondary); background: #fff; }
+.employee-search input { width: 100%; min-height: 38px; border: 0; outline: 0; background: transparent; }
+.employee-toolbar select { min-width: 180px; padding: 0 12px; border: 1px solid var(--border-default); border-radius: 8px; background: #fff; }
+.employee-table-card { overflow: hidden; border: 1px solid var(--border-default); border-radius: 12px; background: #fff; }
+.employee-table-wrap { overflow-x: auto; }
+.employee-table { width: 100%; min-width: 900px; border-collapse: collapse; }
+.employee-table th { padding: 13px 18px; background: #f8fafc; color: var(--text-secondary); font-size: 12px; text-align: left; text-transform: uppercase; }
+.employee-table td { padding: 15px 18px; border-top: 1px solid var(--border-default); vertical-align: middle; }
+.employee-table tbody tr { cursor: pointer; }
+.employee-table tbody tr:hover { background: #f8fbff; }
+.employee-person, .allocation-heading { display: flex; align-items: center; gap: 12px; }
+.employee-person > div, .employee-schedule { display: grid; gap: 3px; }
+.employee-person strong { white-space: nowrap; }
+.employee-person span:not(.employee-avatar), .employee-schedule span { color: var(--text-secondary); font-size: 12px; }
+.employee-avatar, .employee-detail-avatar { display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: #eaf2ff; color: #2563eb; font-weight: 800; }
+.employee-avatar { width: 38px; height: 38px; font-size: 12px; }
+.employee-detail-avatar { width: 58px; height: 58px; font-size: 17px; }
+.employee-role, .employee-status { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.role-doctor { background: #e0f2fe; color: #0369a1; }
+.role-receptionist { background: #f3e8ff; color: #7e22ce; }
+.status-active, .schedule-ready { background: #dcfce7; color: #15803d !important; }
+.status-inactive, .status-locked, .schedule-missing { background: #fef2f2; color: #b91c1c !important; }
+.employee-schedule strong { white-space: nowrap; }
+.employee-schedule span { width: max-content; padding: 3px 7px; border-radius: 999px; }
+.employee-actions { display: flex; gap: 5px; }
+.icon-button.danger { color: #dc2626; }
+.employee-empty { display: grid; place-items: center; gap: 7px; padding: 52px; color: var(--text-secondary); }
+.employee-notice, .employee-lock-note { padding: 12px 15px; border-radius: 9px; background: #eff6ff; color: #1d4ed8; }
+.employee-lock-note { background: #fff7ed; color: #9a3412; }
+.employee-modal { width: min(720px, calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; border-radius: 14px; background: #fff; box-shadow: 0 24px 60px rgb(15 23 42 / 22%); }
+.employee-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; }
+.employee-form-grid label, .allocation-form label { display: grid; align-content: start; align-self: start; grid-auto-rows: max-content; gap: 7px; font-size: 13px; font-weight: 600; }
+.employee-form-grid input, .employee-form-grid select, .employee-form-grid textarea, .allocation-form input, .allocation-form select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: 8px; background: #fff; font: inherit; resize: vertical; }
+.employee-span-two { grid-column: 1 / -1; }
+.employee-form-grid small, .allocation-form small { color: #dc2626; font-weight: 500; }
+.allocation-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.allocation-form .btn { grid-column: 1 / -1; }
+.employee-drawer-backdrop { position: fixed; z-index: 80; inset: 0; display: flex; justify-content: flex-end; background: rgb(15 23 42 / 28%); }
+.employee-drawer { display: flex; width: min(480px, 100vw); height: 100%; flex-direction: column; background: #f8fafc; box-shadow: -16px 0 40px rgb(15 23 42 / 18%); animation: employee-drawer-in .2s ease-out; }
+@keyframes employee-drawer-in { from { transform: translateX(32px); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.employee-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 22px; border-bottom: 1px solid var(--border-default); background: #fff; }
+.employee-drawer-header h2, .employee-drawer-profile h3, .employee-drawer-section h3 { margin: 0; }
+.employee-drawer-header p, .employee-drawer-profile p, .employee-drawer-section .allocation-heading p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; }
+.employee-drawer-loading { padding: 32px 22px; color: var(--text-secondary); }
+.employee-drawer-body { display: grid; gap: 14px; padding: 18px; overflow-y: auto; }
+.employee-drawer-profile { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--border-default); border-radius: 12px; background: #fff; }
+.employee-drawer-profile > div:last-child { display: grid; gap: 5px; }
+.employee-drawer-section { padding: 18px; border: 1px solid var(--border-default); border-radius: 12px; background: #fff; }
+.employee-drawer-section > dl { display: grid; margin: 14px 0 0; }
+.employee-drawer-section > dl div { display: flex; justify-content: space-between; gap: 18px; padding: 11px 0; border-top: 1px solid #edf1f5; }
+.employee-drawer-section dt { color: var(--text-secondary); font-size: 12px; }
+.employee-drawer-section dd { margin: 0; font-size: 12px; font-weight: 650; text-align: right; }
+.employee-drawer-footer { display: flex; gap: 9px; margin-top: auto; padding: 15px 18px; border-top: 1px solid var(--border-default); background: #fff; }
+@media (max-width: 650px) { .employee-toolbar { flex-direction: column; } .employee-toolbar select { width: 100%; min-height: 40px; } .employee-form-grid, .allocation-form { grid-template-columns: 1fr; } .employee-drawer { width: 100vw; } }

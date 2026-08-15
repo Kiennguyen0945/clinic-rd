@@ -26,6 +26,9 @@ class StaffManagementServiceTests(TestCase):
             full_name="New Doctor",
             email="doctor@example.com",
             phone="0900000001",
+            gender="M",
+            date_of_birth="1985-06-15",
+            address="District 1",
             role_code="DOCTOR",
             department_id=self.department.id,
             room_id=self.room.id,
@@ -34,6 +37,9 @@ class StaffManagementServiceTests(TestCase):
         self.assertEqual(user.role.code, "DOCTOR")
         self.assertEqual(len(generated_password), 8)
         self.assertEqual(user.department_assignments.get().department, self.department)
+        self.assertEqual(user.gender, "M")
+        self.assertEqual(str(user.date_of_birth), "1985-06-15")
+        self.assertEqual(user.address, "District 1")
         self.assertEqual(allocation["room"]["id"], self.room.id)
         self.assertEqual(allocation["slotCount"], len(DEFAULT_SLOT_HOURS))
         self.assertEqual(
