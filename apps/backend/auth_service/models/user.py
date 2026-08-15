@@ -14,6 +14,7 @@ class User(models.Model):
 
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="users")
     username = models.CharField(max_length=100, unique=True)
+    email = models.EmailField(max_length=254, unique=True, null=True, blank=True)
     password_hash = models.CharField(max_length=255)
     full_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20)

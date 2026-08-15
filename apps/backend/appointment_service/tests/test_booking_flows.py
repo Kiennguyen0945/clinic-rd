@@ -183,6 +183,15 @@ class ReceptionistBookingFlowTests(TestCase):
                 sequence_number=sequence, status='CONFIRMED', booking_type='SCHEDULE',
             )
 
+    def create_schedule_template(self):
+        return DoctorSlot.objects.create(
+            doctor=self.doctor,
+            room=self.room,
+            slot_date=timezone.localdate() - timedelta(days=1),
+            start_time=time(6),
+            end_time=time(7),
+        )
+
     @patch('appointment_service.views.timezone.now')
     def test_walk_in_without_slot_uses_current_slot_and_waits(self, mocked_now):
         mocked_now.return_value = self.now
@@ -217,6 +226,7 @@ class ReceptionistBookingFlowTests(TestCase):
         mocked_now.return_value = self.now
         future_date = timezone.localdate() + timedelta(days=90)
         DoctorSlot.objects.all().delete()
+        template = self.create_schedule_template()
 
         response = self.client.get(
             '/api/doctor-slots/',
@@ -228,13 +238,28 @@ class ReceptionistBookingFlowTests(TestCase):
         self.assertEqual(len(slots), 11)
         self.assertTrue(all(slot['id'] is None for slot in slots))
         self.assertTrue(all(slot['slotKey'].startswith('virtual:') for slot in slots))
-        self.assertFalse(DoctorSlot.objects.exists())
+        self.assertEqual(list(DoctorSlot.objects.all()), [template])
+
+    @patch('appointment_service.views.timezone.now')
+    def test_unscheduled_doctor_has_no_virtual_slots(self, mocked_now):
+        mocked_now.return_value = self.now
+        future_date = timezone.localdate() + timedelta(days=90)
+        DoctorSlot.objects.all().delete()
+
+        response = self.client.get(
+            '/api/doctor-slots/',
+            {'date': future_date.isoformat(), 'doctorId': self.doctor.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data']['slots'], [])
 
     @patch('appointment_service.views.timezone.now')
     def test_booking_virtual_slot_materializes_only_selected_slot(self, mocked_now):
         mocked_now.return_value = self.now
         future_date = timezone.localdate() + timedelta(days=90)
         DoctorSlot.objects.all().delete()
+        self.create_schedule_template()
         list_response = self.client.get(
             '/api/doctor-slots/',
             {'date': future_date.isoformat(), 'doctorId': self.doctor.id},
@@ -248,8 +273,8 @@ class ReceptionistBookingFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(DoctorSlot.objects.count(), 1)
-        slot = DoctorSlot.objects.get()
+        self.assertEqual(DoctorSlot.objects.count(), 2)
+        slot = DoctorSlot.objects.get(slot_date=future_date)
         appointment = Appointment.objects.get()
         self.assertEqual(slot.slot_date, future_date)
         self.assertEqual(slot.start_time.strftime('%H:%M'), '08:00')

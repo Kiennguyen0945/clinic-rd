@@ -197,8 +197,19 @@ nginx blocks `/api/internal/`; Reporting calls Clinic Core directly through
 | `POST` | `/api/auth/login/` | Issue access and refresh tokens |
 | `POST` | `/api/auth/refresh/` | Refresh a session |
 | `POST` | `/api/auth/change-password/` | Change the authenticated user's password |
-| `POST` | `/api/auth/staff/` | Create receptionist or doctor staff |
+| `GET`, `POST` | `/api/auth/staff/` | List employees or create receptionist/doctor staff (manager only) |
+| `GET`, `PATCH`, `DELETE` | `/api/auth/staff/<id>/` | View, update, or delete an employee when no clinical activity exists (manager only) |
 | `PATCH` | `/api/auth/staff/<id>/lock/` | Lock or unlock a staff account |
+
+Creating a doctor requires `departmentId`; `roomId` is optional. When `roomId` is
+omitted, the account is created with `scheduleStatus: UNASSIGNED` and cannot
+receive appointments because it has no slots. When supplied, the workflow creates
+the next day's standard clinic slots in that room.
+
+Managers can schedule an unscheduled doctor with `POST
+/api/auth/staff/<id>/room-allocations/`, supplying `roomId`, `date`, `startTime`,
+and `endTime`. Allocations must be future, whole-hour ranges. Conflicting doctor or
+room allocations return `DOCTOR_UNAVAILABLE` or `ROOM_UNAVAILABLE`.
 
 Use the access token with protected endpoints:
 

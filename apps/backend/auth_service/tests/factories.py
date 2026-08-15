@@ -9,6 +9,7 @@ def create_user(
     username="user",
     password="secret123",
     status="ACTIVE",
+    email=None,
 ):
     role, _ = Role.objects.get_or_create(
         code=role_code,
@@ -17,6 +18,7 @@ def create_user(
     return User.objects.create(
         role=role,
         username=username,
+        email=email or f"{username}@example.com",
         password_hash=make_password(password),
         full_name=username.title(),
         phone="0900000000",

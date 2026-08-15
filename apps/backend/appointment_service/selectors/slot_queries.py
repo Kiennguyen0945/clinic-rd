@@ -42,10 +42,9 @@ def virtual_slots_for_date(doctor, target_date, persisted_slots):
         .order_by('-slot_date', 'start_time')
         .first()
     )
-    rooms = list(Room.objects.order_by('id'))
-    room = template.room if template else (rooms[(doctor.id - 1) % len(rooms)] if rooms else None)
-    if not room:
+    if not template:
         return list(persisted_slots)
+    room = template.room
 
     existing_hours = {slot.start_time.hour for slot in persisted_slots}
     capacity = template.capacity if template else DEFAULT_SLOT_CAPACITY
