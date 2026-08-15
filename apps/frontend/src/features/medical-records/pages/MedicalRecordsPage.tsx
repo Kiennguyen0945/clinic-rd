@@ -16,7 +16,6 @@ import PatientProfileDrawer from '../../../entities/patient/ui/PatientProfileDra
 import { useAuthStore } from '../../../shared/auth/session-store'
 import { shortDateLabel, timeLabel } from '../../../shared/lib/date'
 import { QueueGroup, SlotRow } from '../../appointments/components/schedule/SchedulePanels'
-import { DEMO_CONSULTATION_DRAFT } from '../demo/medical-record-demo'
 import {
   EMPTY_CONSULTATION_DRAFT, EMPTY_MEDICATION, draftFromMedicalRecord,
   parseVitalSigns, validateConsultation,
@@ -98,8 +97,11 @@ export default function MedicalRecordsPage() {
   const completedDrafts = useRef(new Map<string, Draft>())
 
   const currentDoctor = user?.fullName || 'Nguyễn Minh Đức'
-  const queueQuery = useDoctorQueueQuery(user?.id || '', currentDoctor)
+  const queueQuery = useDoctorQueueQuery(user?.id || '')
   const loading = queueQuery.isLoading
+  const queueError = queueQuery.error instanceof Error
+    ? queueQuery.error.message
+    : queueQuery.error ? 'Không thể tải lịch khám hôm nay.' : ''
 
   useEffect(() => {
     if (!toast) return
@@ -117,7 +119,7 @@ export default function MedicalRecordsPage() {
       return appointment
     })
     setAppointments(nextAppointments)
-    setPageError(queueQuery.data.demo ? 'Đang sử dụng dữ liệu mẫu để kiểm thử giao diện.' : '')
+    setPageError('')
     setSelectedId((current) => nextAppointments.some((item) => item.id === current)
       ? current
       : nextAppointments.find((item) => item.status === 'IN_PROGRESS')?.id
@@ -133,23 +135,16 @@ export default function MedicalRecordsPage() {
     setMedicalRecordError('')
     try {
       let current = appointment
-      if (appointment.status === 'WAITING' && !appointment.id.startsWith('mock-')) {
+      if (appointment.status === 'WAITING') {
         const response = await appointmentApi.start(Number(appointment.id))
         current = mapAppointment(response.appointment, appointments.map((item) => item.patient), slots)
         setAppointments((items) => items.map((item) => item.id === current.id ? current : item))
       }
-      if (!current.id.startsWith('mock-')) {
-        const record = await medicalRecordApi.getByAppointment(Number(current.id))
-        setMedicalRecordId(record.id)
-        setMedicalRecordStatus(record.status)
-        setDraft(draftFromMedicalRecord(record))
-        setSavedAt(formatSavedAt(record.updatedAt))
-      } else {
-        setMedicalRecordId(null)
-        setMedicalRecordStatus('DRAFT')
-        setDraft({ ...DEMO_CONSULTATION_DRAFT, prescriptions: [...DEMO_CONSULTATION_DRAFT.prescriptions] })
-        setSavedAt('Chưa lưu nháp')
-      }
+      const record = await medicalRecordApi.getByAppointment(Number(current.id))
+      setMedicalRecordId(record.id)
+      setMedicalRecordStatus(record.status)
+      setDraft(draftFromMedicalRecord(record))
+      setSavedAt(formatSavedAt(record.updatedAt))
       setActiveVisit(appointmentToVisit(current))
       setErrors({})
     } catch (error) {
@@ -162,11 +157,6 @@ export default function MedicalRecordsPage() {
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const persistDraft = async (showSuccess: boolean) => {
     if (!activeVisit) return null
-    if (activeVisit.id.startsWith('mock-')) {
-      setSavedAt(`Đã lưu lúc ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`)
-      if (showSuccess) setToast('Đã lưu bản nháp bệnh án mẫu')
-      return null
-    }
     if (!medicalRecordId) {
       setMedicalRecordError('Chưa xác định được hồ sơ bệnh án cần lưu.')
       return null
@@ -202,20 +192,18 @@ export default function MedicalRecordsPage() {
   const completeVisit = async () => {
     if (!activeVisit) return
     setShowComplete(false)
-    if (!activeVisit.id.startsWith('mock-')) {
-      const savedRecord = await persistDraft(false)
-      if (!savedRecord) return
-      try {
-        setSavingRecord(true)
-        setMedicalRecordError('')
-        const signedRecord = await medicalRecordApi.sign(savedRecord.id)
-        setMedicalRecordStatus(signedRecord.status)
-      } catch (error) {
-        setMedicalRecordError(error instanceof Error ? error.message : 'Không thể ký hồ sơ bệnh án')
-        return
-      } finally {
-        setSavingRecord(false)
-      }
+    const savedRecord = await persistDraft(false)
+    if (!savedRecord) return
+    try {
+      setSavingRecord(true)
+      setMedicalRecordError('')
+      const signedRecord = await medicalRecordApi.sign(savedRecord.id)
+      setMedicalRecordStatus(signedRecord.status)
+    } catch (error) {
+      setMedicalRecordError(error instanceof Error ? error.message : 'Không thể ký hồ sơ bệnh án')
+      return
+    } finally {
+      setSavingRecord(false)
     }
     completedDrafts.current.set(activeVisit.id, { ...draft, prescriptions: draft.prescriptions.map((item) => ({ ...item })), orders: draft.orders.map((item) => ({ ...item })) })
     locallyCompletedIds.current.add(activeVisit.id)
@@ -233,9 +221,6 @@ export default function MedicalRecordsPage() {
       if (cachedDraft) {
         setMedicalRecordId(null)
         setDraft({ ...cachedDraft, prescriptions: cachedDraft.prescriptions.map((item) => ({ ...item })), orders: cachedDraft.orders.map((item) => ({ ...item })) })
-      } else if (appointment.id.startsWith('mock-')) {
-        setMedicalRecordId(null)
-        setDraft({ ...DEMO_CONSULTATION_DRAFT, prescriptions: DEMO_CONSULTATION_DRAFT.prescriptions.map((item) => ({ ...item })) })
       } else {
         const history = await medicalRecordApi.historyByPatient(Number(appointment.patient.id))
         const record = history.find((item) => item.appointmentId === Number(appointment.id))
@@ -311,7 +296,7 @@ export default function MedicalRecordsPage() {
       ? <HistoryPanel visits={displayedAppointments.filter((item) => item.status === 'COMPLETED').map(appointmentToVisit)} />
       : activeTab === 'schedule'
         ? <DoctorSlotPanel doctorName={currentDoctor} slots={displayedSlots} appointments={displayedAppointments} expandedSlotId={expandedSlotId} selectedId={displayedSelectedId} onToggleSlot={setExpandedSlotId} onSelect={setSelectedId} onRefresh={() => void queueQuery.refetch()} loading={loading} />
-        : <DoctorDashboard appointments={displayedAppointments} slots={displayedSlots} doctorName={currentDoctor} selectedId={displayedSelectedId} expandedSlotId={expandedSlotId} loading={loading} error={pageError} startingId={startingId} onSelect={setSelectedId} onToggleSlot={setExpandedSlotId} onStart={openVisit} onCancel={cancelVisit} onViewPatient={(appointment) => setProfilePatient(appointmentToVisit(appointment).patient)} onViewMedicalRecord={openCompletedMedicalRecord} onRefresh={() => void queueQuery.refetch()} />}
+        : <DoctorDashboard appointments={displayedAppointments} slots={displayedSlots} doctorName={currentDoctor} selectedId={displayedSelectedId} expandedSlotId={expandedSlotId} loading={loading} error={pageError || queueError} startingId={startingId} onSelect={setSelectedId} onToggleSlot={setExpandedSlotId} onStart={openVisit} onCancel={cancelVisit} onViewPatient={(appointment) => setProfilePatient(appointmentToVisit(appointment).patient)} onViewMedicalRecord={openCompletedMedicalRecord} onRefresh={() => void queueQuery.refetch()} />}
     {toast && <div className="doctor-toast"><CheckCircle2 size={16} /> {toast}</div>}
     {showComplete && <ConfirmModal onCancel={() => setShowComplete(false)} onConfirm={completeVisit} />}
     {modal === 'medication' && <MedicationModal editing={Boolean(editingMedicationId)} value={medication} setValue={setMedication} onClose={closeMedicationModal} onSubmit={addMedication} />}
@@ -384,11 +369,11 @@ function ConsultationWorkspace({ visit, doctorName, draft, updateDraft, errors, 
   const readOnly = recordStatus === 'SIGNED'
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ history: true, examination: true, vitals: true, diagnosis: true, prescription: true })
   const [recentHistory, setRecentHistory] = useState<ApiMedicalRecordHistoryItem[]>([])
-  const [historyLoading, setHistoryLoading] = useState(() => Boolean(patient.id && !patient.id.startsWith('mock-')))
+  const [historyLoading, setHistoryLoading] = useState(() => Boolean(patient.id))
   const [historyError, setHistoryError] = useState('')
   const toggleSection = (key: string) => setOpenSections((current) => ({ ...current, [key]: !current[key] }))
   useEffect(() => {
-    if (!patient.id || patient.id.startsWith('mock-')) return
+    if (!patient.id) return
     let cancelled = false
     const loadRecentHistory = async () => {
       try {
