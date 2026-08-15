@@ -4,7 +4,6 @@ import { appointmentApi, mapAppointment } from '../../../entities/appointment'
 import { mapPatient, patientApi } from '../../../entities/patient'
 import { mapSlot, slotApi } from '../../../entities/slot'
 import { todayValue } from '../../../shared/lib/date'
-import { createDemoAppointments, createDemoSlots } from '../demo/medical-record-demo'
 
 export const medicalRecordQueryKeys = {
   all: ['medical-records'] as const,
@@ -12,7 +11,7 @@ export const medicalRecordQueryKeys = {
     [...medicalRecordQueryKeys.all, 'doctor-queue', date, doctorId] as const,
 }
 
-export function useDoctorQueueQuery(doctorId: string, doctorName: string) {
+export function useDoctorQueueQuery(doctorId: string) {
   const date = todayValue()
   return useQuery({
     queryKey: medicalRecordQueryKeys.doctorQueue(date, doctorId),
@@ -21,33 +20,16 @@ export function useDoctorQueueQuery(doctorId: string, doctorName: string) {
     refetchInterval: 3_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      try {
-        const [slotResponse, appointmentResponse, patientResponse] = await Promise.all([
-          slotApi.list(date, doctorId), appointmentApi.list(date, doctorId),
-          patientApi.list({ pageSize: 100 }),
-        ])
-        const slots = slotResponse.slots.map(mapSlot)
-        const patients = patientResponse.patients.map(mapPatient)
-        const appointments = appointmentResponse.appointments.map((item) =>
-          mapAppointment(item, patients, slots),
-        )
-        if (slots.length && appointments.length) return { slots, appointments, demo: false }
-        const displaySlots = slots.length ? slots : createDemoSlots(date)
-        return {
-          slots: displaySlots,
-          appointments: appointments.length
-            ? appointments
-            : createDemoAppointments(displaySlots, doctorId, doctorName, date),
-          demo: true,
-        }
-      } catch {
-        const slots = createDemoSlots(date)
-        return {
-          slots,
-          appointments: createDemoAppointments(slots, doctorId, doctorName, date),
-          demo: true,
-        }
-      }
+      const [slotResponse, appointmentResponse, patientResponse] = await Promise.all([
+        slotApi.list(date, doctorId), appointmentApi.list(date, doctorId),
+        patientApi.list({ pageSize: 100 }),
+      ])
+      const slots = slotResponse.slots.map(mapSlot)
+      const patients = patientResponse.patients.map(mapPatient)
+      const appointments = appointmentResponse.appointments.map((item) =>
+        mapAppointment(item, patients, slots),
+      )
+      return { slots, appointments }
     },
   })
 }
