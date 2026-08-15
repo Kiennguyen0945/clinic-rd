@@ -42,6 +42,22 @@ def allocate_doctor_room(
             },
         )
 
+    if room.doctor_id and room.doctor_id != doctor.id:
+        raise AuthServiceError(
+            "ROOM_ASSIGNED_TO_ANOTHER_DOCTOR",
+            "Phòng đã được phân cho bác sĩ khác",
+            status=409,
+            details={"roomId": str(room.id), "doctorId": str(room.doctor_id)},
+        )
+    existing_room = Room.objects.filter(doctor=doctor).exclude(pk=room.pk).first()
+    if existing_room:
+        raise AuthServiceError(
+            "DOCTOR_ASSIGNED_TO_ANOTHER_ROOM",
+            "Bác sĩ đã được phân sang phòng khác",
+            status=409,
+            details={"roomId": str(existing_room.id), "doctorId": str(doctor.id)},
+        )
+
     if slot_date < timezone.localdate():
         raise AuthServiceError(
             "VALIDATION_ERROR",
@@ -108,6 +124,8 @@ def allocate_doctor_room(
         )
         cursor = slot_end
     DoctorSlot.objects.bulk_create(slots)
+    room.doctor = doctor
+    room.save(update_fields=["doctor"])
     return {
         "doctorId": str(doctor.id),
         "room": {"id": room.id, "roomNumber": room.room_number},

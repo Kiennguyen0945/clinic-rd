@@ -1,8 +1,13 @@
+from datetime import date, datetime, time
+
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from appointment_service.models import Appointment, DoctorSlot
 from organization_service.models import Department, Room
+from patient_service.models import Patient
 
 from .factories import create_staff
 
@@ -65,3 +70,46 @@ class OrganizationApiTests(TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.data["error"]["code"], "RESOURCE_IN_USE")
+
+    def test_appointment_locks_department_and_room_identity_and_deletion(self):
+        doctor = create_staff(role_code="DOCTOR", username="doctor")
+        patient = Patient.objects.create(
+            patient_code="P001", full_name="Patient", dob=date(1990, 1, 1),
+            gender="F", phone="0900000000", address="Test address",
+        )
+        department = Department.objects.create(code="NOI", name="Internal Medicine")
+        room = Room.objects.create(room_number="Room 101", department=department)
+        slot = DoctorSlot.objects.create(
+            doctor=doctor, room=room, slot_date=date(2026, 8, 17),
+            start_time=time(6), end_time=time(7),
+        )
+        Appointment.objects.create(
+            slot=slot, patient=patient, doctor=doctor, creator=self.manager,
+            department=department,
+            appointment_time=timezone.make_aware(datetime(2026, 8, 17, 6)),
+        )
+
+        room_update = self.client.patch(
+            reverse("room-detail", args=[room.id]),
+            {"room_number": "Room 102"}, format="json",
+        )
+        department_update = self.client.patch(
+            reverse("department-detail", args=[department.id]),
+            {"name": "New name"}, format="json",
+        )
+
+        self.assertEqual(room_update.status_code, 400)
+        self.assertEqual(department_update.status_code, 400)
+        self.assertEqual(
+            self.client.delete(reverse("room-detail", args=[room.id])).status_code,
+            409,
+        )
+        self.assertEqual(
+            self.client.delete(reverse("department-detail", args=[department.id])).status_code,
+            409,
+        )
+
+        room.refresh_from_db()
+        department.refresh_from_db()
+        self.assertEqual(room.room_number, "Room 101")
+        self.assertEqual(department.name, "Internal Medicine")
