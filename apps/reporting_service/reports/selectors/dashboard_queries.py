@@ -30,6 +30,10 @@ def system_summary_at(*, snapshot_date):
     )
 
 
+def latest_system_summary():
+    return SystemSummary.objects.order_by("-snapshot_date").first()
+
+
 def latest_synchronization():
     return SynchronizationRun.objects.order_by("-started_at", "-id").first()
 
@@ -41,7 +45,9 @@ def manager_dashboard(*, date_from, date_to):
         completed=Sum("completed"),
         cancelled=Sum("cancelled"),
     )
-    summary = system_summary_at(snapshot_date=date_to)
+    # Employee and organization counts describe the current clinic structure,
+    # not the historical appointment period selected on the dashboard.
+    summary = latest_system_summary()
     last_success = (
         SynchronizationRun.objects.filter(
             status=SynchronizationRun.Status.SUCCESS,

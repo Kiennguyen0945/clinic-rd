@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import {
@@ -6,6 +6,7 @@ import {
   Download, RefreshCw, Stethoscope, Users,
 } from 'lucide-react'
 import { useAuthStore } from '../../../shared/auth/session-store'
+import { dashboardApi } from '../api/dashboard.api'
 import { useManagerDashboardQuery } from '../model/dashboard.queries'
 
 const COLORS = ['#f59e0b', '#64748b', '#10b981', '#2563eb', '#8b5cf6', '#ef4444']
@@ -31,10 +32,43 @@ function downloadCsv(date: string, rows: Array<Array<string | number>>) {
 }
 
 export default function ManagerDashboardPage() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = format(new Date(), 'yyyy-MM-dd')
   const [selectedDate, setSelectedDate] = useState(today)
+  const [isSynchronizing, setIsSynchronizing] = useState(false)
+  const synchronizationInFlight = useRef(false)
   const user = useAuthStore((state) => state.user)
   const { data, isPending, isError, refetch, isFetching } = useManagerDashboardQuery(selectedDate)
+
+  const refreshDashboard = useCallback(async () => {
+    if (synchronizationInFlight.current) return
+    synchronizationInFlight.current = true
+    setIsSynchronizing(true)
+    try {
+      await dashboardApi.synchronize(selectedDate, selectedDate)
+      await refetch()
+    } finally {
+      synchronizationInFlight.current = false
+      setIsSynchronizing(false)
+    }
+  }, [refetch, selectedDate])
+
+  useEffect(() => {
+    const synchronizeVisibleDashboard = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshDashboard().catch(() => undefined)
+      }
+    }
+
+    synchronizeVisibleDashboard()
+    const interval = window.setInterval(synchronizeVisibleDashboard, 15_000)
+    window.addEventListener('focus', synchronizeVisibleDashboard)
+    document.addEventListener('visibilitychange', synchronizeVisibleDashboard)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', synchronizeVisibleDashboard)
+      document.removeEventListener('visibilitychange', synchronizeVisibleDashboard)
+    }
+  }, [refreshDashboard])
 
   const daily = data?.dashboard.dailyAppointments[0]
   const stats = {
@@ -71,13 +105,26 @@ export default function ManagerDashboardPage() {
     </div>
   )
 
+  const doctorRows = data.doctors
+    .filter((statistic) => statistic.total > 0)
+    .map((statistic) => ({
+      statistic,
+      profile: data.doctorDirectory.find(
+        (profile) => Number(profile.id) === statistic.doctorId,
+      ) || {
+        id: String(statistic.doctorId),
+        fullName: `Bác sĩ #${statistic.doctorId}`,
+        departments: [],
+      },
+    }))
+
   const exportReport = () => downloadCsv(selectedDate, [
     ['BÁO CÁO TỔNG QUAN PHÒNG KHÁM', selectedDate],
     ['Chỉ số', 'Giá trị'],
     ['Tổng lượt khám', stats.total], ['Đang chờ', stats.waiting],
     ['Đang khám', stats.inProgress], ['Hoàn thành', stats.completed], ['Đã hủy', stats.cancelled],
     [], ['Mã bác sĩ', 'Tổng lượt', 'Hoàn thành', 'Đã hủy', 'Tỷ lệ hoàn thành'],
-    ...data.doctors.map((doctor) => [doctor.doctorId, doctor.total, doctor.completed, doctor.cancelled, `${percent(doctor.completed, doctor.total)}%`]),
+    ...doctorRows.map(({ profile, statistic }) => [profile.fullName, statistic.total, statistic.completed, statistic.cancelled, `${percent(statistic.completed, statistic.total)}%`]),
   ])
 
   const cards = [
@@ -97,7 +144,7 @@ export default function ManagerDashboardPage() {
       </div>
       <div className="manager-toolbar">
         <input aria-label="Ngày báo cáo" type="date" value={selectedDate} max={today} onChange={(event) => setSelectedDate(event.target.value)} />
-        <button className="btn btn-secondary btn-sm" title="Tải lại" onClick={() => void refetch()} disabled={isFetching}><RefreshCw size={16} className={isFetching ? 'spin' : ''} /></button>
+        <button className="btn btn-secondary btn-sm" title="Cập nhật dữ liệu" aria-label="Cập nhật dữ liệu" onClick={() => void refreshDashboard()} disabled={isFetching || isSynchronizing}><RefreshCw size={16} className={isFetching || isSynchronizing ? 'spin' : ''} /></button>
         <button className="btn btn-primary btn-sm" onClick={exportReport}><Download size={16} />Xuất báo cáo</button>
       </div>
     </div>
@@ -113,12 +160,11 @@ export default function ManagerDashboardPage() {
     <div className="manager-main-grid">
       <section className="manager-panel">
         <div className="manager-panel-title"><h3>Tình hình theo bác sĩ</h3></div>
-        <div className="table-wrapper"><table className="manager-table"><thead><tr><th>Bác sĩ</th><th>Tổng lịch</th><th>Hoàn thành</th><th>Đã hủy</th><th>Tỷ lệ</th></tr></thead>
-          <tbody>{data.doctors.length ? data.doctors.map((doctor) => {
+        <div className="table-wrapper manager-doctor-scroll"><table className="manager-table"><thead><tr><th>Bác sĩ</th><th>Tổng lịch</th><th>Hoàn thành</th><th>Đã hủy</th><th>Tỷ lệ</th></tr></thead>
+          <tbody>{doctorRows.length ? doctorRows.map(({ profile, statistic: doctor }) => {
             const rate = percent(doctor.completed, doctor.total)
-            const profile = data.doctorDirectory.find((item) => Number(item.id) === doctor.doctorId)
-            const doctorName = profile?.fullName || `Bác sĩ #${doctor.doctorId}`
-            return <tr key={`${doctor.date}-${doctor.doctorId}`}><td><div className="manager-doctor"><span className="manager-doctor-avatar">{doctorInitials(doctorName)}</span><div><b>{doctorName}</b><small>{profile?.departments.map((department) => department.name).join(', ') || 'Chưa cập nhật chuyên khoa'}</small></div></div></td><td>{doctor.total}</td><td>{doctor.completed}</td><td>{doctor.cancelled}</td><td><b>{rate}%</b><span className="manager-progress"><i style={{ width: `${rate}%` }} /></span></td></tr>
+            const doctorName = profile.fullName
+            return <tr key={profile.id}><td><div className="manager-doctor"><span className="manager-doctor-avatar">{doctorInitials(doctorName)}</span><div><b>{doctorName}</b><small>{profile.departments.map((department) => department.name).join(', ') || 'Chưa cập nhật chuyên khoa'}</small></div></div></td><td>{doctor.total}</td><td>{doctor.completed}</td><td>{doctor.cancelled}</td><td><b>{rate}%</b><span className="manager-progress"><i style={{ width: `${rate}%` }} /></span></td></tr>
           }) : <tr><td colSpan={5}><div className="manager-empty-state"><div className="empty-illustration doctors"><Users size={34} /><Stethoscope size={24} /></div><b>Chưa có lịch khám theo bác sĩ trong ngày</b><span>Hiện chưa có dữ liệu lịch khám cho các bác sĩ.<br />Vui lòng chọn ngày khác hoặc quay lại sau.</span></div></td></tr>}</tbody></table></div>
       </section>
 

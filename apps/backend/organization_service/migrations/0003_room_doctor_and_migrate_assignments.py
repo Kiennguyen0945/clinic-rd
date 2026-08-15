@@ -1,3 +1,5 @@
+# ruff: noqa: RUF012
+
 import django.db.models.deletion
 from django.db import migrations, models
 

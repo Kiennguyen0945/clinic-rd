@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -69,6 +70,7 @@ describe('dashboard query behavior', () => {
     useAuthStore.setState({ user: managerUser })
     localStorage.setItem('authUser', JSON.stringify(managerUser))
 
+    let synchronizationRequested = false
     server.use(
       http.get('/api/reports/dashboard/manager/', () => HttpResponse.json({ success: true, data: {
         period: { dateFrom: '2026-08-15', dateTo: '2026-08-15' },
@@ -83,8 +85,15 @@ describe('dashboard query behavior', () => {
         items: [{ date: '2026-08-15', doctorId: 11, total: 10, completed: 6, cancelled: 1, synchronizedAt: '2026-08-15T09:00:00Z' }],
       } })),
       http.get('/api/appointments/reception-context/', () => HttpResponse.json({ success: true, data: {
-        doctors: [{ id: '11', fullName: 'BS. Nguyễn Minh Đức', departments: [{ id: 3, name: 'Nội khoa' }] }],
+        doctors: [
+          { id: '11', fullName: 'BS. Nguyễn Minh Đức', departments: [{ id: 3, name: 'Nội khoa' }] },
+          { id: '12', fullName: 'BS. Trần Thị Mai', departments: [{ id: 4, name: 'Nhi khoa' }] },
+        ],
       } })),
+      http.post('/api/reports/synchronize/', () => {
+        synchronizationRequested = true
+        return HttpResponse.json({ success: true, data: { runId: '1', status: 'SUCCESS', dateFrom: '2026-08-15', dateTo: '2026-08-15', finishedAt: '2026-08-15T09:00:00Z' } })
+      }),
     )
 
     render(<App />)
@@ -93,6 +102,9 @@ describe('dashboard query behavior', () => {
     expect(screen.getAllByText(/Trần Hoàng Nam/).length).toBeGreaterThan(0)
     expect(screen.getByText('BS. Nguyễn Minh Đức')).toBeVisible()
     expect(screen.getByText('MĐ')).toBeVisible()
+    expect(screen.queryByText('BS. Trần Thị Mai')).not.toBeInTheDocument()
     expect(screen.getByText('Tổng quan tổ chức')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Cập nhật dữ liệu' }))
+    expect(synchronizationRequested).toBe(true)
   })
 })

@@ -1,8 +1,7 @@
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 
 from django.test import TestCase
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework.test import APIClient
 
 from appointment_service.models import Appointment, DoctorSlot
@@ -86,7 +85,7 @@ class OrganizationApiTests(TestCase):
         Appointment.objects.create(
             slot=slot, patient=patient, doctor=doctor, creator=self.manager,
             department=department,
-            appointment_time=timezone.make_aware(datetime(2026, 8, 17, 6)),
+            appointment_time=datetime(2026, 8, 17, 6, tzinfo=UTC),
         )
 
         room_update = self.client.patch(

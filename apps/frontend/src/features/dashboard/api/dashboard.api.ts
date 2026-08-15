@@ -62,6 +62,14 @@ export interface ManagerReceptionContext {
   doctors: DashboardDoctor[]
 }
 
+export interface SynchronizationResult {
+  runId: string
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED'
+  dateFrom: string
+  dateTo: string
+  finishedAt: string
+}
+
 function dateRangeQuery(dateFrom: string, dateTo: string) {
   return new URLSearchParams({ dateFrom, dateTo }).toString()
 }
@@ -80,4 +88,9 @@ export const dashboardApi = {
     apiRequest<ManagerReceptionContext>(
       `/api/appointments/reception-context/?date=${encodeURIComponent(date)}`,
     ),
+  synchronize: (dateFrom: string, dateTo: string) =>
+    apiRequest<SynchronizationResult>('/api/reports/synchronize/', {
+      method: 'POST',
+      body: JSON.stringify({ dateFrom, dateTo }),
+    }),
 }
