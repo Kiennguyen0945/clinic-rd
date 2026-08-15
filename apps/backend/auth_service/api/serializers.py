@@ -27,3 +27,36 @@ class UserSerializer(serializers.ModelSerializer):
         elif 'password_hash' not in validated_data:
             validated_data['password_hash'] = make_password('default123')
         return super().create(validated_data)
+
+
+class StaffCreateSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=100)
+    fullName = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    roleCode = serializers.ChoiceField(choices=("RECEPTIONIST", "DOCTOR"))
+    password = serializers.CharField(required=False, allow_blank=False, write_only=True)
+    departmentId = serializers.IntegerField(required=False)
+    roomId = serializers.IntegerField(required=False)
+
+    def validate(self, attrs):
+        if attrs["roleCode"] == "DOCTOR" and not attrs.get("departmentId"):
+            raise serializers.ValidationError(
+                {"departmentId": "This field is required for doctors"}
+            )
+        return attrs
+
+
+class StaffUpdateSerializer(serializers.Serializer):
+    fullName = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    status = serializers.ChoiceField(choices=User.STATUS_CHOICES)
+    departmentId = serializers.IntegerField(required=False)
+
+
+class RoomAllocationSerializer(serializers.Serializer):
+    roomId = serializers.IntegerField()
+    date = serializers.DateField()
+    startTime = serializers.TimeField()
+    endTime = serializers.TimeField()
