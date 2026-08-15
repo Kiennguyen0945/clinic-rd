@@ -1,6 +1,8 @@
 import { format, parseISO } from 'date-fns'
 import { Activity, Clock, CheckCircle, CalendarCheck, Search, Plus, Stethoscope, Ban } from 'lucide-react'
 import { useTodayDashboardQuery } from '../model/dashboard.queries'
+import { useAuthStore } from '../../../shared/auth/session-store'
+import ManagerDashboardPage from './ManagerDashboardPage'
 
 function statusBadge(status: string) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -14,7 +16,7 @@ function statusBadge(status: string) {
   return <span className={`badge ${item.cls}`}>{item.label}</span>
 }
 
-export default function DashboardPage() {
+function OperationalDashboardPage() {
   const { data, isPending: loading } = useTodayDashboardQuery()
 
   if (loading) {
@@ -180,4 +182,9 @@ export default function DashboardPage() {
       </div>
     </>
   )
+}
+
+export default function DashboardPage() {
+  const role = useAuthStore((state) => state.user?.role)
+  return role === 'manager' ? <ManagerDashboardPage /> : <OperationalDashboardPage />
 }
