@@ -237,6 +237,12 @@ Authorization: Bearer <access-token>
 | `GET`, `DELETE` | `/api/doctor-departments/<id>/` | Assignment detail |
 
 `GET /api/doctor-departments/?doctor_id=<id>` filters assignments by doctor.
+Authenticated staff may read organization data; only managers may create, update,
+or delete it. New rooms require `room_number` and `department_id`, and accept an
+optional `description`. Departments or rooms referenced by operational data return
+`RESOURCE_IN_USE` instead of being deleted. Existing rooms may temporarily have no
+department after migration; newly scheduled doctors cannot use a room assigned to
+a different department.
 
 ### Appointments and slots
 

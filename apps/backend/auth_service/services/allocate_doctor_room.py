@@ -29,6 +29,18 @@ def allocate_doctor_room(
             "Thông tin phân phòng không hợp lệ",
             details={"roomId": "Phòng không tồn tại"},
         ) from exc
+    if room.department_id and not doctor.department_assignments.filter(
+        department_id=room.department_id
+    ).exists():
+        raise AuthServiceError(
+            "ROOM_DEPARTMENT_MISMATCH",
+            "Phòng không thuộc khoa của bác sĩ",
+            status=409,
+            details={
+                "roomId": str(room.id),
+                "departmentId": str(room.department_id),
+            },
+        )
 
     if slot_date < timezone.localdate():
         raise AuthServiceError(

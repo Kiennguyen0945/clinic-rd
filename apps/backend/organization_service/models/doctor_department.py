@@ -15,7 +15,7 @@ class DoctorDepartment(models.Model):
     )
     department = models.ForeignKey(
         Department,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="doctor_assignments",
     )
 

@@ -8,7 +8,7 @@ def departments() -> QuerySet[Department]:
 
 
 def rooms() -> QuerySet[Room]:
-    return Room.objects.order_by("room_number", "id")
+    return Room.objects.select_related("department").order_by("room_number", "id")
 
 
 def doctor_departments(*, doctor_id: int | None = None) -> QuerySet[DoctorDepartment]:

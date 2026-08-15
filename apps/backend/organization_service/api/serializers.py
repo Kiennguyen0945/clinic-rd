@@ -19,9 +19,15 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class RoomSerializer(serializers.ModelSerializer):
+    department_id = serializers.PrimaryKeyRelatedField(
+        source="department",
+        queryset=Department.objects.all(),
+    )
+    department = DepartmentSerializer(read_only=True)
+
     class Meta:
         model = Room
-        fields = ["id", "room_number"]
+        fields = ["id", "room_number", "description", "department_id", "department"]
         read_only_fields = ["id"]
 
     def create(self, validated_data):

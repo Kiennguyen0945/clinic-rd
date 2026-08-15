@@ -17,9 +17,16 @@ class OrganizationServiceTests(TestCase):
         self.assertEqual(department.name, "Internal Medicine")
 
     def test_create_room_strips_room_number(self):
-        room = create_room(room_number=" A-101 ")
+        department = create_department(code="NOI", name="Internal Medicine")
+        room = create_room(
+            room_number=" A-101 ",
+            department=department,
+            description=" Consultation room ",
+        )
 
         self.assertEqual(room.room_number, "A-101")
+        self.assertEqual(room.department, department)
+        self.assertEqual(room.description, "Consultation room")
 
     def test_assign_doctor_is_idempotent(self):
         doctor = create_doctor()
