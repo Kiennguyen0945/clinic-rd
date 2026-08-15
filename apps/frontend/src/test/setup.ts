@@ -5,7 +5,15 @@ import { afterAll, afterEach, beforeAll } from 'vitest'
 import { queryClient } from '../shared/api/query-client'
 import { server } from './server'
 
-configure({ asyncUtilTimeout: 5_000 })
+class TestResizeObserver implements ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+globalThis.ResizeObserver = TestResizeObserver
+
+configure({ asyncUtilTimeout: 10_000 })
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 

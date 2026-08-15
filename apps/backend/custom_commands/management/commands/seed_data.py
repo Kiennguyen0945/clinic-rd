@@ -223,10 +223,10 @@ class Command(BaseCommand):
         Appointment.objects.filter(patient__patient_code__in=list(patients)).delete()
         reception = users['receptionist']
         data = [
-            ('A1B2C3', 'doctor1', 8, 'BN-00000001', 'CONFIRMED', 'Khám định kỳ', 'SERVICE'),
+            ('A1B2C3', 'doctor1', 8, 'BN-00000001', 'PENDING', 'Khám định kỳ', 'SERVICE'),
             ('D4E5F6', 'doctor1', 9, 'BN-00000003', 'WAITING', 'Đau đầu, chóng mặt', 'SERVICE'),
             ('G7H8J9', 'doctor1', 9, 'BN-00000005', 'WAITING', 'Theo dõi huyết áp', 'BHYT'),
-            ('K1L2M3', 'doctor1', 10, 'BN-00000002', 'CONFIRMED', 'Đau bụng, đầy hơi', 'SERVICE'),
+            ('K1L2M3', 'doctor1', 10, 'BN-00000002', 'IN_PROGRESS', 'Đau bụng, đầy hơi', 'SERVICE'),
             ('N4P5Q6', 'doctor1', 11, 'BN-00000006', 'CONFIRMED', 'Tái khám', 'SERVICE'),
             ('R7S8T9', 'doctor1', 11, 'BN-00000007', 'CONFIRMED', 'Khám nội tổng quát', 'SERVICE'),
             ('U1V2W3', 'doctor1', 11, 'BN-00000008', 'WAITING', 'Đau khớp gối', 'BHYT'),
