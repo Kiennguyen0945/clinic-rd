@@ -63,6 +63,18 @@ class ReportingReadApiTests(TestCase):
             room_total=12,
             synchronized_at=synchronized_at,
         )
+        SystemSummary.objects.create(
+            snapshot_date=cls.date_to + timedelta(days=1),
+            employee_total=18,
+            active_employees=17,
+            locked_employees=1,
+            doctor_total=11,
+            receptionist_total=5,
+            manager_total=2,
+            department_total=6,
+            room_total=14,
+            synchronized_at=synchronized_at + timedelta(days=1),
+        )
         cls.successful_run = SynchronizationRun.objects.create(
             status=SynchronizationRun.Status.SUCCESS,
             date_from=cls.date_from,
@@ -116,9 +128,9 @@ class ReportingReadApiTests(TestCase):
         )
         self.assertEqual(
             data["employees"],
-            {"total": 16, "active": 14, "locked": 2},
+            {"total": 18, "active": 17, "locked": 1},
         )
-        self.assertEqual(data["organization"], {"departments": 5, "rooms": 12})
+        self.assertEqual(data["organization"], {"departments": 6, "rooms": 14})
         self.assertEqual(len(data["dailyAppointments"]), 2)
         self.assertEqual(data["lastSynchronizedAt"], "2026-08-13T10:30:00Z")
 

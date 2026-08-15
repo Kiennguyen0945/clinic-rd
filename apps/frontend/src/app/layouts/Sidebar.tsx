@@ -8,6 +8,7 @@ import {
   UserCog,
   BarChart3,
   Shield,
+  Building2,
 } from 'lucide-react';
 
 const navConfig: Record<string, Array<{ path: string; label: string; icon: React.ReactNode }>> = {
@@ -26,6 +27,7 @@ const navConfig: Record<string, Array<{ path: string; label: string; icon: React
     { path: '/appointments', label: 'Lịch hẹn', icon: <CalendarDays size={20} /> },
     { path: '/patients', label: 'Bệnh nhân', icon: <Users size={20} /> },
     { path: '/staff', label: 'Nhân sự', icon: <UserCog size={20} /> },
+    { path: '/organization', label: 'Khoa & Phòng', icon: <Building2 size={20} /> },
     { path: '/statistics', label: 'Thống kê', icon: <BarChart3 size={20} /> },
   ],
 };

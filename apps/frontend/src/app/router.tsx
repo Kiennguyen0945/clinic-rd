@@ -10,6 +10,7 @@ const AppointmentsPage = lazy(() => import('@/features/appointments').then((modu
 const PatientsPage = lazy(() => import('@/features/patients').then((module) => ({ default: module.PatientsPage })))
 const MedicalRecordsPage = lazy(() => import('@/features/medical-records').then((module) => ({ default: module.MedicalRecordsPage })))
 const EmployeeListPage = lazy(() => import('@/features/employees').then((module) => ({ default: module.EmployeeListPage })))
+const OrganizationPage = lazy(() => import('@/features/organization').then((module) => ({ default: module.OrganizationPage })))
 
 const routeFallback = <div className="empty-box">Đang tải trang...</div>
 const dashboardFallback = (
@@ -50,6 +51,7 @@ export default function AppRouter() {
         <Route path="/patients" element={<Suspense fallback={routeFallback}><PatientsPage /></Suspense>} />
         <Route path="/medical-records" element={<DoctorRoute />} />
         <Route path="/staff" element={<ManagerRoute><EmployeeListPage /></ManagerRoute>} />
+        <Route path="/organization" element={<ManagerRoute><OrganizationPage /></ManagerRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

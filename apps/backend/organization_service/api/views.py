@@ -19,6 +19,12 @@ class ProtectedDeleteMixin:
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        if getattr(instance, "has_appointments", False):
+            return error_response(
+                "RESOURCE_HAS_APPOINTMENTS",
+                f"Không thể xóa {self.resource_label.lower()} vì đã có lịch hẹn",
+                status=409,
+            )
         try:
             instance.delete()
         except ProtectedError:
@@ -54,7 +60,7 @@ class RoomListCreateView(generics.ListCreateAPIView):
 
 
 class RoomDetailView(ProtectedDeleteMixin, generics.RetrieveUpdateDestroyAPIView):
-    queryset = Room.objects.select_related("department")
+    queryset = Room.objects.select_related("department", "doctor")
     serializer_class = RoomSerializer
     permission_classes = (IsAuthenticatedReadOnlyManagerWrite,)
     resource_label = "Phòng"
