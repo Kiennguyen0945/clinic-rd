@@ -21,6 +21,12 @@ def allocate_doctor_room(
     doctor = get_staff(doctor_id)
     if doctor is None or doctor.role.code != "DOCTOR":
         raise AuthServiceError("DOCTOR_NOT_FOUND", "Không tìm thấy bác sĩ", status=404)
+    if doctor.status != "ACTIVE":
+        raise AuthServiceError(
+            "DOCTOR_ACCOUNT_LOCKED",
+            "Tài khoản bác sĩ đã bị khóa",
+            status=409,
+        )
     try:
         room = Room.objects.get(pk=room_id)
     except (Room.DoesNotExist, ValueError, TypeError) as exc:

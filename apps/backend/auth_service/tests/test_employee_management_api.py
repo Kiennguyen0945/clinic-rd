@@ -158,6 +158,23 @@ class EmployeeManagementApiTests(TestCase):
         self.assertEqual(blocked_update.status_code, 409)
         self.assertEqual(self.client.delete(detail_url).status_code, 409)
 
+        locked = self.client.patch(
+            f"/api/auth/staff/{self.receptionist.id}/lock/",
+            {"action": "lock"},
+            format="json",
+        )
+        self.assertEqual(locked.status_code, 200)
+        self.assertEqual(locked.data["data"]["user"]["status"], "LOCKED")
+        self.assertFalse(locked.data["data"]["user"]["canEdit"])
+
+        unlocked = self.client.patch(
+            f"/api/auth/staff/{self.receptionist.id}/lock/",
+            {"action": "unlock"},
+            format="json",
+        )
+        self.assertEqual(unlocked.status_code, 200)
+        self.assertEqual(unlocked.data["data"]["user"]["status"], "ACTIVE")
+
     def test_non_manager_cannot_access_employee_management(self):
         self.client.force_authenticate(self.receptionist)
         self.assertEqual(self.client.get("/api/auth/staff/").status_code, 403)

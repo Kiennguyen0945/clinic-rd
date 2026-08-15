@@ -37,6 +37,7 @@ export const employeeApi = {
   detail: (id: string) => apiRequest<EmployeeDetail>(`/api/auth/staff/${id}/`).then((data) => data.user),
   create: (body: Record<string, unknown>) => apiRequest<CreateResult>('/api/auth/staff/', { method: 'POST', body: JSON.stringify(body) }),
   update: (id: string, body: Record<string, unknown>) => apiRequest<EmployeeDetail>(`/api/auth/staff/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  toggleLock: (id: string, action: 'lock' | 'unlock') => apiRequest<EmployeeDetail>(`/api/auth/staff/${id}/lock/`, { method: 'PATCH', body: JSON.stringify({ action }) }),
   remove: (id: string) => apiRequest<Record<string, never>>(`/api/auth/staff/${id}/`, { method: 'DELETE' }),
   allocate: (id: string, body: Record<string, unknown>) => apiRequest<{ allocation: unknown }>(`/api/auth/staff/${id}/room-allocations/`, { method: 'POST', body: JSON.stringify(body) }),
   departments: () => rawList<Department[]>('/api/departments/'),

@@ -12,6 +12,7 @@ export function useEmployeeMutations() {
   return {
     create: useMutation({ mutationFn: employeeApi.create, onSuccess: refresh }),
     update: useMutation({ mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => employeeApi.update(id, body), onSuccess: refresh }),
+    toggleLock: useMutation({ mutationFn: ({ id, action }: { id: string; action: 'lock' | 'unlock' }) => employeeApi.toggleLock(id, action), onSuccess: refresh }),
     remove: useMutation({ mutationFn: employeeApi.remove, onSuccess: refresh }),
     allocate: useMutation({ mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => employeeApi.allocate(id, body), onSuccess: refresh }),
   }

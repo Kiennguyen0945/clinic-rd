@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CalendarClock, Pencil, Trash2, X } from 'lucide-react'
+import { CalendarClock, Lock, Pencil, Trash2, Unlock, X } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -33,6 +33,18 @@ export default function EmployeeDetailDrawer({ employeeId, onClose, onDeleted }:
       setMessage('Đã phân phòng và tạo các ca khám.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Không thể phân phòng.') }
   })
+  const toggleLock = async () => {
+    if (!employee) return
+    const locking = employee.status !== 'LOCKED'
+    if (!window.confirm(`${locking ? 'Khóa' : 'Mở khóa'} tài khoản “${employee.fullName}”?`)) return
+    setMessage('')
+    try {
+      await mutations.toggleLock.mutateAsync({ id: employee.id, action: locking ? 'lock' : 'unlock' })
+      setMessage(locking ? 'Đã khóa tài khoản.' : 'Đã mở khóa tài khoản.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái tài khoản.')
+    }
+  }
 
   return <div className="employee-drawer-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <aside className="employee-drawer" role="dialog" aria-modal="true" aria-label="Thông tin nhân viên">
@@ -44,7 +56,7 @@ export default function EmployeeDetailDrawer({ employeeId, onClose, onDeleted }:
         <section className="employee-drawer-section"><h3>Thông tin chung</h3><dl><div><dt>Tên đăng nhập</dt><dd>@{employee.username}</dd></div><div><dt>Email</dt><dd>{employee.email || '—'}</dd></div><div><dt>Số điện thoại</dt><dd>{employee.phone || '—'}</dd></div><div><dt>Giới tính</dt><dd>{employee.gender === 'M' ? 'Nam' : employee.gender === 'F' ? 'Nữ' : employee.gender === 'O' ? 'Khác' : '—'}</dd></div><div><dt>Ngày sinh</dt><dd>{employee.dateOfBirth ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${employee.dateOfBirth}T12:00:00`)) : '—'}</dd></div><div><dt>Địa chỉ</dt><dd>{employee.address || '—'}</dd></div><div><dt>Vai trò</dt><dd>{employee.role === 'DOCTOR' ? 'Bác sĩ' : 'Lễ tân'}</dd></div><div><dt>Khoa</dt><dd>{employee.departments.map((item) => item.name).join(', ') || '—'}</dd></div><div><dt>Lịch nhận bệnh</dt><dd>{employee.role === 'DOCTOR' ? employee.canReceiveAppointments ? 'Đã phân lịch' : 'Chưa phân phòng' : 'Không áp dụng'}</dd></div></dl></section>
         {employee.role === 'DOCTOR' && <section className="employee-drawer-section"><div className="allocation-heading"><CalendarClock size={19} /><div><h3>Phân phòng làm việc</h3><p>Chọn phòng và khoảng giờ để tạo ca khám.</p></div></div><form onSubmit={allocate} className="allocation-form drawer-allocation-form"><label>Phòng<select {...register('roomId')}><option value="">Chọn phòng</option>{resources.data?.rooms.map((room) => <option key={room.id} value={room.id}>{room.room_number}</option>)}</select>{errors.roomId && <small>{errors.roomId.message}</small>}</label><label>Ngày<input type="date" min={todayValue()} {...register('date')} />{errors.date && <small>{errors.date.message}</small>}</label><label>Bắt đầu<input type="time" step="3600" {...register('startTime')} /></label><label>Kết thúc<input type="time" step="3600" {...register('endTime')} />{errors.endTime && <small>{errors.endTime.message}</small>}</label><button className="btn btn-primary" disabled={mutations.allocate.isPending}>{mutations.allocate.isPending ? 'Đang phân phòng...' : 'Phân phòng và tạo ca'}</button></form></section>}
       </div>}
-      {employee && <footer className="employee-drawer-footer">{employee.canEdit && <button className="btn btn-secondary" onClick={() => setEditing(true)}><Pencil size={16} /> Chỉnh sửa</button>}{employee.canDelete && <button className="btn btn-danger" onClick={() => void remove()}><Trash2 size={16} /> Xóa nhân viên</button>}</footer>}
+      {employee && <footer className="employee-drawer-footer"><button className="btn btn-secondary employee-lock-action" disabled={mutations.toggleLock.isPending} onClick={() => void toggleLock()}>{employee.status === 'LOCKED' ? <Unlock size={16} /> : <Lock size={16} />}{employee.status === 'LOCKED' ? 'Mở khóa' : 'Khóa tài khoản'}</button>{employee.canEdit && <button className="btn btn-secondary" onClick={() => setEditing(true)}><Pencil size={16} /> Chỉnh sửa</button>}{employee.canDelete && <button className="btn btn-danger" onClick={() => void remove()}><Trash2 size={16} /> Xóa nhân viên</button>}</footer>}
     </aside>
     {editing && employee && <EmployeeFormModal employee={employee} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); setMessage('Đã cập nhật nhân viên.') }} />}
   </div>
