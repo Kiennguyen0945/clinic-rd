@@ -76,6 +76,9 @@ def _staff_payload(user, *, locked=None):
         "email": user.email,
         "fullName": user.full_name,
         "phone": user.phone,
+        "gender": user.gender,
+        "dateOfBirth": user.date_of_birth.isoformat() if user.date_of_birth else None,
+        "address": user.address,
         "status": user.status,
         "role": user.role.code,
         "departments": departments,
@@ -189,7 +192,7 @@ class StaffCreateView(APIView):
         employees = list_staff()
         return success_response(
             [_staff_payload(employee) for employee in employees],
-            message="Employees retrieved successfully",
+            message="Lấy danh sách nhân viên thành công",
         )
 
     def post(self, request):
@@ -200,7 +203,7 @@ class StaffCreateView(APIView):
         if not serializer.is_valid():
             return error_response(
                 "VALIDATION_ERROR",
-                "Invalid employee data",
+                "Thông tin nhân viên không hợp lệ",
                 details=serializer.errors,
             )
         data = serializer.validated_data
@@ -210,6 +213,9 @@ class StaffCreateView(APIView):
                 full_name=data["fullName"],
                 email=data["email"],
                 phone=data.get("phone", ""),
+                gender=data.get("gender", ""),
+                date_of_birth=data.get("dateOfBirth"),
+                address=data.get("address", ""),
                 role_code=data["roleCode"],
                 password=data.get("password"),
                 department_id=data.get("departmentId"),
@@ -223,7 +229,7 @@ class StaffCreateView(APIView):
                 "generatedPassword": generated_password,
                 "allocation": allocation,
             },
-            message="Employee created successfully",
+            message="Tạo nhân viên thành công",
             status=201,
         )
 
@@ -237,10 +243,10 @@ class StaffDetailView(APIView):
             return permission_error
         user = get_staff(pk)
         if user is None:
-            return error_response("EMPLOYEE_NOT_FOUND", "Employee not found", status=404)
+            return error_response("EMPLOYEE_NOT_FOUND", "Không tìm thấy nhân viên", status=404)
         return success_response(
             {"user": _staff_payload(user)},
-            message="Employee retrieved successfully",
+            message="Lấy thông tin nhân viên thành công",
         )
 
     def patch(self, request, pk):
@@ -251,7 +257,7 @@ class StaffDetailView(APIView):
         if not serializer.is_valid():
             return error_response(
                 "VALIDATION_ERROR",
-                "Invalid employee data",
+                "Thông tin nhân viên không hợp lệ",
                 details=serializer.errors,
             )
         data = serializer.validated_data
@@ -261,6 +267,9 @@ class StaffDetailView(APIView):
                 full_name=data["fullName"],
                 email=data["email"],
                 phone=data.get("phone", ""),
+                gender=data.get("gender", ""),
+                date_of_birth=data.get("dateOfBirth"),
+                address=data.get("address", ""),
                 status=data["status"],
                 department_id=data.get("departmentId"),
             )
@@ -268,7 +277,7 @@ class StaffDetailView(APIView):
             return _service_error_response(exc)
         return success_response(
             {"user": _staff_payload(user, locked=False)},
-            message="Employee updated successfully",
+            message="Cập nhật nhân viên thành công",
         )
 
     def delete(self, request, pk):
@@ -279,7 +288,7 @@ class StaffDetailView(APIView):
             delete_staff(user_id=pk)
         except AuthServiceError as exc:
             return _service_error_response(exc)
-        return success_response({}, message="Employee deleted successfully")
+        return success_response({}, message="Xóa nhân viên thành công")
 
 
 class StaffRoomAllocationView(APIView):
@@ -293,7 +302,7 @@ class StaffRoomAllocationView(APIView):
         if not serializer.is_valid():
             return error_response(
                 "VALIDATION_ERROR",
-                "Invalid room allocation",
+                "Thông tin phân phòng không hợp lệ",
                 details=serializer.errors,
             )
         data = serializer.validated_data
@@ -309,7 +318,7 @@ class StaffRoomAllocationView(APIView):
             return _service_error_response(exc)
         return success_response(
             {"allocation": allocation},
-            message="Room allocated successfully",
+            message="Phân phòng thành công",
             status=201,
         )
 

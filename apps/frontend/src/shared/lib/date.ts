@@ -3,6 +3,12 @@ export const todayValue = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
+export const tomorrowValue = () => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
+}
+
 export const timeLabel = (value: string) =>
   value.includes('T') ? value.slice(11, 16) : value.slice(0, 5)
 

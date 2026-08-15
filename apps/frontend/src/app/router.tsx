@@ -9,6 +9,7 @@ const DashboardPage = lazy(() => import('@/features/dashboard').then((module) =>
 const AppointmentsPage = lazy(() => import('@/features/appointments').then((module) => ({ default: module.AppointmentsPage })))
 const PatientsPage = lazy(() => import('@/features/patients').then((module) => ({ default: module.PatientsPage })))
 const MedicalRecordsPage = lazy(() => import('@/features/medical-records').then((module) => ({ default: module.MedicalRecordsPage })))
+const EmployeeListPage = lazy(() => import('@/features/employees').then((module) => ({ default: module.EmployeeListPage })))
 
 const routeFallback = <div className="empty-box">Đang tải trang...</div>
 const dashboardFallback = (
@@ -27,6 +28,11 @@ function DoctorRoute() {
   )
 }
 
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user)
+  return user?.role === 'manager' ? <Suspense fallback={routeFallback}>{children}</Suspense> : <Navigate to="/dashboard" replace />
+}
+
 export default function AppRouter() {
   const token = useAuthStore((state) => state.token)
 
@@ -43,6 +49,7 @@ export default function AppRouter() {
         <Route path="/appointments" element={<Suspense fallback={routeFallback}><AppointmentsPage /></Suspense>} />
         <Route path="/patients" element={<Suspense fallback={routeFallback}><PatientsPage /></Suspense>} />
         <Route path="/medical-records" element={<DoctorRoute />} />
+        <Route path="/staff" element={<ManagerRoute><EmployeeListPage /></ManagerRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

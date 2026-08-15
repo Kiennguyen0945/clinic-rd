@@ -4,6 +4,7 @@ from .role import Role
 
 
 class User(models.Model):
+    GENDER_CHOICES = (("M", "Male"), ("F", "Female"), ("O", "Other"))
     STATUS_CHOICES = (
         ("ACTIVE", "Active"),
         ("INACTIVE", "Inactive"),
@@ -18,6 +19,9 @@ class User(models.Model):
     password_hash = models.CharField(max_length=255)
     full_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, default="")
+    date_of_birth = models.DateField(null=True, blank=True)
+    address = models.TextField(blank=True, default="")
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,

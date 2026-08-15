@@ -12,11 +12,11 @@ from . import AuthServiceError
 def delete_staff(*, user_id):
     user = get_staff(user_id)
     if user is None:
-        raise AuthServiceError("EMPLOYEE_NOT_FOUND", "Employee not found", status=404)
+        raise AuthServiceError("EMPLOYEE_NOT_FOUND", "Không tìm thấy nhân viên", status=404)
     if staff_has_clinical_dependencies(user):
         raise AuthServiceError(
             "EMPLOYEE_LOCKED",
-            "Employee cannot be deleted after clinical activity",
+            "Không thể xóa nhân viên đã có dữ liệu khám bệnh hoặc lịch hẹn",
             status=409,
         )
 
@@ -27,6 +27,6 @@ def delete_staff(*, user_id):
     except ProtectedError as exc:
         raise AuthServiceError(
             "EMPLOYEE_LOCKED",
-            "Employee cannot be deleted because related data exists",
+            "Không thể xóa nhân viên vì đang có dữ liệu liên quan",
             status=409,
         ) from exc

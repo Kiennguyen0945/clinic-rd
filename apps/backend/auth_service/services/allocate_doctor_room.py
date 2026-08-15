@@ -20,21 +20,21 @@ def allocate_doctor_room(
 ):
     doctor = get_staff(doctor_id)
     if doctor is None or doctor.role.code != "DOCTOR":
-        raise AuthServiceError("DOCTOR_NOT_FOUND", "Doctor not found", status=404)
+        raise AuthServiceError("DOCTOR_NOT_FOUND", "Không tìm thấy bác sĩ", status=404)
     try:
         room = Room.objects.get(pk=room_id)
     except (Room.DoesNotExist, ValueError, TypeError) as exc:
         raise AuthServiceError(
             "VALIDATION_ERROR",
-            "Invalid room allocation",
-            details={"roomId": "Room does not exist"},
+            "Thông tin phân phòng không hợp lệ",
+            details={"roomId": "Phòng không tồn tại"},
         ) from exc
 
     if slot_date < timezone.localdate():
         raise AuthServiceError(
             "VALIDATION_ERROR",
-            "Invalid room allocation",
-            details={"date": "Date cannot be in the past"},
+            "Thông tin phân phòng không hợp lệ",
+            details={"date": "Không thể chọn ngày trong quá khứ"},
         )
     if (
         start_time >= end_time
@@ -45,8 +45,8 @@ def allocate_doctor_room(
     ):
         raise AuthServiceError(
             "VALIDATION_ERROR",
-            "Invalid room allocation",
-            details={"timeRange": "Use a positive range aligned to whole hours"},
+            "Thông tin phân phòng không hợp lệ",
+            details={"timeRange": "Khoảng thời gian phải theo giờ tròn và giờ kết thúc phải sau giờ bắt đầu"},
         )
     start_at = timezone.make_aware(
         datetime.combine(slot_date, start_time), timezone.get_current_timezone()
@@ -54,8 +54,8 @@ def allocate_doctor_room(
     if start_at <= timezone.now():
         raise AuthServiceError(
             "VALIDATION_ERROR",
-            "Invalid room allocation",
-            details={"startTime": "Allocation must start in the future"},
+            "Thông tin phân phòng không hợp lệ",
+            details={"startTime": "Thời gian phân phòng phải ở tương lai"},
         )
 
     conflicts = DoctorSlot.objects.select_for_update().filter(
@@ -66,14 +66,14 @@ def allocate_doctor_room(
     if conflicts.filter(room=room).exists():
         raise AuthServiceError(
             "ROOM_UNAVAILABLE",
-            "Room is already allocated during the selected time",
+            "Phòng đã được phân công trong khoảng thời gian đã chọn",
             status=409,
             details={"roomId": str(room.id), "slotDate": slot_date.isoformat()},
         )
     if conflicts.filter(doctor=doctor).exists():
         raise AuthServiceError(
             "DOCTOR_UNAVAILABLE",
-            "Doctor already has a schedule during the selected time",
+            "Bác sĩ đã có lịch làm việc trong khoảng thời gian đã chọn",
             status=409,
             details={"doctorId": str(doctor.id), "slotDate": slot_date.isoformat()},
         )
