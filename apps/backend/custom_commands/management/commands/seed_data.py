@@ -212,7 +212,7 @@ class Command(BaseCommand):
                         defaults={
                             'room': rooms[room_number],
                             'capacity': 4,
-                            'status': 'CLOSED' if username == 'doctor1' and hour == 15 else 'OPEN',
+                            'status': 'OPEN',
                         },
                     )
                     slots[(slot_date, username, hour)] = slot

@@ -14,6 +14,7 @@ export interface UpcomingAppointment {
   patientName: string
   patientCode: string
   doctorName: string
+  patientPhone: string
   appointmentTime: string
   status: string
 }

@@ -38,6 +38,7 @@ export function useTodayDashboardQuery() {
     enabled: Boolean(token),
     retry: false,
     refetchOnWindowFocus: false,
+    refetchInterval: 3_000,
     gcTime: 0,
   })
 }
