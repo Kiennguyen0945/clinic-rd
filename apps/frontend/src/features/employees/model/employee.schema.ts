@@ -9,6 +9,7 @@ export const employeeSchema = z.object({
   dateOfBirth: z.string().optional(),
   address: z.string().trim().optional(),
   roleCode: z.enum(['RECEPTIONIST', 'DOCTOR']),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'LOCKED']),
   password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự.').optional().or(z.literal('')),
   departmentId: z.string().optional(),
   roomId: z.string().optional(),

@@ -17,7 +17,7 @@ export default function EmployeeFormModal({ employee, onClose, onSaved }: { empl
   const [usernameEdited, setUsernameEdited] = useState(false)
   const { control, register, setValue, handleSubmit, formState: { errors } } = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: employee ? { username: employee.username, fullName: editableEmployeeName(employee.fullName), email: employee.email || '', phone: employee.phone, gender: employee.gender || '', dateOfBirth: employee.dateOfBirth || '', address: employee.address || '', roleCode: employee.role, departmentId: String(employee.departments[0]?.id || ''), roomId: '', password: '' } : { username: '', fullName: '', email: '', phone: '', gender: '', dateOfBirth: '', address: '', roleCode: 'RECEPTIONIST', password: '', departmentId: '', roomId: '' },
+    defaultValues: employee ? { username: employee.username, fullName: editableEmployeeName(employee.fullName), email: employee.email || '', phone: employee.phone, gender: employee.gender || '', dateOfBirth: employee.dateOfBirth || '', address: employee.address || '', roleCode: employee.role, status: employee.status, departmentId: String(employee.departments[0]?.id || ''), roomId: '', password: '' } : { username: '', fullName: '', email: '', phone: '', gender: '', dateOfBirth: '', address: '', roleCode: 'RECEPTIONIST', status: 'ACTIVE', password: '', departmentId: '', roomId: '' },
   })
   const role = useWatch({ control, name: 'roleCode' })
   const displayError = serverError || (resources.error ? 'Không thể tải danh sách khoa và phòng.' : '')
@@ -29,6 +29,9 @@ export default function EmployeeFormModal({ employee, onClose, onSaved }: { empl
     try {
       if (employee) {
         await mutations.update.mutateAsync({ id: employee.id, body: { fullName: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim(), gender: values.gender, dateOfBirth: values.dateOfBirth || null, address: values.address || '', status: employee.status, ...(employee.role === 'DOCTOR' ? { departmentId: Number(values.departmentId) } : {}) } })
+        if (values.status !== employee.status) {
+          await mutations.toggleLock.mutateAsync({ id: employee.id, action: values.status === 'LOCKED' ? 'lock' : 'unlock' })
+        }
         onSaved()
       } else {
         const result = await mutations.create.mutateAsync({ username: values.username.trim(), fullName: values.fullName.trim(), email: values.email.trim(), phone: values.phone.trim(), gender: values.gender, dateOfBirth: values.dateOfBirth || null, address: values.address || '', roleCode: values.roleCode, ...(values.password ? { password: values.password } : {}), ...(values.roleCode === 'DOCTOR' ? { departmentId: Number(values.departmentId), ...(values.roomId ? { roomId: Number(values.roomId) } : {}) } : {}) })
@@ -48,6 +51,7 @@ export default function EmployeeFormModal({ employee, onClose, onSaved }: { empl
       <label>Ngày sinh<input type="date" autoComplete="bday" {...register('dateOfBirth')} /></label>
       <label className="employee-span-two">Địa chỉ<textarea rows={2} autoComplete="street-address" {...register('address')} /></label>
       <label>Vai trò *<select disabled={Boolean(employee)} {...register('roleCode')}><option value="RECEPTIONIST">Lễ tân</option><option value="DOCTOR">Bác sĩ</option></select></label>
+      {employee && <label>Trạng thái tài khoản *<select {...register('status')}><option value="ACTIVE">Đang hoạt động</option><option value="INACTIVE">Ngừng hoạt động</option><option value="LOCKED">Đã khóa</option></select><span className="field-hint">Khóa tài khoản không phụ thuộc vào lịch sử khám bệnh.</span></label>}
       {!employee && <label>Mật khẩu<input type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" placeholder="Để trống để tự sinh" {...register('password')} />{errors.password && <small>{errors.password.message}</small>}</label>}
       {role === 'DOCTOR' && <><label>Khoa *<select {...register('departmentId')}><option value="">Chọn khoa</option>{resources.data?.departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{errors.departmentId && <small>{errors.departmentId.message}</small>}</label>{!employee && <label>Phòng ngày mai (không bắt buộc)<select {...register('roomId')}><option value="">Phân phòng sau</option>{resources.data?.rooms.map((item) => <option key={item.id} value={item.id}>{item.room_number}</option>)}</select><span className="field-hint">Nếu chọn, hệ thống tạo lịch cả ngày mai.</span></label>}</>}
     </div>

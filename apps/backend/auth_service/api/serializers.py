@@ -61,6 +61,20 @@ class StaffUpdateSerializer(serializers.Serializer):
     departmentId = serializers.IntegerField(required=False)
 
 
+class PersonalProfileSerializer(serializers.Serializer):
+    fullName = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.RegexField(
+        regex=r"^\d{9,11}$", required=False, allow_blank=True,
+        error_messages={"invalid": "Số điện thoại phải có 9–11 chữ số"},
+    )
+    gender = serializers.ChoiceField(
+        choices=User.GENDER_CHOICES, required=False, allow_blank=True
+    )
+    dateOfBirth = serializers.DateField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+
+
 class RoomAllocationSerializer(serializers.Serializer):
     roomId = serializers.IntegerField()
     date = serializers.DateField()

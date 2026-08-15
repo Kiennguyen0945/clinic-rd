@@ -21,8 +21,10 @@ from ..services.change_password import change_password
 from ..services.create_staff import create_staff
 from ..services.delete_staff import delete_staff
 from ..services.toggle_staff_lock import toggle_staff_lock
+from ..services.update_profile import update_profile
 from ..services.update_staff import update_staff
 from .serializers import (
+    PersonalProfileSerializer,
     RoleSerializer,
     RoomAllocationSerializer,
     StaffCreateSerializer,
@@ -90,6 +92,21 @@ def _staff_payload(user, *, locked=None):
         if is_doctor
         else "NOT_APPLICABLE",
         "canReceiveAppointments": can_receive_appointments,
+    }
+
+
+def _profile_payload(user):
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "fullName": user.full_name,
+        "email": user.email,
+        "phone": user.phone,
+        "gender": user.gender,
+        "dateOfBirth": user.date_of_birth.isoformat() if user.date_of_birth else None,
+        "address": user.address,
+        "role": user.role.code,
+        "status": user.status,
     }
 
 
@@ -180,6 +197,41 @@ class ChangePasswordView(APIView):
         except AuthServiceError as exc:
             return _service_error_response(exc)
         return success_response({}, message="Đổi mật khẩu thành công")
+
+
+class PersonalProfileView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return success_response(
+            _profile_payload(request.user),
+            message="Lấy thông tin cá nhân thành công",
+        )
+
+    def patch(self, request):
+        serializer = PersonalProfileSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                "VALIDATION_ERROR",
+                "Thông tin cá nhân không hợp lệ",
+                details=serializer.errors,
+            )
+        try:
+            user = update_profile(
+                user=request.user,
+                full_name=serializer.validated_data["fullName"],
+                email=serializer.validated_data["email"],
+                phone=serializer.validated_data.get("phone", ""),
+                gender=serializer.validated_data.get("gender", ""),
+                date_of_birth=serializer.validated_data.get("dateOfBirth"),
+                address=serializer.validated_data.get("address", ""),
+            )
+        except AuthServiceError as exc:
+            return _service_error_response(exc)
+        return success_response(
+            _profile_payload(user),
+            message="Cập nhật thông tin cá nhân thành công",
+        )
 
 
 class StaffCreateView(APIView):

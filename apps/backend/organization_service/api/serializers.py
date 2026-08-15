@@ -40,7 +40,7 @@ class RoomSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     doctor_id = serializers.PrimaryKeyRelatedField(
         source="doctor",
-        queryset=User.objects.filter(role__code="DOCTOR"),
+        queryset=User.objects.filter(role__code="DOCTOR", status="ACTIVE"),
         required=False,
         allow_null=True,
     )

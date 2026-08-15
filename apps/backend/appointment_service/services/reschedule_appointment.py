@@ -97,6 +97,10 @@ def _resolve_doctor(appointment, data):
         raise AppointmentServiceError('DOCTOR_NOT_FOUND', 'Không tìm thấy bác sĩ', status=404) from exc
     if getattr(getattr(doctor, 'role', None), 'code', None) != 'DOCTOR':
         raise AppointmentServiceError('DOCTOR_NOT_FOUND', 'Không tìm thấy bác sĩ', status=404)
+    if doctor.status != 'ACTIVE':
+        raise AppointmentServiceError(
+            'DOCTOR_ACCOUNT_LOCKED', 'Tài khoản bác sĩ đã bị khóa', status=409
+        )
     return doctor
 
 
