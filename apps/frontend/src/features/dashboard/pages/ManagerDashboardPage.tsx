@@ -5,8 +5,6 @@ import {
   Activity, Ban, Building2, CalendarDays, CheckCircle2, Clock3,
   Download, RefreshCw, Stethoscope, Users,
 } from 'lucide-react'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-
 import { useAuthStore } from '../../../shared/auth/session-store'
 import { useManagerDashboardQuery } from '../model/dashboard.queries'
 
@@ -56,6 +54,14 @@ export default function ManagerDashboardPage() {
     { name: 'Hoàn thành', value: stats.completed },
     { name: 'Đã hủy', value: stats.cancelled },
   ].filter((item) => item.value > 0)
+  let chartOffset = 0
+  const donutBackground = chartData.length
+    ? `conic-gradient(${chartData.map((item, index) => {
+        const start = chartOffset
+        chartOffset += (item.value / stats.total) * 100
+        return `${COLORS[index % COLORS.length]} ${start}% ${chartOffset}%`
+      }).join(', ')})`
+    : '#e2e8f0'
 
   if (isPending) return <div className="card manager-loading">Đang tải báo cáo quản lý...</div>
   if (isError || !data) return (
@@ -129,7 +135,7 @@ export default function ManagerDashboardPage() {
       <section className="manager-panel manager-chart-panel">
         <div className="manager-panel-title"><h3>Tình hình khám trong ngày</h3><span>Tổng {stats.total} lượt khám</span></div>
         {chartData.length ? <div className="manager-chart-body">
-          <div className="manager-donut"><ResponsiveContainer width="100%" height={230}><PieChart><Pie data={chartData.length ? chartData : [{ name: 'Chưa có dữ liệu', value: 1 }]} dataKey="value" innerRadius={62} outerRadius={92} paddingAngle={2}>{(chartData.length ? chartData : [{ name: '', value: 1 }]).map((_, index) => <Cell key={index} fill={chartData.length ? COLORS[index % COLORS.length] : '#e2e8f0'} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div><strong>{stats.total}</strong><span>Tổng lượt khám</span></div></div>
+          <div className="manager-donut"><div className="manager-donut-ring" role="img" aria-label={`Phân bố ${stats.total} lượt khám`} style={{ background: donutBackground }}><span /></div><div className="manager-donut-label"><strong>{stats.total}</strong><span>Tổng lượt khám</span></div></div>
           <div className="manager-legend">{chartData.map((item, index) => <div key={item.name}><i style={{ background: COLORS[index % COLORS.length] }} /><span>{item.name}</span><b>{item.value} ({percent(item.value, stats.total)}%)</b></div>)}</div>
         </div> : <div className="manager-empty-state chart"><div className="empty-illustration calendar"><CalendarDays size={43} /><Activity size={21} /></div><b>Chưa có lịch khám nào trong ngày này</b><span>Hiện tại không có lịch khám nào được ghi nhận.<br />Hãy chọn ngày khác để xem số liệu.</span></div>}
       </section>

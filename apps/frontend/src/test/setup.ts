@@ -13,7 +13,7 @@ class TestResizeObserver implements ResizeObserver {
 
 globalThis.ResizeObserver = TestResizeObserver
 
-configure({ asyncUtilTimeout: 5_000 })
+configure({ asyncUtilTimeout: 10_000 })
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 

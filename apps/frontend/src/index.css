@@ -1496,8 +1496,11 @@ tbody td {
 .organization-grid > div { display:grid; grid-template-columns:34px 1fr; column-gap:10px; align-items:center; padding:12px; background:var(--surface-muted); border-radius:9px; }
 .organization-grid svg { grid-row:span 2; color:var(--color-brand-600); }.organization-grid strong { font-size:20px; }.organization-grid span { color:var(--text-secondary); font-size:10px; }
 .manager-chart-body { display:grid; grid-template-columns:1fr 1fr; align-items:center; min-height:260px; padding:8px 16px 15px; }
-.manager-donut { position:relative; min-width:0; }.manager-donut > div:last-child { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
-.manager-donut > div:last-child strong { font-size:25px; }.manager-donut > div:last-child span { color:var(--text-secondary); font-size:9px; }
+.manager-donut { position:relative; display:flex; align-items:center; justify-content:center; min-width:0; min-height:230px; }
+.manager-donut-ring { position:relative; width:184px; height:184px; border-radius:50%; transform:rotate(-90deg); }
+.manager-donut-ring > span { position:absolute; inset:30px; background:var(--surface-card); border-radius:50%; }
+.manager-donut-label { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+.manager-donut-label strong { font-size:25px; }.manager-donut-label span { color:var(--text-secondary); font-size:9px; }
 .manager-legend { display:flex; flex-direction:column; gap:9px; }.manager-legend div { display:grid; grid-template-columns:8px 1fr auto; gap:7px; align-items:center; font-size:10px; }
 .manager-legend i { width:8px; height:8px; border-radius:50%; }.manager-legend span { color:var(--text-secondary); }.manager-legend b { font-size:10px; }
 .daily-summary { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:18px; }
