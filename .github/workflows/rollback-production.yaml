@@ -1,0 +1,109 @@
+name: Rollback production
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Previously successful release tag, for example v0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinic-production
+  cancel-in-progress: false
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_tag: ${{ steps.manifest.outputs.frontend_tag }}
+      backend_tag: ${{ steps.manifest.outputs.backend_tag }}
+      reporting_tag: ${{ steps.manifest.outputs.reporting_tag }}
+    steps:
+      - name: Validate release tag format
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+      - name: Checkout rollback release
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Validate rollback manifest
+        id: manifest
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          bash .github/scripts/read-release-manifest.sh \
+            "deploy/releases/${RELEASE_TAG}.env" "$GITHUB_OUTPUT"
+
+  rollback:
+    needs: validate-release
+    runs-on: clinic-production
+    environment:
+      name: production
+    steps:
+      - name: Checkout rollback release
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Prepare rollback deployment
+        env:
+          DEPLOY_DIR: ${{ runner.workspace }}/clinic-production
+          FRONTEND_TAG: ${{ needs.validate-release.outputs.frontend_tag }}
+          BACKEND_TAG: ${{ needs.validate-release.outputs.backend_tag }}
+          REPORTING_TAG: ${{ needs.validate-release.outputs.reporting_tag }}
+        run: |
+          test -f "$DEPLOY_DIR/.env"
+          cp docker-compose.prod.yaml "$DEPLOY_DIR/docker-compose.prod.yaml"
+          cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.rollback"
+          sed -i \
+            -e "s/^FRONTEND_TAG=.*/FRONTEND_TAG=$FRONTEND_TAG/" \
+            -e "s/^BACKEND_TAG=.*/BACKEND_TAG=$BACKEND_TAG/" \
+            -e "s/^REPORTING_TAG=.*/REPORTING_TAG=$REPORTING_TAG/" \
+            "$DEPLOY_DIR/.env.rollback"
+
+      - name: Deploy previous image set
+        working-directory: ${{ runner.workspace }}/clinic-production
+        run: |
+          docker compose --env-file .env.rollback -f docker-compose.prod.yaml pull
+          cp .env .env.pre-rollback
+          mv .env.rollback .env
+          docker compose -f docker-compose.prod.yaml up -d --wait --wait-timeout 120
+
+      - name: Rollback smoke test
+        run: |
+          curl --fail --silent --show-error http://localhost/ > /dev/null
+          reporting_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            http://localhost/api/reports/dashboard/manager/)
+          test "$reporting_status" = "401"
+
+      - name: Restore pre-rollback release if rollback fails
+        if: failure()
+        working-directory: ${{ runner.workspace }}/clinic-production
+        run: |
+          if [ ! -f .env.pre-rollback ]; then
+            echo "No pre-rollback environment is recorded; manual recovery is required." >&2
+            exit 1
+          fi
+          cp .env.pre-rollback .env
+          docker compose -f docker-compose.prod.yaml up -d --pull always \
+            --wait --wait-timeout 120
+
+      - name: Record active release
+        env:
+          DEPLOY_DIR: ${{ runner.workspace }}/clinic-production
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: printf '%s\n' "$RELEASE_TAG" > "$DEPLOY_DIR/CURRENT_RELEASE"
