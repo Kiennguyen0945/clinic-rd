@@ -95,6 +95,7 @@ export default function MedicalRecordsPage() {
   const locallyCancelledIds = useRef(new Set<string>())
   const locallyCompletedIds = useRef(new Set<string>())
   const completedDrafts = useRef(new Map<string, Draft>())
+  const autoOpenedAppointment = useRef('')
 
   const currentDoctor = user?.fullName || 'Nguyễn Minh Đức'
   const queueQuery = useDoctorQueueQuery(user?.id || '')
@@ -120,13 +121,22 @@ export default function MedicalRecordsPage() {
     })
     setAppointments(nextAppointments)
     setPageError('')
+    const requestedAppointmentId = searchParams.get('appointmentId') || ''
+    const requestedSlotId = searchParams.get('slotId') || ''
+    const requestedSlotStart = searchParams.get('slotStart') || ''
+    const matchingSlot = requestedSlotId
+      ? queueQuery.data.slots.find((item) => item.id === requestedSlotId)
+      : queueQuery.data.slots.find((item) => item.start.slice(0, 5) === requestedSlotStart)
+    if (matchingSlot) setExpandedSlotId(matchingSlot.id)
     setSelectedId((current) => nextAppointments.some((item) => item.id === current)
-      ? current
+      ? (requestedAppointmentId || current)
+      : nextAppointments.some((item) => item.id === requestedAppointmentId)
+        ? requestedAppointmentId
       : nextAppointments.find((item) => item.status === 'IN_PROGRESS')?.id
         || nextAppointments.find((item) => item.status === 'WAITING')?.id
         || nextAppointments[0]?.id
         || '')
-  }, [queueQuery.data])
+  }, [queueQuery.data, searchParams])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const openVisit = async (appointment: Appointment) => {
@@ -153,6 +163,18 @@ export default function MedicalRecordsPage() {
       setStartingId('')
     }
   }
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const requestedId = searchParams.get('appointmentId') || ''
+    if (!requestedId || autoOpenedAppointment.current === requestedId) return
+    const requested = appointments.find((item) => item.id === requestedId)
+    if (!requested || (requested.status !== 'WAITING' && requested.status !== 'IN_PROGRESS')) return
+    autoOpenedAppointment.current = requestedId
+    void openVisit(requested)
+    // openVisit intentionally runs once for the appointment carried by the dashboard URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments, searchParams])
+  /* eslint-enable react-hooks/set-state-in-effect */
   const backToDashboard = () => { setActiveVisit(null); setShowComplete(false); setMedicalRecordError('') }
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const persistDraft = async (showSuccess: boolean) => {

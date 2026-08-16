@@ -116,10 +116,21 @@ def dashboard_today(*, doctor_id=None, now=None):
         'completed': queryset.filter(status='COMPLETED').count(),
         'cancelled': queryset.filter(status='CANCELLED').count(),
     }
-    upcoming = queryset.filter(appointment_time__gte=now, status__in=('CONFIRMED', 'WAITING', 'IN_PROGRESS')).order_by('appointment_time')[:5]
+    upcoming = queryset.filter(status__in=('CONFIRMED', 'WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')).order_by(
+        Case(
+            When(status='IN_PROGRESS', then=Value(0)),
+            When(status='WAITING', then=Value(1)),
+            When(status='CONFIRMED', then=Value(2)),
+            When(status='COMPLETED', then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        ),
+        'appointment_time',
+    )
     return {'todayStats': {'total': queryset.count(), **counts}, 'upcomingAppointments': [
         {'id': str(a.id), 'patientName': a.patient.full_name, 'patientCode': a.patient.patient_code,
-         'doctorName': a.doctor.full_name, 'appointmentTime': timezone.localtime(a.appointment_time).isoformat(), 'status': a.status}
+         'doctorName': a.doctor.full_name, 'patientPhone': a.patient.phone,
+         'appointmentTime': timezone.localtime(a.appointment_time).isoformat(), 'status': a.status}
         for a in upcoming]}
 
 
