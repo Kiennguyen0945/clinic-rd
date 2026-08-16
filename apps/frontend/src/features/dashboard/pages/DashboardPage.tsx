@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
 import { useState } from 'react'
-import { format, parseISO } from 'date-fns'
-=======
->>>>>>> Stashed changes
 import { Activity, Clock, CheckCircle, CalendarCheck, Search, Plus, Stethoscope, Ban } from 'lucide-react'
 import { useTodayDashboardQuery } from '../model/dashboard.queries'
 import { useAuthStore } from '../../../shared/auth/session-store'
