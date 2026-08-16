@@ -78,10 +78,12 @@ jobs:
       - name: Deploy previous image set
         working-directory: ${{ runner.workspace }}/clinic-production
         run: |
-          docker compose --env-file .env.rollback -f docker-compose.prod.yaml pull
+          docker compose --project-name clinic-rd --env-file .env.rollback \
+            -f docker-compose.prod.yaml pull
           cp .env .env.pre-rollback
           mv .env.rollback .env
-          docker compose -f docker-compose.prod.yaml up -d --wait --wait-timeout 120
+          docker compose --project-name clinic-rd -f docker-compose.prod.yaml \
+            up -d --wait --wait-timeout 120
 
       - name: Rollback smoke test
         run: |
@@ -99,7 +101,8 @@ jobs:
             exit 1
           fi
           cp .env.pre-rollback .env
-          docker compose -f docker-compose.prod.yaml up -d --pull always \
+          docker compose --project-name clinic-rd -f docker-compose.prod.yaml \
+            up -d --pull always \
             --wait --wait-timeout 120
 
       - name: Record active release

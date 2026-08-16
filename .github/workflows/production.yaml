@@ -104,7 +104,9 @@ jobs:
         env:
           DEPLOY_DIR: ${{ runner.workspace }}/clinic-production
         working-directory: ${{ runner.workspace }}/clinic-production
-        run: docker compose --env-file .env.next -f docker-compose.prod.yaml pull
+        run: >-
+          docker compose --project-name clinic-rd --env-file .env.next
+          -f docker-compose.prod.yaml pull
 
       - name: Preserve previous release and deploy
         env:
@@ -115,7 +117,8 @@ jobs:
             cp .env .env.previous
           fi
           mv .env.next .env
-          docker compose -f docker-compose.prod.yaml up -d --wait --wait-timeout 120
+          docker compose --project-name clinic-rd -f docker-compose.prod.yaml \
+            up -d --wait --wait-timeout 120
 
       - name: Production smoke test
         run: |
@@ -135,7 +138,8 @@ jobs:
             exit 1
           fi
           cp .env.previous .env
-          docker compose -f docker-compose.prod.yaml up -d --pull always \
+          docker compose --project-name clinic-rd -f docker-compose.prod.yaml \
+            up -d --pull always \
             --wait --wait-timeout 120
 
       - name: Record successful release
