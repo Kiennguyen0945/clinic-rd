@@ -29,6 +29,10 @@ describe('manager organization workflow', () => {
         rooms.push({ id: 11, ...body, department: { id: 1, code: 'NOI', name: 'Nội khoa', description: null } })
         return HttpResponse.json(rooms[1], { status: 201 })
       }),
+      http.post('/api/reports/synchronize/', () => HttpResponse.json({
+        success: true,
+        data: { runId: 'test-sync', status: 'SUCCESS' },
+      })),
     )
 
     render(<App />)

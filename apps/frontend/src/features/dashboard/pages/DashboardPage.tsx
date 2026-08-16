@@ -1,5 +1,8 @@
+<<<<<<< Updated upstream
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
+=======
+>>>>>>> Stashed changes
 import { Activity, Clock, CheckCircle, CalendarCheck, Search, Plus, Stethoscope, Ban } from 'lucide-react'
 import { useTodayDashboardQuery } from '../model/dashboard.queries'
 import { useAuthStore } from '../../../shared/auth/session-store'
@@ -17,6 +20,14 @@ function statusBadge(status: string) {
   }
   const item = map[status] || { label: status, cls: 'badge-neutral' }
   return <span className={`badge ${item.cls}`}>{item.label}</span>
+}
+
+function appointmentTimeLabel(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value))
 }
 
 function OperationalDashboardPage() {
@@ -185,7 +196,7 @@ function OperationalDashboardPage() {
                       <div className="cell-sub">{apt.patientCode}</div>
                     </td>
                     <td style={{ fontWeight: 600 }}>
-                      {format(parseISO(apt.appointmentTime), 'HH:mm')}
+                      {appointmentTimeLabel(apt.appointmentTime)}
                     </td>
                     <td>{apt.doctorName}</td>
                     <td className="cell-sub">{apt.patientPhone || '—'}</td>
