@@ -145,3 +145,5 @@ def appointment_stats(start_date, end_date, group_by):
         return [{'date': r['date'].isoformat(), 'count': r['count']} for r in queryset.annotate(
             date=TruncDate('appointment_time')).values('date').annotate(count=Count('id')).order_by('date')]
     return None
+
+

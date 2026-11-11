@@ -1,5 +1,8 @@
 # Release manifests
 
+For the complete Vietnamese runbook and line-by-line workflow explanation, see
+`apps/docs/report/Quy-trinh-release-production-va-rollback.md`.
+
 Each production Git tag `vX.Y.Z` must have a matching
 `deploy/releases/vX.Y.Z.env` file in the tagged commit. The manifest records
 the immutable Docker image tags that passed staging together.
